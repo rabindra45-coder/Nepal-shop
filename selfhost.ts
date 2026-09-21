@@ -9,6 +9,7 @@
 import { Database } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
+import { eq } from "drizzle-orm";
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { Actions } from "./server/src/actions";
@@ -40,6 +41,32 @@ sqlite.exec("PRAGMA journal_mode = WAL;");
 const db = drizzle(sqlite, { schema });
 // Apply any pending migrations (no-op when already up to date).
 migrate(db, { migrationsFolder: "./drizzle" });
+
+// --- First production admin (documented in README): if ADMIN_EMAIL and
+// ADMIN_PASSWORD are set and no admin with that email exists yet, create the
+// real production admin with a bcrypt hash. This is the safe way to go live
+// instead of the dev seed admin (admin@nepalshop.local / Admin@123).
+{
+  const adminEmail = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
+  const adminPassword = process.env.ADMIN_PASSWORD ?? "";
+  if (adminEmail && adminPassword) {
+    const existing = await db
+      .select({ id: schema.admins.id })
+      .from(schema.admins)
+      .where(eq(schema.admins.email, adminEmail))
+      .limit(1);
+    if (!existing.length) {
+      await db.insert(schema.admins).values({
+        id: crypto.randomUUID(),
+        name: "Production Admin",
+        email: adminEmail,
+        passwordHash: await Bun.password.hash(adminPassword),
+        createdAt: new Date(),
+      });
+      console.log(`Created production admin: ${adminEmail}`);
+    }
+  }
+}
 
 function notSupported(name: string): never {
   throw new Error(`${name} is not available in the self-hosted server.`);
@@ -103,6 +130,49 @@ Bun.serve({
       } catch (e) {
         return Response.json({ error: zodMessage(e) }, { status: 400 });
       }
+    }
+
+    // --- SEO / PWA helpers (read-only, no behaviour changes to the shop) ---
+    if (url.pathname === "/robots.txt") {
+      const base = (process.env.PUBLIC_BASE_URL ?? `http://localhost:${PORT}`).replace(/\/+$/, "");
+      return new Response(`User-agent: *\nAllow: /\nSitemap: ${base}/sitemap.xml\n`, {
+        headers: { "content-type": "text/plain; charset=utf-8" },
+      });
+    }
+    if (url.pathname === "/manifest.webmanifest") {
+      return Response.json(
+        {
+          name: "Nepal Shop",
+          short_name: "Nepal Shop",
+          description: "A customer-facing online shopping site for Nepal.",
+          start_url: "/#/",
+          scope: "/",
+          display: "standalone",
+          background_color: "#fff9ed",
+          theme_color: "#d94829",
+        },
+        { headers: { "content-type": "application/manifest+json" } }
+      );
+    }
+    if (url.pathname === "/sitemap.xml") {
+      const base = (process.env.PUBLIC_BASE_URL ?? `http://localhost:${PORT}`).replace(/\/+$/, "");
+      const activeStores = await db
+        .select({ id: schema.storeSettings.id })
+        .from(schema.storeSettings)
+        .where(eq(schema.storeSettings.status, "active"));
+      const activeIds = new Set(activeStores.map((s) => s.id));
+      const rows = await db
+        .select({ id: schema.products.id, storeId: schema.products.storeId })
+        .from(schema.products)
+        .where(eq(schema.products.isActive, true));
+      const urls = rows
+        .filter((p) => activeIds.has(p.storeId))
+        .map((p) => `  <url><loc>${base}/#/product/${p.id}</loc></url>`)
+        .join("\n");
+      return new Response(
+        `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
+        { headers: { "content-type": "application/xml; charset=utf-8" } }
+      );
     }
 
     // --- Static storefront ---

@@ -1,0 +1,10 @@
+{
+  "name": "Nepal Shop",
+  "short_name": "Nepal Shop",
+  "description": "A customer-facing online shopping site for Nepal.",
+  "start_url": "/#/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fff9ed",
+  "theme_color": "#d94829"
+}
