@@ -1,0 +1,1 @@
+ALTER TABLE store_settings ADD COLUMN admin_key_hash TEXT NOT NULL DEFAULT '';
