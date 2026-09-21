@@ -8,16 +8,38 @@
 
 import { Database } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
+import { migrate } from "drizzle-orm/bun-sqlite/migrator";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { Actions } from "./server/src/actions";
 import * as schema from "./server/src/schema";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const DB_PATH = process.env.DB_PATH ?? "./data/app.db";
 
+// --- Boot: make sure the database exists and is up to date. ---
+// On hosts with an ephemeral filesystem (e.g. Render), point DB_PATH at a
+// persistent disk, e.g. DB_PATH=/var/shop-data/app.db. On first boot the
+// database is seeded from the bundled demo database, then any pending
+// drizzle migrations in ./drizzle are applied.
+{
+  const resolved = resolve(DB_PATH);
+  mkdirSync(dirname(resolved), { recursive: true });
+  if (!existsSync(resolved)) {
+    const seed = resolve("./data/app.db");
+    if (seed !== resolved && existsSync(seed)) {
+      copyFileSync(seed, resolved);
+      console.log(`Seeded database from ${seed}`);
+    }
+  }
+}
+
 const sqlite = new Database(DB_PATH);
 // Match the production pragmas used for the SQLite store.
 sqlite.exec("PRAGMA journal_mode = WAL;");
 const db = drizzle(sqlite, { schema });
+// Apply any pending migrations (no-op when already up to date).
+migrate(db, { migrationsFolder: "./drizzle" });
 
 function notSupported(name: string): never {
   throw new Error(`${name} is not available in the self-hosted server.`);
