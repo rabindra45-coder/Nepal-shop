@@ -32,9 +32,10 @@ Notes on the script:
 Start a scratch server (in a terminal you can close afterwards):
 
 ```bash
-cd /tmp/shopbuild/v3/nepal-shopping-site
-DB_PATH=/tmp/manual-test.db PORT=3333 bun selfhost.ts
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres PORT=3333 bun selfhost.ts
 ```
+(The server applies `supabase/schema.sql` and the demo seed on boot; point
+`DATABASE_URL` at a scratch database.)
 
 Call any action with `curl` like this (replace `ACTION` and `ARGS`):
 
@@ -82,9 +83,9 @@ curl -s http://localhost:3333/actions \
 
 ### (b) Fresh empty database
 
-1. `touch /tmp/fresh-b.db` (empty file), then boot with
-   `DB_PATH=/tmp/fresh-b.db`. No seed copy happens; migrations 0001–0006
-   must apply with no errors in the server log.
+1. Boot against an empty Postgres database with `SKIP_SEED=1`. No seed
+   copy happens; `supabase/schema.sql` must apply with no errors in the
+   server log.
 2. `signup` → works. `adminLogin` with the dev admin → works (seeded by migration).
 3. `registerSeller` → returns `SELL-…`; `adminListSellers` → status `pending`.
 4. `getStorefront` → 0 sellers, 0 products while pending.

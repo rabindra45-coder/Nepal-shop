@@ -94,6 +94,41 @@ export function AdminCoupons() {
 }
 
 // --- categories ---------------------------------------------------------------------
+// Per-category SEO editor. adminListCategories returns the current
+// seo_title/seo_description/intro_content values, so the form prefills with
+// whatever is saved; saving writes via adminUpdateCategorySeo.
+type SeoCategory = { id: number; seo_title: string | null; seo_description: string | null; intro_content: string | null };
+function CategorySeoEditor({ category }: { category: SeoCategory }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [seoTitle, setSeoTitle] = useState(category.seo_title ?? "");
+  const [seoDescription, setSeoDescription] = useState(category.seo_description ?? "");
+  const [introContent, setIntroContent] = useState(category.intro_content ?? "");
+  const saveSeo = useMutation({
+    mutationFn: () => api.adminUpdateCategorySeo({
+      category_id: category.id,
+      seo_title: seoTitle.trim() ? seoTitle.trim() : null,
+      seo_description: seoDescription.trim() ? seoDescription.trim() : null,
+      intro_content: introContent.trim() ? introContent.trim() : null,
+    }),
+    onSuccess: () => { toast("Category SEO saved."); void queryClient.invalidateQueries({ queryKey: ["admin-categories"] }); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not save the SEO fields.", "err"),
+  });
+  return (
+    <details className="seo-editor">
+      <summary>Edit SEO</summary>
+      <div className="stack-form compact">
+        <label>SEO title<input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} maxLength={140} placeholder="e.g. Handwoven clothing — Nepal Shop" /></label>
+        <label>SEO description<textarea value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} maxLength={220} rows={2} placeholder="One or two sentences for search results" /></label>
+        <label>Intro content<textarea value={introContent} onChange={(e) => setIntroContent(e.target.value)} maxLength={3000} rows={3} placeholder="Category intro shown on the category page" /></label>
+        <button className="primary" disabled={saveSeo.isPending} onClick={() => saveSeo.mutate()}>
+          {saveSeo.isPending ? "Saving…" : "Save SEO"}
+        </button>
+      </div>
+    </details>
+  );
+}
+
 export function AdminCategories() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -116,7 +151,9 @@ export function AdminCategories() {
       {list.error && <p className="form-error">Could not load categories.</p>}
       <div className="admin-table">{list.data?.categories.map((c) => (
         <article key={c.id}>
-          <div><h3>{c.name}</h3><p className="muted">/{c.slug} · {c.is_active ? "Visible" : "Hidden"}</p></div>
+          <div><h3>{c.name}</h3><p className="muted">/{c.slug} · {c.is_active ? "Visible" : "Hidden"}</p>
+            <CategorySeoEditor key={c.id} category={c} />
+          </div>
           <div className="order-actions">
             <button onClick={() => save.mutate({ id: c.id, name: c.name, is_active: !c.is_active })}>{c.is_active ? "Hide" : "Show"}</button>
             <button className="text-danger" onClick={() => { if (window.confirm(`Delete category “${c.name}”?`)) remove.mutate(c.id); }}>Delete</button>

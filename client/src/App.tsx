@@ -14,8 +14,9 @@ import {
   ProductPage, SearchPage, StorePage, WishlistPage, STATUS_LABEL,
 } from "./screens";
 import { AccountShell, Drawer, FieldError, GroupTrail, HelpPage, NotificationsPage, OrderTrail, useBuyerAvatar, useUnreadCount } from "./account";
-import { AboutPage, ContactPage, PrivacyPage, TermsPage, NotFoundPage, CookieBanner } from "./legal";
-import { ProductExtraFields, SellerAnalytics, SellerEarnings, SellerReturns, SellerStatusBanners, ShipmentForm, SpecManager, StockHistory, StudioSellerSettings, VariantManager, productExtraPayload } from "./studio2";
+import { AboutPage, ContactPage, CookiePolicyPage, PrivacyPage, RefundPolicyPage, ReturnPolicyPage, SellerTermsPage, ShippingPolicyPage, TermsPage, NotFoundPage, CookieBanner } from "./legal";
+import { InvoicePage } from "./invoice";
+import { ProductExtraFields, SellerAnalytics, SellerCsvImport, SellerEarnings, SellerQuestions, SellerReturns, SellerStatusBanners, ShipmentForm, SpecManager, StockHistory, StudioSellerSettings, VariantManager, productExtraPayload } from "./studio2";
 import { AdminAnalytics, AdminAuditLog, AdminCategories, AdminCoupons, AdminEmail, AdminHomepage, AdminPayments, AdminRefunds, AdminReturns, AdminReviewReports, AdminShippingSettings, AdminShell, AdminTickets } from "./admin2";
 
 type Order = ApiResponse<typeof api, "listOrders">["orders"][number];
@@ -90,6 +91,12 @@ export function App() {
       "/contact": "Contact us — Nepal Shop",
       "/privacy": "Privacy policy — Nepal Shop",
       "/terms": "Terms and conditions — Nepal Shop",
+      "/refund": "Refund policy — Nepal Shop",
+      "/returns": "Return policy — Nepal Shop",
+      "/shipping": "Shipping policy — Nepal Shop",
+      "/seller-terms": "Seller terms — Nepal Shop",
+      "/cookies": "Cookie policy — Nepal Shop",
+      "/invoice": "Invoice — Nepal Shop",
       "/seller": "Seller studio — Nepal Shop",
       "/seller/login": "Seller log in — Nepal Shop",
       "/admin": "Admin panel — Nepal Shop",
@@ -105,9 +112,15 @@ export function App() {
       "/contact": "Contact Nepal Shop support for help with orders, sellers and payments.",
       "/privacy": "Nepal Shop privacy policy — how we handle your data.",
       "/terms": "Nepal Shop terms and conditions for buyers and sellers.",
+      "/refund": "How Nepal Shop refunds work — timelines, eSewa/Khalti and COD.",
+      "/returns": "30-day returns on Nepal Shop — how to request one.",
+      "/shipping": "Delivery options, times and costs across Nepal.",
+      "/seller-terms": "Rules for selling on Nepal Shop — verification, fees and fulfilment.",
+      "/cookies": "Nepal Shop cookie policy — what we store and why.",
     };
     // Private dashboards, baskets and auth pages must never appear in search results.
     const noindex = path.startsWith("/admin") || path.startsWith("/seller") || path.startsWith("/account")
+      || path.startsWith("/invoice")
       || ["/cart", "/checkout", "/wishlist", "/notifications", "/login", "/signup", "/compare", "/assistant"].includes(path);
     const setMeta = (name: string, content: string | null) => {
       let el = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
@@ -115,7 +128,8 @@ export function App() {
       if (!el) { el = document.createElement("meta"); el.name = name; document.head.appendChild(el); }
       el.content = content;
     };
-    document.title = titles[path] ?? (path.startsWith("/product/") || path.startsWith("/store/") ? document.title : "Nepal Shop — Local Marketplace");
+    document.title = titles[path] ?? (path.startsWith("/invoice/") ? "Invoice — Nepal Shop"
+      : path.startsWith("/product/") || path.startsWith("/store/") ? document.title : "Nepal Shop — Local Marketplace");
     if (descriptions[path] && !path.startsWith("/product/") && !path.startsWith("/store/")) setMeta("description", descriptions[path]);
     setMeta("robots", noindex ? "noindex, nofollow" : null);
   }, [path]);
@@ -135,8 +149,13 @@ export function App() {
                 <button className="linklike" onClick={() => go("/about")}>About</button>
                 <button className="linklike" onClick={() => go("/contact")}>Contact</button>
                 <button className="linklike" onClick={() => go("/help")}>Help</button>
+                <button className="linklike" onClick={() => go("/shipping")}>Shipping</button>
+                <button className="linklike" onClick={() => go("/returns")}>Returns</button>
+                <button className="linklike" onClick={() => go("/refund")}>Refunds</button>
                 <button className="linklike" onClick={() => go("/privacy")}>Privacy</button>
+                <button className="linklike" onClick={() => go("/cookies")}>Cookies</button>
                 <button className="linklike" onClick={() => go("/terms")}>Terms</button>
+                <button className="linklike" onClick={() => go("/seller-terms")}>Seller terms</button>
                 <button className="linklike" onClick={() => go(auth?.type === "admin" ? "/admin" : "/admin/login")}>Admin</button>
               </nav>
               <small className="muted">© 2026 Nepal Shop</small>
@@ -322,6 +341,15 @@ function RouteView({ path, query, invalidate }: { path: string; query: URLSearch
   if (path === "/contact") return <ContactPage />;
   if (path === "/privacy") return <PrivacyPage />;
   if (path === "/terms") return <TermsPage />;
+  if (path === "/refund") return <RefundPolicyPage />;
+  if (path === "/returns") return <ReturnPolicyPage />;
+  if (path === "/shipping") return <ShippingPolicyPage />;
+  if (path === "/seller-terms") return <SellerTermsPage />;
+  if (path === "/cookies") return <CookiePolicyPage />;
+  if (path.startsWith("/invoice/")) {
+    const code = decodeURIComponent(path.slice("/invoice/".length).split(/[/?]/)[0] ?? "");
+    return code ? <InvoicePage key={code} orderCode={code} /> : <NotFoundPage />;
+  }
   if (path.startsWith("/product/")) {
     const id = Number(path.slice("/product/".length).split(/[/?]/)[0]);
     return Number.isInteger(id) && id > 0 ? <ProductPage key={id} id={id} /> : <ShopPage />;
@@ -623,7 +651,7 @@ function SellerLogin() {
   </main>;
 }
 
-type StudioTab = "inventory" | "orders" | "returns" | "issues" | "analytics" | "earnings" | "settings";
+type StudioTab = "inventory" | "orders" | "returns" | "issues" | "questions" | "analytics" | "earnings" | "settings";
 function Studio({ invalidate }: { invalidate: () => void }) {
   const { auth, signOut } = useAuth();
   const queryClient = useQueryClient();
@@ -658,6 +686,13 @@ function Studio({ invalidate }: { invalidate: () => void }) {
     mutationFn: (id: number) => api.deleteProduct({ ...callArgs, id }),
     onSuccess: (res) => { setNotice(res.archived ? "Product archived — hidden from the shop, but its order history is kept." : "Product deleted."); setEditing(null); setConfirmDeleteProduct(false); privateRefresh(); },
     onError: (e) => { setConfirmDeleteProduct(false); setNotice(e instanceof Error ? e.message : "Could not remove the product."); },
+  });
+  // v9 approval flow: a rejected product can be sent back for review. While
+  // under review the server hides it from the shop (is_active=false).
+  const submitApproval = useMutation({
+    mutationFn: (product_id: number) => api.submitProductForApproval({ ...callArgs, product_id }),
+    onSuccess: () => { setNotice("Sent for approval — it stays hidden from the shop until an admin reviews it."); void queryClient.invalidateQueries({ queryKey: ["seller-inventory"] }); },
+    onError: (e) => setNotice(e instanceof Error ? e.message : "Could not submit for approval."),
   });
   const updateOrder = useMutation({ mutationFn: api.updateOrderStatus, onSuccess: privateRefresh });
   const resolve = useMutation({ mutationFn: api.resolveIssue, onSuccess: privateRefresh });
@@ -699,7 +734,7 @@ function Studio({ invalidate }: { invalidate: () => void }) {
   };
   const tabs: { id: StudioTab; label: string }[] = [
     { id: "inventory", label: "Inventory" }, { id: "orders", label: "Orders" }, { id: "returns", label: "Returns" },
-    { id: "issues", label: "Issues" }, { id: "analytics", label: "Analytics" }, { id: "earnings", label: "Earnings" }, { id: "settings", label: "Settings" },
+    { id: "issues", label: "Issues" }, { id: "questions", label: "Questions" }, { id: "analytics", label: "Analytics" }, { id: "earnings", label: "Earnings" }, { id: "settings", label: "Settings" },
   ];
   if (inventory.error) return <main className="studio-page"><section className="studio-intro"><p className="eyebrow">Session problem</p><h1>That sign-in didn’t work.</h1><p>Please sign in again.</p><button className="primary" onClick={lockStudio}>Back to sign in</button></section></main>;
   if (inventory.isPending) return <main className="studio-page"><p className="muted">Unlocking the studio…</p></main>;
@@ -735,8 +770,22 @@ function Studio({ invalidate }: { invalidate: () => void }) {
       </form>
       {editing && <VariantManager productId={editing.id} basePricePaisa={editing.price_paisa} callArgs={callArgs} />}
       {editing && <SpecManager productId={editing.id} callArgs={callArgs} />}
-      <div className="product-admin">{products.map((p) => <button key={p.id} onClick={() => { setEditing(p); setConfirmDeleteProduct(false); }}><span><b>{p.name}</b><small>{p.is_active ? `${p.stock} in stock` : "Hidden / draft"}</small></span><strong>{money(p.price_paisa)}</strong></button>)}</div></section>
+      <div className="product-admin">{products.map((p) => {
+        const approval = (p as unknown as { approval_status?: string }).approval_status ?? "approved";
+        return <div key={p.id} className="product-admin-row">
+          <button onClick={() => { setEditing(p); setConfirmDeleteProduct(false); }}>
+            <span><b>{p.name}</b><small>{p.is_active ? `${p.stock} in stock` : "Hidden / draft"}{approval === "pending" ? " · Awaiting approval" : approval === "rejected" ? " · Rejected — fix it and resubmit" : ""}</small></span>
+            <strong>{money(p.price_paisa)}</strong>
+          </button>
+          {approval === "rejected" && (
+            <button className="ghost" disabled={submitApproval.isPending} onClick={() => submitApproval.mutate(p.id)}>
+              {submitApproval.isPending ? "Sending…" : "Submit for approval"}
+            </button>
+          )}
+        </div>;
+      })}</div></section>
       <section className="studio-section"><div className="section-title"><h2>Stock history</h2></div><StockHistory callArgs={callArgs} /></section>
+      <section className="studio-section wide"><div className="section-title"><h2>Bulk import</h2></div><SellerCsvImport callArgs={callArgs} /></section>
     </div>}
 
     {tab === "orders" && <section className="studio-section wide"><div className="section-title"><h2>Orders</h2><span>{orderRows.length}</span></div>{orders.isPending ? <p className="muted">Loading orders…</p> : orderRows.length === 0 ? <p className="muted">New COD orders for this shop will arrive here.</p> : <div className="order-admin">{orderRows.map((order) => <article key={order.id}><div><p className="eyebrow">{order.order_code} · {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.created_at))}</p><h3>{order.customer_name}</h3><p>{order.items.map((i) => `${i.quantity} × ${i.product_name}`).join(", ")}</p><small>{order.address} · {order.phone}</small>{(order.tracking_number || order.carrier) && <p className="muted">Shipment: {[order.carrier, order.tracking_number].filter(Boolean).join(" · ")}</p>}<details><summary>Shipment details</summary><ShipmentForm order={order} callArgs={callArgs} onSaved={privateRefresh} /></details></div><div className="order-actions"><b>{money(order.total_paisa)}</b><span className={`status ${order.status}`}>{STATUS_LABEL[order.status] ?? order.status}</span>{nextStatus[order.status] && <button onClick={() => updateOrder.mutate({ ...callArgs, order_id: order.id, status: nextStatus[order.status] ?? order.status })}>Mark {(STATUS_LABEL[nextStatus[order.status] ?? order.status] ?? "").toLowerCase()}</button>}{order.status === "out_for_delivery" && <button className="text-danger" onClick={() => updateOrder.mutate({ ...callArgs, order_id: order.id, status: "delivery_failed" })}>Mark delivery failed</button>}{order.status === "confirmation_needed" && <button className="text-danger" onClick={() => updateOrder.mutate({ ...callArgs, order_id: order.id, status: "cancelled" })}>Decline</button>}</div></article>)}</div>}</section>}
@@ -744,6 +793,8 @@ function Studio({ invalidate }: { invalidate: () => void }) {
     {tab === "returns" && <section className="studio-section wide"><div className="section-title"><h2>Returns</h2></div><SellerReturns callArgs={callArgs} /></section>}
 
     {tab === "issues" && <section className="studio-section wide"><div className="section-title"><h2>Buyer issues</h2><span>{issueRows.filter((i) => i.status === "open").length} open</span></div>{issues.isPending ? <p className="muted">Loading issues…</p> : issueRows.length === 0 ? <p className="muted">No buyer issues reported for this shop.</p> : <div className="issues">{issueRows.map((item) => <article key={item.id}><div><p className="eyebrow">{item.order_code} · {item.kind}</p><p>{item.detail}</p><small>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.created_at))}</small></div>{item.status === "open" ? <button onClick={() => resolve.mutate({ ...callArgs, issue_id: item.id })}>Mark resolved</button> : <span className="success">Resolved</span>}</article>)}</div>}</section>}
+
+    {tab === "questions" && <section className="studio-section wide"><div className="section-title"><h2>Buyer questions</h2></div><SellerQuestions products={products.map((p) => ({ id: p.id, name: p.name }))} callArgs={callArgs} /></section>}
 
     {tab === "analytics" && <SellerAnalytics callArgs={callArgs} />}
 
@@ -958,6 +1009,20 @@ function AdminProducts() {
     onError: (e) => toast(e instanceof Error ? e.message : "Could not update.", "err"),
   });
   const rows: AdminProduct[] = products.data?.products ?? [];
+  const [rejecting, setRejecting] = useState<number | null>(null);
+  const [reason, setReason] = useState("");
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+  const approve = useMutation({
+    mutationFn: (product_id: number) => api.adminApproveProduct({ product_id }),
+    onSuccess: () => { refresh(); toast("Product approved — the seller can publish it now."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not approve.", "err"),
+  });
+  const reject = useMutation({
+    mutationFn: (v: { product_id: number; reason?: string }) => api.adminRejectProduct(v),
+    onSuccess: () => { setRejecting(null); setReason(""); refresh(); toast("Product rejected — the seller was notified."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not reject.", "err"),
+  });
+  const approvalLabel: Record<string, string> = { approved: "Approved", pending: "Awaiting approval", rejected: "Rejected" };
   return <section className="studio-section wide"><div className="section-title"><h2>Products</h2><span>{rows.length}</span>
     <label className="muted"><input type="checkbox" checked={queueOnly} onChange={(e) => setQueueOnly(e.target.checked)} /> Moderation queue</label></div>
     <form className="stack-form compact" onSubmit={(e) => e.preventDefault()}>
@@ -968,8 +1033,22 @@ function AdminProducts() {
     <FieldError error={products.error} />
     <div className="admin-table">{rows.map((p) => <article key={p.id}>
       <div><h3>{p.name}</h3><p className="muted">{p.category} · {p.store_name} ({p.seller_code}) · seller {sellerStatusLabel[p.seller_status]}</p><p><b>{money(p.price_paisa)}</b> · {p.stock} in stock</p></div>
-      <div className="order-actions"><span className={`status ${p.is_active ? "confirmed" : "cancelled"}`}>{p.is_active ? "Visible" : "Hidden"}</span>
-        <button disabled={toggle.isPending} onClick={() => toggle.mutate({ product_id: p.id, active: !p.is_active })}>{p.is_active ? "Hide" : "Approve & show"}</button>
+      <div className="order-actions">
+        <span className={`status ${p.approval_status === "approved" ? "confirmed" : p.approval_status === "pending" ? "processing" : "cancelled"}`}>{approvalLabel[p.approval_status] ?? p.approval_status}</span>
+        {p.approval_status === "pending" && <>
+          <button disabled={approve.isPending} onClick={() => approve.mutate(p.id)}>Approve</button>
+          {rejecting === p.id
+            ? <form className="stack-form compact" onSubmit={(e) => { e.preventDefault(); reject.mutate({ product_id: p.id, reason: reason.trim() ? reason.trim() : undefined }); }}>
+                <label>Reason (optional — the seller sees it)<input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={400} placeholder="e.g. Photos don't match the description" /></label>
+                <div className="form-row">
+                  <button type="submit" className="text-danger" disabled={reject.isPending}>{reject.isPending ? "Rejecting…" : "Reject product"}</button>
+                  <button type="button" className="ghost" onClick={() => { setRejecting(null); setReason(""); }}>Cancel</button>
+                </div>
+              </form>
+            : <button className="text-danger" onClick={() => { setRejecting(p.id); setReason(""); }}>Reject…</button>}
+        </>}
+        <span className={`status ${p.is_active ? "confirmed" : "cancelled"}`}>{p.is_active ? "Visible" : "Hidden"}</span>
+        <button disabled={toggle.isPending} onClick={() => toggle.mutate({ product_id: p.id, active: !p.is_active })}>{p.is_active ? "Hide" : "Show"}</button>
       </div>
     </article>)}</div>
     <FieldError error={toggle.error} />

@@ -3,8 +3,9 @@
 // to `./actions` and returns the typed response.
 //
 // `import type { Actions }` is type-only by design: the client bundle never
-// pulls in any server runtime (bun:sqlite, file APIs, etc.). With
-// `verbatimModuleSyntax: true`, dropping `type` is a compile error.
+// pulls in any server runtime (the Postgres driver, Supabase client, file
+// APIs, etc.). With `verbatimModuleSyntax: true`, dropping `type` is a
+// compile error.
 
 import type { Actions } from "../../server/src/actions";
 import { createActionClient } from "@hatch/space-sdk/client";

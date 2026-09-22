@@ -1,4 +1,4 @@
-# Nepal Shopping Site v8 (self-hosted)
+# Nepal Shopping Site v9 (self-hosted)
 
 A full-stack marketplace web app for Nepal — a customer-facing online shop
 built to rival Daraz, with the things Daraz lacks: native eSewa/Khalti
@@ -25,14 +25,14 @@ bun start       # serves the site at http://localhost:3000
 Open **http://localhost:3000** in your browser.
 
 - `PORT=8080 bun start` — run on a different port
-- `DB_PATH=/var/shop-data/app.db bun start` — use a persistent database file
+- `DATABASE_URL=postgres://… bun start` — point at your Postgres (required)
 - `cp .env.example .env` — see the env guide below
 
-On first boot the server copies the bundled demo database to `DB_PATH`
-(when the file does not exist yet), applies any pending migrations in
-`drizzle/`, and — only if `ADMIN_EMAIL`/`ADMIN_PASSWORD` are set — creates
-your production admin. Upgrades never lose existing sellers, products or
-orders.
+On first boot the server applies `supabase/schema.sql` (idempotent
+`CREATE TABLE IF NOT EXISTS`), inserts the demo seed (`supabase/seed.sql`)
+unless `SKIP_SEED=1`, and — only if `ADMIN_EMAIL`/`ADMIN_PASSWORD` are
+set — creates your production admin. Upgrades never lose existing sellers,
+products or orders.
 
 Rebuilding the frontend (only needed after changing `client/src` — a fresh
 build ships in the repo):
@@ -83,10 +83,12 @@ refunds, payouts, seller-balance adjustments, commission rules and money
 settings (default commission %, payout hold days, minimum payout),
 support tickets, buyer list, admin password change, audit logs.
 
-**Platform:** `sitemap.xml`, `robots.txt`, PWA web manifest, SQLite with
-WAL mode, 54 drizzle migrations, single-binary Bun server, structured
+**Platform:** `sitemap.xml`, `robots.txt`, PWA web manifest, Supabase
+Postgres + Supabase Storage, single-binary Bun server, structured
 JSON logging, admin email alerts on critical failures, `/api/health`
-with version, automated backup script (`scripts/backup.ts`).
+with version, automated backup script (`scripts/backup.ts`), GitHub
+Actions CI (typechecks + client build + v4 regression + v9 integration
+suites on every push/PR).
 
 ## Demo credentials
 
@@ -150,14 +152,16 @@ Copy `.env.example` to `.env`. All values are read server-side only.
 | Variable | Purpose |
 |----------|---------|
 | `PORT` | Server port (default 3000). |
-| `DB_PATH` | SQLite file. Production: `/var/shop-data/app.db` on the persistent disk. |
+| `DATABASE_URL` | Postgres connection string — use the Supabase **pooler** URI (port 6543) from Project Settings → Database. Required. |
 | `PUBLIC_BASE_URL` | Public URL, used for payment callbacks, sitemap and robots.txt. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Create the real production admin on first boot (see below). |
 | `ESEWA_MERCHANT_ID` / `ESEWA_SECRET_KEY` / `ESEWA_MODE` | eSewa payments (`test`/`live`). |
 | `KHALTI_SECRET_KEY` / `KHALTI_MODE` | Khalti payments (`test`/`live`). |
 | `AI_API_KEY` | Reserved for a future LLM upgrade of the assistant (unused today). |
 | `GEMINI_API_KEY` | Powers the AI “Recommended for you” picks on product pages (see below). Optional — without it the shop uses honest rule-based picks. |
-| `UPLOADS_DIR` | Where seller product photos are stored. Production: `/var/shop-data/uploads` on the persistent disk (default `./data/uploads`). |
+| `SUPABASE_URL` | Project URL (`https://bdocgqightjjthuosvch.supabase.co`) — Project Settings → General. Required for uploads. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key — Project Settings → API. Server-side only, never committed. Required for uploads. |
+| `SKIP_SEED=1` | Set on production boots so the demo seed (admin, demo sellers, sample products) is not inserted. |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | Transactional email (order, payment, shipment, account and admin alerts). See “Production email setup”. |
 | `SMS_PROVIDER_KEY` | Reserved for a future SMS hook (unused today). |
 
@@ -293,9 +297,67 @@ advertisements as a swipeable image carousel with the title overlaid.
 Sellers can upload up to 10 photos per product (JPG/PNG/WebP/GIF, 5 MB
 each) from the studio product form. The first photo is the cover shown on
 product cards, the homepage and search; the product page shows a gallery
-with a thumbnail strip. Files are stored under `UPLOADS_DIR` — **on Render
-this must be on the persistent disk** (e.g. `/var/shop-data/uploads`),
-otherwise photos vanish on every redeploy or sleep/wake cycle.
+with a thumbnail strip. Files are stored in Supabase Storage
+(`product-images` bucket, public-read) — no persistent disk needed; photos
+survive redeploys and sleep/wake cycles.
+
+## Supabase cutover (SQLite → Postgres)
+
+The shop now runs on Supabase Postgres + Supabase Storage. If you have an
+existing SQLite-era shop (`data/app.db` + `UPLOADS_DIR`), migrate it in
+three steps.
+
+### 1. Prepare the Supabase project
+
+In the Supabase dashboard's SQL editor, run **in this order**:
+
+1. `supabase/schema.sql` — creates all 48 tables (idempotent).
+2. `supabase/storage.sql` — creates the `product-images`, `banners`,
+   `avatars` and `site-assets` buckets (public read).
+3. `supabase/seed.sql` — **demo data only** (admin, demo sellers, sample
+   products). Run it only for a fresh demo; skip it for production or a
+   migration target.
+
+### 2. Copy the data
+
+```bash
+DATABASE_URL=postgres://postgres.bdocgqightjjthuosvch:<DB_PASSWORD>@<pooler-host>:6543/postgres \
+  DB_PATH=./data/app.db \
+  SUPABASE_URL=https://bdocgqightjjthuosvch.supabase.co \
+  SUPABASE_SERVICE_ROLE_KEY=<secret> \
+  UPLOADS_DIR=./data/uploads \
+  bun scripts/migrate-to-supabase.ts
+```
+
+The script copies every row (converting SQLite `0`/`1` → booleans and
+millisecond timestamps → `timestamptz`), in foreign-key order inside one
+transaction, repairs the serial sequences, then uploads the legacy
+`/uploads/*` files into their Storage buckets and rewrites the stored
+URLs. It refuses to run against a non-empty target unless you pass
+`--force` (which truncates everything first). Without the Supabase storage
+env vars the file step is skipped with a warning — data still migrates.
+
+### 3. Switch the deploy over
+
+1. Set the Render env vars: `DATABASE_URL` (pooler URI), `SUPABASE_URL`,
+   `SUPABASE_SERVICE_ROLE_KEY`, `SKIP_SEED=1` (the demo seed must never
+   run on migrated data), plus your existing `ADMIN_EMAIL`,
+   `PUBLIC_BASE_URL`, payment and SMTP keys.
+2. Remove `DB_PATH` / `UPLOADS_DIR` from the environment and detach the
+   old persistent disk — nothing reads it anymore.
+3. Deploy. The server applies `supabase/schema.sql` idempotently on boot;
+   with `SKIP_SEED=1` it inserts no demo rows.
+
+### Local Postgres development
+
+```bash
+# throwaway Postgres via docker, then boot against it:
+docker run -d --name shop-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres bun start
+```
+
+The server creates the schema and demo seed on boot — no SQL editor
+needed locally.
 
 ## Production admin (secure first admin)
 
@@ -324,22 +386,24 @@ The project is set up for the easy-host path. The live site
    - Start command: `bun selfhost.ts`
    - Health check path: `/api/health` (returns 200 with `{ status, version,
      uptime_seconds, db }`; returns 503 if the database is unreachable)
-3. Add a **persistent disk**: mount path `/var/shop-data`, size 1 GB
-   minimum. Without this, the database and uploaded photos live on
-   Render's ephemeral filesystem and are lost on every redeploy or
-   sleep/wake cycle.
-4. Set the environment variables below.
+3. **No persistent disk is needed.** The database lives in Supabase
+   Postgres and uploads live in Supabase Storage, so deploys and
+   sleep/wake cycles lose nothing. (If you still have the old
+   `/var/shop-data` disk attached, it can be removed.)
+4. Set the environment variables below — including `DATABASE_URL`,
+   `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SKIP_SEED=1`.
 5. Deploy. On later deploys, push the latest commit and hit **Manual
-   Deploy → Deploy latest commit** — the disk keeps sellers, products,
-   orders and photos across restarts. Migrations in `drizzle/` apply
-   automatically on boot.
+   Deploy → Deploy latest commit**. `supabase/schema.sql` applies
+   idempotently on every boot.
 
 ### Environment variables (all of them)
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `DB_PATH` | yes | `/var/shop-data/app.db` — the database file on the persistent disk. |
-| `UPLOADS_DIR` | yes | `/var/shop-data/uploads` — product/store/banner photos on the persistent disk. |
+| `DATABASE_URL` | yes | Supabase Postgres pooler URI (port 6543) — Project Settings → Database → Connection string. |
+| `SUPABASE_URL` | yes | `https://bdocgqightjjthuosvch.supabase.co` — Project Settings → General. |
+| `SUPABASE_SERVICE_ROLE_KEY` | yes | Service-role key — Project Settings → API (secret). Uploads need it. |
+| `SKIP_SEED` | yes | `1` — never seed demo data into the live database. |
 | `PUBLIC_BASE_URL` | yes | `https://<your-service>.onrender.com` — payment callbacks, sitemap, robots.txt. |
 | `ADMIN_EMAIL` | yes | Your admin email. Creates the first production admin (with `ADMIN_PASSWORD`) on first boot, and receives all admin alerts (new sellers, payment failures, sweeper failures, repeated server errors, boot failures). |
 | `ADMIN_PASSWORD` | first boot only | Password for the first production admin. **Remove it from the environment after the first boot** — it has done its job once the admin row exists. |
@@ -373,36 +437,39 @@ memory instead of sending them. It is a test-only flag.
 
 ### Backups and restore
 
-The production backup story is: **Render's persistent disk** (protects
-against redeploys and restarts) **plus `scripts/backup.ts`** (protects
-against disk loss, corruption and bad deploys). There are no automated
-off-site backups — do not claim there are.
+The production backup story is: **Supabase's own point-in-time recovery**
+(protects against anything — enable it in Project Settings → Database)
+**plus `scripts/backup.ts`** (a portable `pg_dump` you control, protects
+against bad deploys and gives you a file you can restore anywhere). There
+are no automated off-site backups beyond what you configure — do not claim
+there are.
 
 Run the backup on a schedule (a Render cron job, or any machine with Bun
-and read access to the disk):
+and the PostgreSQL client tools installed):
 
 ```bash
-DB_PATH=/var/shop-data/app.db UPLOADS_DIR=/var/shop-data/uploads \
-  BACKUP_DIR=/var/shop-data/backups KEEP_DAILY=7 \
+DATABASE_URL=postgres://… BACKUP_DIR=./backups KEEP_DAILY=7 \
   bun scripts/backup.ts
 ```
 
-It snapshots the live database with `VACUUM INTO` (online-safe — never
-plain `cp` on a live WAL-mode database) and tars the uploads directory
-into timestamped files, keeping the last 7 of each. Exit code 0 on
-success, 1 on failure (alert on non-zero exit).
+It dumps the live database with `pg_dump -Fc` (custom format) into
+timestamped `backups/db/app-<timestamp>.dump` files, keeping the last 7.
+Exit code 0 on success, 1 on failure (alert on non-zero exit). The script
+fails clearly if `pg_dump` is missing from `PATH`.
 
-**Restore procedure** (tested 2026-09-22 — a backup is not a backup until
-restoration is tested):
+**Note:** `pg_dump` backs up the *database* only. Product/banner/avatar
+images live in Supabase Storage buckets (`product-images`, `banners`,
+`avatars`, `site-assets`) — keep Supabase's bucket versioning/PITR
+enabled for those.
 
-1. Stop the web service (restoring under a running writer is unsafe).
-2. Copy the chosen `backups/db/app-<timestamp>.sqlite` over `DB_PATH`.
-   Delete any `app.db-wal` / `app.db-shm` sidecars from the old file —
-   they belong to the old database and must not be reused. (Backups made
-   by `VACUUM INTO` have no sidecars of their own.)
-3. Extract the matching `backups/uploads/uploads-<timestamp>.tar.gz`
-   over `UPLOADS_DIR`.
-4. Start the service, open `/api/health` (expect `"db":"reachable"`),
+**Restore procedure:**
+
+1. `pg_restore -d "$DATABASE_URL" --clean --if-exists backups/db/app-<timestamp>.dump`
+   (`--clean` drops objects before recreating them; the schema is in the
+   dump, so no need to run `supabase/schema.sql` first.)
+2. Storage objects are untouched by `pg_restore` — restore them from the
+   Supabase dashboard / bucket backups if needed.
+3. Start the service, open `/api/health` (expect `"db":"reachable"`),
    and confirm orders and products load in the admin panel.
 
 ### Demo-data cleanup before going live
@@ -412,10 +479,10 @@ are documented in this README. The server warns loudly on every boot while
 any remain (`[security] Demo seller still present: …`). Before serving real
 customers, either:
 
-- **Start fresh** (recommended): boot with an empty `DB_PATH` on the
-  persistent disk, let migrations create the schema, and set
-  `ADMIN_EMAIL`/`ADMIN_PASSWORD` so the server creates only your real
-  admin; or
+- **Start fresh** (recommended): boot with `SKIP_SEED=1` against a fresh
+  Supabase project (run `supabase/schema.sql` then `supabase/storage.sql`
+  in the SQL editor first), and set `ADMIN_EMAIL`/`ADMIN_PASSWORD` so the
+  server creates only your real admin; or
 - **Clean the seed**: in the admin panel (or SQL), suspend/delete the
   `@demo.local` sellers, delete their products, and change or delete the
   dev seed admin (`admin@nepalshop.local` / `Admin@123`).
@@ -462,11 +529,12 @@ Notes (phase 2, historical):
 - `server/src/assistant.ts` — the rule-engine shopping assistant
 - `server/src/payments.ts` — eSewa/Khalti integration (never fakes success)
 - `server/src/providers.ts` — email/SMS/push hooks (not wired up yet)
-- `drizzle/` — SQL migrations (0001–0054: marketplace core, accounts/auth,
-  order groups, idempotency, returns/refunds, seller ledger, payouts,
-  commission rules, product images/variants/specs, banner images, integrity
-  indexes and more)
-- `data/app.db` — SQLite database with the demo data
+- `drizzle/` — legacy SQLite migrations (superseded; kept for history —
+  the authoritative schema is `supabase/schema.sql`)
+- `supabase/` — `schema.sql` (authoritative, applied idempotently on boot),
+  `storage.sql` (Storage buckets), `seed.sql` (demo data, skipped with
+  `SKIP_SEED=1`)
+- `scripts/migrate-to-supabase.ts` — one-time SQLite → Postgres cutover
 - `selfhost.ts` — the Bun server: static storefront + `POST /actions` RPC +
   sitemap/robots/manifest + first-admin boot
 - `manifest.webmanifest` — PWA manifest source (the build resolves it)
@@ -478,17 +546,20 @@ Notes (phase 2, historical):
 - Demo passwords and keys are public values. Before any real use, create
   the production admin, change the dev admin password, register fresh
   sellers and pick strong passwords.
-- To start from an empty shop instead of the demo data, point `DB_PATH` at
-  a new file (or delete `data/app.db`) — migrations build the full schema.
+- To start from an empty shop instead of the demo data, boot with
+  `SKIP_SEED=1` — the schema is created from `supabase/schema.sql` without
+  the demo rows.
 - Mixed-seller baskets are supported: checkout creates one order group with
-  one fulfilment per seller. Seller product photos are real uploads under
-  `UPLOADS_DIR` (persistent disk in production). Email verification and
+  one fulfilment per seller. Seller product photos are real uploads to
+  Supabase Storage (no persistent disk needed). Email verification and
   password reset are built in — both need SMTP configured to deliver the
   emails (see "Production email setup"); without it the links are never
   sent and the UI says so honestly.
 - `scripts/` holds the automated checks: `verify-v4.ts` (36 core-journey
-  checks), `verify-orders15.ts`, `verify-commission.ts`,
-  `verify-notifications.ts`, `verify-analytics.ts`, and `backup.ts`.
+  checks), `verify-v9.ts` (integration suite), `verify-commission.ts`,
+  `verify-notifications.ts`, `verify-analytics.ts`, plus `backup.ts`
+  (pg_dump), `schema-parity.ts` (drizzle ↔ `supabase/schema.sql`),
+  and `migrate-to-supabase.ts` (one-time SQLite → Postgres cutover).
 
 ## v4 — production-readiness pass
 
@@ -582,8 +653,8 @@ testing — all flagged NEEDS-USER in `CHECKLIST.md`.
   single-statement migrations must NOT start or end with the breakpoint
   marker). Admin uploads banner images from the panel's Homepage tab via
   `POST /api/banner-uploads` (admin session token in `x-auth-token` header
-  only; JPG/PNG/WebP/GIF, 5 MB; stored as `banner-<uuid>.<ext>` under
-  `UPLOADS_DIR`, served at `/uploads/`). Image required for new ads AND
+  only; JPG/PNG/WebP/GIF, 5 MB; stored as `banner-<uuid>.<ext>` in the
+  Supabase Storage `banners` bucket). Image required for new ads AND
   for editing imageless legacy ads — every ad is shown with its image;
   delete removes the file too. Homepage renders active ads as a swipeable
   image hero carousel with title overlay (mobile-first snap scroll).
@@ -689,6 +760,20 @@ and verified end to end over real HTTP on fresh boots:
   Payout flow: **10/10**. Backup script: exit 0 with both artifacts.
   Typechecks: clean (client + server).
 
+**v9 additions:** per-order invoices with unique `INV-2026-000001`-style
+numbers, auto-created at checkout (buyer/seller/admin role-scoped views —
+`#/invoice/<order_code>`, printable); product Q&A — buyers ask, the owning
+seller sees pending questions in the studio and answers them, answered
+questions are public, other buyers never see someone else's pending
+question; legal pages (Refund, Return, Shipping, Seller Terms, Cookie —
+each marked as a draft needing a Nepal-qualified lawyer's review); account
+export (machine-readable download) and account deletion (password +
+typed `DELETE`; orders kept for records, PII anonymised); seller CSV
+product import with per-row error reporting; per-category SEO
+(`seo_title`/`seo_description`/`intro_content`, public read path for
+category pages); product approval flow (seller submits → admin
+approves/rejects); CI in `.github/workflows/ci.yml`.
+
 **Honest limitations (need Rabindra, not code):**
 
 - eSewa/Khalti merchant keys — online payments report "not configured"
@@ -696,11 +781,24 @@ and verified end to end over real HTTP on fresh boots:
   `KHALTI_SECRET_KEY`). Nothing is faked.
 - SMTP credentials — without them no email is sent (verification, order,
   password-reset, admin alerts); flows keep working and say so honestly.
-- Render persistent disk + env vars (`DB_PATH`, `UPLOADS_DIR`,
+- Supabase env vars (`DATABASE_URL`, `SUPABASE_URL`,
+  `SUPABASE_SERVICE_ROLE_KEY`, `SKIP_SEED=1`,
   `ADMIN_EMAIL`/`ADMIN_PASSWORD`, `PUBLIC_BASE_URL`) — see "Deploy on
-  Render" and `PRODUCTION.md`.
+  Render" and `PRODUCTION.md`. No persistent disk is needed.
 - Privacy/Terms drafts need a local lawyer's review before real customers.
 - Demo sellers/products/coupons must be removed or replaced before launch
   (the server warns on every boot while they remain).
 - Lighthouse/Core Web Vitals, real-device and screen-reader passes —
   manual, not run.
+- Hash routing (`#/…`) means clean per-page URLs are impossible without a
+  routing rewrite; no-JS crawlers only see the SPA shell, so client-side
+  meta (including category SEO and invoice `noindex`) is for JS-capable
+  crawlers only.
+- Typo-tolerant search fixes common misspellings but has honest precision
+  limits on very short or ambiguous queries.
+- Deleted accounts keep a `DELETED:<id>` phone tombstone (the phone column
+  is NOT NULL + unique) and stay login-blocked; orders are kept for
+  financial records.
+- Admin MFA has no provider wired; SMS notifications and courier
+  integrations are honestly unconfigured — related flows say so instead
+  of pretending.

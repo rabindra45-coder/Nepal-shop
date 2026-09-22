@@ -26,10 +26,12 @@ export function FieldError({ error }: { error: unknown }) {
 // payment state) plus one trail per seller fulfilment. Cancelling any
 // fulfilment cancels the whole group — the customer experiences one order.
 export function GroupTrail({ group, credentials, invalidate }: { group: P2OrderGroup; credentials: { order_code: string; phone: string }; invalidate: () => void }) {
+  const { auth } = useAuth();
   const anyCancellable = group.orders.some((o) => o.status === "confirmation_needed" || o.status === "confirmed");
   return <section className="order-trail group-trail">
     <div className="order-heading"><div><p className="eyebrow">{group.group_code}</p><h2>Order {group.group_code}</h2></div><strong>{money(group.total_paisa)}</strong></div>
     <p className="muted">Placed {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(group.created_at))} · {group.orders.length} seller{group.orders.length === 1 ? "" : "s"} · {group.payment_method === "cod" ? "Cash on delivery" : `${group.payment_method.toUpperCase()} · ${PAY_LABEL[group.payment_status] ?? group.payment_status}`}{group.delivery_method !== "standard" ? ` · ${group.delivery_method} delivery` : ""}{group.coupon_code ? ` · Coupon ${group.coupon_code} (−${money(group.discount_paisa)})` : ""}</p>
+    {auth && <div className="order-actions"><button className="ghost" onClick={() => go(`/invoice/${encodeURIComponent(group.group_code)}`)}>Download invoice</button></div>}
     {anyCancellable && <p className="muted">Cancelling one parcel cancels the whole order — every seller's reserved stock is released.</p>}
     {group.orders.map((o) => <OrderTrail key={o.id} order={o} groupCode={group.group_code} credentials={credentials} invalidate={invalidate} />)}
   </section>;
@@ -39,9 +41,45 @@ export function GroupTrail({ group, credentials, invalidate }: { group: P2OrderG
 export function OrderTrail({ order, groupCode, credentials, invalidate }: { order: ReturnType<typeof toP2Order>; groupCode?: string; credentials: { order_code: string; phone: string }; invalidate: () => void }) {
   const { auth } = useAuth();
   const { toast } = useToast();
+  const { add } = useCart();
   const [message, setMessage] = useState("");
   const [showReturn, setShowReturn] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [reordering, setReordering] = useState(false);
+  // Reorder: re-fetch each item's CURRENT listing and only re-add what is
+  // genuinely sellable right now, at today's price and stock. getProductDetail
+  // only returns published, approved, active-seller listings, so anything it
+  // rejects (unpublished, disapproved, gone) is skipped and named honestly.
+  const reorder = async () => {
+    setReordering(true);
+    const skipped: string[] = [];
+    let added = 0;
+    for (const item of order.items) {
+      let detail: Awaited<ReturnType<typeof api.getProductDetail>>;
+      try {
+        detail = await api.getProductDetail({ product_id: item.product_id });
+      } catch {
+        skipped.push(`${item.product_name} — no longer sold`);
+        continue;
+      }
+      const product = detail.product;
+      if (item.variant_id) {
+        const v = detail.variants.find((x) => x.id === item.variant_id);
+        if (!v || !v.is_active) { skipped.push(`${item.product_name}${item.variant_label ? ` (${item.variant_label})` : ""} — that option is no longer available`); continue; }
+        if (v.stock <= 0) { skipped.push(`${item.product_name} (${v.label}) — out of stock`); continue; }
+        add(product, Math.min(item.quantity, v.stock), { id: v.id, label: v.label, unitPrice: v.price_paisa ?? product.price_paisa, stock: v.stock });
+        added += 1;
+      } else {
+        if (product.stock <= 0) { skipped.push(`${item.product_name} — out of stock`); continue; }
+        add(product, Math.min(item.quantity, product.stock));
+        added += 1;
+      }
+    }
+    setReordering(false);
+    if (added > 0) toast(`Added ${added} item${added === 1 ? "" : "s"} back to your basket.`);
+    if (skipped.length > 0) toast(`Skipped: ${skipped.join("; ")}.`, "err");
+    if (added === 0 && skipped.length === 0) toast("Nothing to reorder from this order.", "err");
+  };
   const issue = useMutation({ mutationFn: api.reportIssue, onSuccess: () => { setMessage("Your issue is now in the seller’s queue."); invalidate(); } });
   const review = useMutation({ mutationFn: api.addReview, onSuccess: () => { setMessage("Your verified review is published."); invalidate(); } });
   const cancel = useMutation({
@@ -76,7 +114,9 @@ export function OrderTrail({ order, groupCode, credentials, invalidate }: { orde
     {cancellable && confirmingCancel && <p className="banner warn" role="alert">Cancel order {order.order_code}? This cannot be undone.<span className="order-actions"><button className="ghost text-danger" disabled={cancel.isPending} onClick={() => cancel.mutate()}>{cancel.isPending ? "Cancelling…" : "Yes, cancel it"}</button><button className="ghost" onClick={() => setConfirmingCancel(false)}>Keep my order</button></span></p>}
     {order.status === "delivered" && !showReturn && <button className="ghost" onClick={() => setShowReturn(true)}>Request return</button>}
     {order.status === "delivered" && showReturn && <ReturnRequestForm orderCode={order.order_code} phone={credentials.phone} onDone={() => { setShowReturn(false); invalidate(); }} />}
-    {order.status === "delivered" && <details><summary>Write a verified review</summary><form className="stack-form compact" onSubmit={(e) => { e.preventDefault(); const d = new FormData(e.currentTarget); review.mutate({ ...credentials, product_id: Number(d.get("product")), rating: Number(d.get("rating")), body: String(d.get("body") ?? "") }); }}><label>Product<select name="product">{order.items.map((item) => <option value={item.product_id} key={item.id}>{item.product_name}{item.variant_label ? ` (${item.variant_label})` : ""}</option>)}</select></label><label>Rating<select name="rating"><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Okay</option><option value="2">2 — Poor</option><option value="1">1 — Bad</option></select></label><label>Review<textarea name="body" minLength={3} required /></label><button>Publish verified review</button></form></details>}<details><summary>Report a problem</summary><form className="stack-form compact" onSubmit={(e) => { e.preventDefault(); const d = new FormData(e.currentTarget); issue.mutate({ ...credentials, kind: String(d.get("kind") ?? ""), detail: String(d.get("detail") ?? "") }); }}><label>Issue<select name="kind"><option>Delivery delay</option><option>Wrong item</option><option>Damaged item</option><option>Refund request</option><option>Other</option></select></label><label>What happened?<textarea name="detail" minLength={8} required /></label><button>Send to seller</button></form></details>{message && <p className="success">{message}</p>}</section>;
+    {order.status === "delivered" && <details><summary>Write a verified review</summary><form className="stack-form compact" onSubmit={(e) => { e.preventDefault(); const d = new FormData(e.currentTarget); review.mutate({ ...credentials, product_id: Number(d.get("product")), rating: Number(d.get("rating")), body: String(d.get("body") ?? "") }); }}><label>Product<select name="product">{order.items.map((item) => <option value={item.product_id} key={item.id}>{item.product_name}{item.variant_label ? ` (${item.variant_label})` : ""}</option>)}</select></label><label>Rating<select name="rating"><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Okay</option><option value="2">2 — Poor</option><option value="1">1 — Bad</option></select></label><label>Review<textarea name="body" minLength={3} required /></label><button>Publish verified review</button></form></details>}<details><summary>Report a problem</summary><form className="stack-form compact" onSubmit={(e) => { e.preventDefault(); const d = new FormData(e.currentTarget); issue.mutate({ ...credentials, kind: String(d.get("kind") ?? ""), detail: String(d.get("detail") ?? "") }); }}><label>Issue<select name="kind"><option>Delivery delay</option><option>Wrong item</option><option>Damaged item</option><option>Refund request</option><option>Other</option></select></label><label>What happened?<textarea name="detail" minLength={8} required /></label><button>Send to seller</button></form></details>
+    <div className="order-actions">{!groupCode && auth && <button className="ghost" onClick={() => go(`/invoice/${encodeURIComponent(order.order_code)}`)}>Download invoice</button>}<button className="ghost" disabled={reordering} onClick={() => void reorder()}>{reordering ? "Checking availability…" : "Reorder"}</button></div>
+    {message && <p className="success">{message}</p>}</section>;
 }
 
 // --- orders panel (moved from App.tsx; the shell provides the <main>) ---
@@ -146,7 +186,7 @@ export function Drawer({ open, onClose, label, children }: {
 // page (wishlist, basket) render that page as the panel.
 export type AccountSection =
   | "orders" | "addresses" | "wishlist" | "notifications"
-  | "tickets" | "basket" | "prefs" | "password";
+  | "tickets" | "basket" | "prefs" | "password" | "data";
 
 const ACCOUNT_SECTIONS: { id: AccountSection; label: string; desc: string }[] = [
   { id: "orders", label: "My orders", desc: "Track and review your purchases" },
@@ -157,6 +197,7 @@ const ACCOUNT_SECTIONS: { id: AccountSection; label: string; desc: string }[] = 
   { id: "basket", label: "Basket", desc: "Finish what you started" },
   { id: "prefs", label: "Email preferences", desc: "Choose which emails you get" },
   { id: "password", label: "Change password", desc: "Keep your account secure" },
+  { id: "data", label: "My data", desc: "Export or delete your account" },
 ];
 
 // The signed-in buyer, from the buyer me/profile action. The payload carries
@@ -287,6 +328,7 @@ export function AccountShell({ initial }: { initial: AccountSection }) {
           {section === "basket" && <CartPage />}
           {section === "prefs" && <NotificationPrefs />}
           {section === "password" && <ChangePasswordForm kind="buyer" />}
+          {section === "data" && <DataDangerZone />}
         </div>
       </div>
       <Drawer open={menuOpen} onClose={() => setMenuOpen(false)} label="Account menu">
@@ -294,6 +336,80 @@ export function AccountShell({ initial }: { initial: AccountSection }) {
         {nav}
       </Drawer>
     </main>
+  );
+}
+
+
+// --- data & privacy (export + delete) ------------------------------------------
+function DataDangerZone() {
+  const { signOut } = useAuth();
+  const { toast } = useToast();
+  const [typed, setTyped] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirming, setConfirming] = useState(false);
+
+  const exportData = useMutation({
+    mutationFn: () => api.exportAccountData({ authToken: getAuth()?.token ?? "" }),
+    onSuccess: (r) => {
+      const blob = new Blob([JSON.stringify(r, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nepal-shop-my-data-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast("Your data was downloaded as a JSON file.");
+    },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not export your data.", "err"),
+  });
+
+  const remove = useMutation({
+    mutationFn: () => api.deleteAccount({ authToken: getAuth()?.token ?? "", password, confirm_text: "DELETE" }),
+    onSuccess: (r) => {
+      setConfirming(false);
+      signOut();
+      go("/");
+      toast(`Your account was deleted. ${r.orders_kept} order${r.orders_kept === 1 ? "" : "s"} kept for records (PII removed), ${r.addresses_deleted} address${r.addresses_deleted === 1 ? "" : "es"} and ${r.wishlist_items_removed} wishlist item${r.wishlist_items_removed === 1 ? "" : "s"} removed.`);
+    },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not delete your account.", "err"),
+  });
+
+  return (
+    <>
+      <section className="track-intro"><p className="eyebrow">My data</p><h1>Your data, your call.</h1>
+        <p>Take a copy of everything the marketplace holds about you, or delete your account entirely.</p></section>
+      <section className="studio-section">
+        <div className="section-title"><h2>Export my data</h2></div>
+        <p className="muted">Downloads your profile, addresses, orders, wishlist, reviews and notification preferences as one JSON file.</p>
+        <button className="ghost" disabled={exportData.isPending} onClick={() => exportData.mutate()}>
+          {exportData.isPending ? "Preparing…" : "Export my data (JSON)"}
+        </button>
+      </section>
+      <section className="studio-section danger-zone">
+        <div className="section-title"><h2>Delete my account</h2></div>
+        <p className="banner warn" role="note">
+          <b>This is permanent.</b>
+          <span> Your orders are kept for accounting and dispute records, but your name and contact details are removed from them. Your profile, addresses, wishlist and other personal details are deleted and cannot be recovered.</span>
+        </p>
+        {!confirming
+          ? <button className="ghost text-danger" onClick={() => { setConfirming(true); setTyped(""); setPassword(""); }}>Delete my account…</button>
+          : (
+            <form className="stack-form" onSubmit={(e) => { e.preventDefault(); if (typed === "DELETE" && password) remove.mutate(); }}>
+              <label>Your password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required /></label>
+              <label>Type <b>DELETE</b> to confirm<input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="DELETE" required autoComplete="off" /></label>
+              {remove.error && <p className="form-error" role="alert">{remove.error instanceof Error ? remove.error.message : "Could not delete your account."}</p>}
+              <div className="form-pair">
+                <button type="submit" className="primary" disabled={remove.isPending || typed !== "DELETE" || !password}>
+                  {remove.isPending ? "Deleting…" : "Yes, delete my account"}
+                </button>
+                <button type="button" className="ghost" onClick={() => setConfirming(false)}>Keep my account</button>
+              </div>
+            </form>
+          )}
+      </section>
+    </>
   );
 }
 

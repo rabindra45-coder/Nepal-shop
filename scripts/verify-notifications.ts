@@ -4,7 +4,7 @@
 // A second phase boots WITHOUT capture/SMTP (honest {sent:false}) and a
 // third with a dead SMTP host (failure must not break checkout).
 //
-// Usage: PORT=3899 DB_PATH=/tmp/notify-test.db bun selfhost.ts   (shell 1)
+// Usage: PORT=3899 DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres bun selfhost.ts   (shell 1)
 //        bun scripts/verify-notifications.ts --port 3899          (shell 2)
 // The script boots its own servers on ports --port/--port+1/--port+2 instead.
 const portArg = process.argv.includes("--port") ? Number(process.argv[process.argv.indexOf("--port") + 1]) : 3899;

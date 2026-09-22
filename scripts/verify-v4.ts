@@ -1,5 +1,5 @@
 // v4 verification: fresh-DB boot + core journey + new pages + rate limit + payments.
-// Usage: PORT=3897 DB_PATH=/tmp/verify.db bun selfhost.ts  (then in another shell: bun scripts/verify-v4.ts --port 3897)
+// Usage: PORT=3897 DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres bun selfhost.ts  (then in another shell: bun scripts/verify-v4.ts --port 3897)
 const port = process.argv.includes("--port") ? process.argv[process.argv.indexOf("--port") + 1] : "3897";
 const BASE = `http://localhost:${port}`;
 let pass = 0, fail = 0;

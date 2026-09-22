@@ -1,26 +1,48 @@
 // Self-host server for Nepal Shopping Site.
 // Serves the built storefront (client/dist) and answers the same
 // POST /actions RPC the Muse-hosted version uses, backed by the
-// SQLite database in ./data/app.db.
+// Supabase Postgres database (see DATABASE_URL).
 //
 // Run:  bun selfhost.ts
-// Env:  PORT (default 3000), DB_PATH (default ./data/app.db)
+// Env:  PORT (default 3000),
+//       DATABASE_URL (required — Supabase pooled/Supavisor connection string),
+//       SKIP_SEED=1 (skip demo seed on production boots),
+//       SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (file uploads via Supabase Storage).
+//
+// Note: the ./drizzle/ folder is legacy SQLite history (bun:sqlite migrations).
+// It is superseded by supabase/schema.sql, which is the authoritative schema
+// for the Postgres database. It is kept on disk for reference only and is
+// never applied by this server.
 
-import { Database } from "bun:sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
-import { migrate } from "drizzle-orm/bun-sqlite/migrator";
-import { and, eq, like } from "drizzle-orm";
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { and, eq, ilike } from "drizzle-orm";
+import { mkdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { unlink } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { Actions, notifyAdmin, sweepExpiredUnpaidGroups } from "./server/src/actions";
 import { setSmtpDbProvider } from "./server/src/email";
+import { bucketPathFor, deleteFromBucket, parseStoredUploadUrl, STORAGE_BUCKETS, uploadToBucket } from "./server/src/storage";
 import * as schema from "./server/src/schema";
+
+// DATABASE_URL is the Supabase pooled (Supavisor) connection string, e.g.
+// postgres://postgres.<ref>:<DB_PASSWORD>@<pooler-host>:6543/postgres
+// Missing/empty is fatal: the server has no database without it, so fail
+// fast before anything else (before logging, alerts, or listening).
+const DATABASE_URL = process.env.DATABASE_URL ?? "";
+if (!DATABASE_URL) {
+  process.stderr.write(
+    "FATAL: DATABASE_URL environment variable is not set. " +
+    "Set it to your Supabase pooled (Supavisor) connection string.\n",
+  );
+  process.exit(1);
+}
 
 // --- Release version ----------------------------------------------------------
 // Bumped by hand on each packaged release; surfaced by /api/health so a
 // health check can confirm which build is actually running.
-const APP_VERSION = "v7";
+const APP_VERSION = "v10";
 const BOOT_MS = Date.now();
 
 // --- Structured server logging ------------------------------------------------
@@ -106,47 +128,58 @@ process.on("uncaughtException", (reason) => {
 });
 
 const PORT = Number(process.env.PORT ?? 3000);
-const DB_PATH = process.env.DB_PATH ?? "./data/app.db";
 
-// --- Boot: make sure the database exists and is up to date. ---
-// On hosts with an ephemeral filesystem (e.g. Render), point DB_PATH at a
-// persistent disk, e.g. DB_PATH=/var/shop-data/app.db. On first boot the
-// database is seeded from the bundled demo database, then any pending
-// drizzle migrations in ./drizzle are applied.
-{
-  const resolved = resolve(DB_PATH);
-  mkdirSync(dirname(resolved), { recursive: true });
-  if (!existsSync(resolved)) {
-    const seed = resolve("./data/app.db");
-    if (seed !== resolved && existsSync(seed)) {
-      copyFileSync(seed, resolved);
-      console.log(`Seeded database from ${seed}`);
-    }
+// --- Boot: connect to Supabase Postgres. --------------------------------------
+
+// A boot failure (bad connection string, failed schema apply, unreachable
+// database) must fail loudly: alert the admin best-effort, then exit non-zero
+// so the host marks the deploy failed instead of serving a half-booted
+// process. Alerting is given 10 seconds, then the exit happens regardless.
+const sql = postgres(DATABASE_URL, { max: 10, idle_timeout: 20, connect_timeout: 10 });
+const db = drizzle(sql, { schema });
+
+async function applySqlFile(label: string, absPath: string): Promise<void> {
+  try {
+    const contents = readFileSync(absPath, "utf8");
+    // Single simple-protocol multi-statement call: schema.sql and seed.sql
+    // are plain SQL scripts with no parameters, so sql.unsafe is the right
+    // vehicle. The scripts are idempotent (IF NOT EXISTS / ON CONFLICT DO
+    // NOTHING), so re-running them on an existing database is a no-op.
+    await sql.unsafe(contents);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    logEvent("error", "boot", `${label} failed (${absPath}) — server will not start`, { error: message });
+    await Promise.race([
+      notifyAdmin(
+        "Server failed to boot",
+        `Nepal Shop (${APP_VERSION}) could not start — ${label} failed:\n\n${message}\n\n` +
+          `The process is exiting; Render will mark the deploy as failed. Check the logs and the database.`,
+      ).catch(() => { /* alerting must never hang the exit */ }),
+      new Promise((resolve) => setTimeout(resolve, 10_000)),
+    ]);
+    process.exit(1);
   }
 }
 
-// A boot failure (corrupt DB, failed migration, unwritable disk) must fail
-// loudly: alert the admin best-effort, then exit non-zero so the host marks
-// the deploy failed instead of serving a half-booted process. Alerting is
-// given 10 seconds, then the exit happens regardless.
-let sqlite!: Database;
-let db!: ReturnType<typeof drizzle>;
 try {
-  sqlite = new Database(DB_PATH);
-  // Match the production pragmas used for the SQLite store.
-  sqlite.exec("PRAGMA journal_mode = WAL;");
-  // Enforce declared foreign keys at runtime (cascades, set-null, restrict).
-  sqlite.exec("PRAGMA foreign_keys = ON;");
-  db = drizzle(sqlite, { schema });
-  // Apply any pending migrations (no-op when already up to date).
-  migrate(db, { migrationsFolder: "./drizzle" });
-} catch (e) {  const message = e instanceof Error ? e.message : String(e);
+  // supabase/ lives next to selfhost.ts at the repo root; resolve from
+  // import.meta.dir, never from the process working directory.
+  const supabaseDir = join(import.meta.dir, "supabase");
+  await applySqlFile("schema.sql", join(supabaseDir, "schema.sql"));
+  if ((process.env.SKIP_SEED ?? "") === "1") {
+    console.log("SKIP_SEED=1: skipping demo seed (supabase/seed.sql).");
+  } else {
+    await applySqlFile("seed.sql", join(supabaseDir, "seed.sql"));
+  }
+  console.log("schema ready");
+} catch (e) {
+  const message = e instanceof Error ? e.message : String(e);
   logEvent("error", "boot", "database boot failed — server will not start", { error: message });
   await Promise.race([
     notifyAdmin(
       "Server failed to boot",
-      `Nepal Shop (${APP_VERSION}) could not start — database/migration failure:\n\n${message}\n\n` +
-        `The process is exiting; Render will mark the deploy as failed. Check the logs and the disk.`,
+      `Nepal Shop (${APP_VERSION}) could not start — database failure:\n\n${message}\n\n` +
+        `The process is exiting; Render will mark the deploy as failed. Check the logs and the database.`,
     ).catch(() => { /* alerting must never hang the exit */ }),
     new Promise((resolve) => setTimeout(resolve, 10_000)),
   ]);
@@ -194,7 +227,7 @@ setSmtpDbProvider(() => db);
     const demos = await db
       .select({ sellerCode: schema.storeSettings.sellerCode, email: schema.storeSettings.email })
       .from(schema.storeSettings)
-      .where(like(schema.storeSettings.email, "%@demo.local"));
+      .where(ilike(schema.storeSettings.email, "%@demo.local"));
     for (const d of demos) {
       console.warn(`[security] Demo seller still present: ${d.sellerCode} (${d.email}). Suspend or delete demo sellers before serving real customers.`);
     }
@@ -245,9 +278,12 @@ function zodMessage(e: unknown): string {
 // (Audited 2026-09-22: none of the 249 user-facing messages match these
 // patterns, so false positives should not occur; if one ever does, the
 // worst case is a generic "Something went wrong" instead of the specific
-// message — safe, and visible in the structured log.)
+// message — safe, and visible in the structured log. The POSTGRES_/postgres/
+// duplicate-key/constraint branches are the Postgres analogues of the old
+// SQLITE_ branch: Postgres driver and constraint errors must 500, never
+// leak to the buyer as a 400 message.)
 const INTERNAL_MESSAGE_RE =
-  /SQLITE_|drizzle|ECONN|EPIPE|ENOTFOUND|ENOMEM|ETIMEDOUT|Cannot read propert|is not a function|is not defined|Unexpected token|^\s*at\s/m;
+  /SQLITE_|POSTGRES_|postgres|drizzle|duplicate key|violates .*constraint|relation ".*?" does not exist|column ".*?" does not exist|ECONN|EPIPE|ENOTFOUND|ENOMEM|ETIMEDOUT|Cannot read propert|is not a function|is not defined|Unexpected token|^\s*at\s/m;
 function isInternalFailure(e: unknown, message: string): boolean {
   if (!(e instanceof Error)) return true;
   return INTERNAL_MESSAGE_RE.test(message);
@@ -257,9 +293,12 @@ const DIST = "./client/dist";
 
 // --- Product image uploads -------------------------------------------------
 // Sellers upload up to 10 photos per product (JPG/PNG/WebP/GIF, 5 MB each).
-// Files live under UPLOADS_DIR (default ./data/uploads — on Render point it
-// at the persistent disk, e.g. UPLOADS_DIR=/var/shop-data/uploads) and are
-// served at /uploads/<file>. Uploads only work on this self-hosted server.
+// New uploads go to Supabase Storage (see server/src/storage.ts bucket map)
+// and return absolute public URLs; nothing new is written to local disk.
+// UPLOADS_DIR / mkdirSync / UPLOAD_NAME_RE remain ONLY for the legacy
+// GET /uploads/* route (rows written before the Supabase migration still
+// reference /uploads/<name>) and the best-effort legacy fallback in the
+// DELETE /api/uploads/:id handler. No persistent disk is required anymore.
 const UPLOADS_DIR = resolve(process.env.UPLOADS_DIR ?? "./data/uploads");
 mkdirSync(UPLOADS_DIR, { recursive: true });
 const MAX_IMAGES_PER_PRODUCT = 10;
@@ -421,7 +460,7 @@ Bun.serve({
     if ((url.pathname === "/api/health" || url.pathname === "/health") && (req.method === "GET" || req.method === "HEAD")) {
       let dbOk = false;
       try {
-        sqlite.query("SELECT 1").get();
+        await sql`SELECT 1`;
         dbOk = true;
       } catch (e) {
         logEvent("error", "health", "database reachability probe failed", {
@@ -565,14 +604,14 @@ Bun.serve({
         });
         const saved: { id: number; url: string }[] = [];
         for (let i = 0; i < files.length; i++) {
-          const name = `${crypto.randomUUID()}${exts[i]}`;
-          await Bun.write(join(UPLOADS_DIR, name), files[i]);
+          const name = bucketPathFor("product", exts[i]);
+          const url = await uploadToBucket(STORAGE_BUCKETS.product, name, new Uint8Array(await files[i].arrayBuffer()), files[i].type);
           const rows = await db.insert(schema.productImages)
-            .values({ productId, url: `/uploads/${name}`, sortOrder: existing.length + i })
+            .values({ productId, url, sortOrder: existing.length + i })
             .returning({ id: schema.productImages.id });
           const row = rows[0];
           if (!row) throw new Error("The photo could not be saved.");
-          saved.push({ id: row.id, url: `/uploads/${name}` });
+          saved.push({ id: row.id, url });
         }
         return Response.json({ data: { images: saved } });
       } catch (e) {
@@ -596,9 +635,12 @@ Bun.serve({
           .where(and(eq(schema.products.id, img.productId), eq(schema.products.storeId, store.id))).limit(1))[0];
         if (!product) throw new Error("You can only remove your own product photos.");
         await db.delete(schema.productImages).where(eq(schema.productImages.id, id));
-        const fname = img.url.split("/").pop() ?? "";
-        if (UPLOAD_NAME_RE.test(fname)) {
-          try { await unlink(join(UPLOADS_DIR, fname)); } catch { /* already gone */ }
+        const ref = parseStoredUploadUrl(img.url);
+        if (ref.kind === "supabase") {
+          try { await deleteFromBucket(ref.bucket, ref.path); } catch { /* already gone */ }
+        } else if (UPLOAD_NAME_RE.test(ref.filename)) {
+          // Legacy local-disk row: best-effort local unlink, exactly as before.
+          try { await unlink(join(UPLOADS_DIR, ref.filename)); } catch { /* already gone */ }
         }
         return Response.json({ data: { ok: true } });
       } catch (e) {
@@ -606,7 +648,9 @@ Bun.serve({
       }
     }
 
-    // Serve uploaded product photos (long-lived cache; filenames are unique).
+    // Legacy route: serves files uploaded to local disk before the Supabase
+    // migration (long-lived cache; filenames are unique). New uploads return
+    // absolute Supabase URLs and never touch this path.
     if (url.pathname.startsWith("/uploads/") && (req.method === "GET" || req.method === "HEAD")) {
       const fname = url.pathname.slice("/uploads/".length);
       if (!UPLOAD_NAME_RE.test(fname)) return new Response("Not found", { status: 404 });
@@ -621,8 +665,9 @@ Bun.serve({
     // --- Admin advertisement banner uploads ---------------------------------
     // The admin uploads one image per homepage advertisement (JPG/PNG/WebP/GIF,
     // 5 MB). Authenticated with an admin session token in the x-auth-token
-    // header; the file is validated like product photos and served from
-    // /uploads/ so every ad is shown with its image on the homepage.
+    // header; the file is validated like product photos and uploaded to the
+    // Supabase `banners` bucket, so every ad is shown with its image on the
+    // homepage.
     if (url.pathname === "/api/banner-uploads" && req.method === "POST") {
       try {
         const token = req.headers.get("x-auth-token") ?? "";
@@ -634,9 +679,9 @@ Bun.serve({
         const ext = UPLOAD_MIME_TO_EXT[file.type];
         if (!ext) throw new Error(`"${file.name || "file"}" is not a JPG, PNG, WebP or GIF image.`);
         if (file.size > MAX_UPLOAD_BYTES) throw new Error(`"${file.name || "file"}" is over 5 MB.`);
-        const name = `banner-${crypto.randomUUID()}${ext}`;
-        await Bun.write(join(UPLOADS_DIR, name), file);
-        return Response.json({ data: { url: `/uploads/${name}` } });
+        const name = bucketPathFor("banner", ext);
+        const url = await uploadToBucket(STORAGE_BUCKETS.banner, name, new Uint8Array(await file.arrayBuffer()), file.type);
+        return Response.json({ data: { url } });
       } catch (e) {
         return Response.json({ error: e instanceof Error ? e.message : "Upload failed." }, { status: 400 });
       }
@@ -658,9 +703,8 @@ Bun.serve({
         const ext = UPLOAD_MIME_TO_EXT[file.type];
         if (!ext) throw new Error(`"${file.name || "file"}" is not a JPG, PNG, WebP or GIF image.`);
         if (file.size > MAX_UPLOAD_BYTES) throw new Error(`"${file.name || "file"}" is over 5 MB.`);
-        const name = `sitelogo-${crypto.randomUUID()}${ext}`;
-        await Bun.write(join(UPLOADS_DIR, name), file);
-        const logoUrl = `/uploads/${name}`;
+        const name = bucketPathFor("sitelogo", ext);
+        const logoUrl = await uploadToBucket(STORAGE_BUCKETS.sitelogo, name, new Uint8Array(await file.arrayBuffer()), file.type);
         const now = new Date();
         await db.insert(schema.platformSettings).values({ key: "site_logo_url", value: logoUrl, updatedAt: now })
           .onConflictDoUpdate({ target: schema.platformSettings.key, set: { value: logoUrl, updatedAt: now } });
@@ -675,7 +719,7 @@ Bun.serve({
     // (JPG/PNG/WebP/GIF, 5 MB). The buyer is derived from the session token
     // in the x-auth-token header — never from client-supplied ids. Sellers,
     // admins and guests are rejected. The URL is stored on users.avatar_url
-    // and served from /uploads/.
+    // and stored as the absolute Supabase public URL (avatars bucket).
     if (url.pathname === "/api/profile-uploads" && req.method === "POST") {
       try {
         const token = req.headers.get("x-auth-token") ?? "";
@@ -687,9 +731,8 @@ Bun.serve({
         const ext = UPLOAD_MIME_TO_EXT[file.type];
         if (!ext) throw new Error(`"${file.name || "file"}" is not a JPG, PNG, WebP or GIF image.`);
         if (file.size > MAX_UPLOAD_BYTES) throw new Error(`"${file.name || "file"}" is over 5 MB.`);
-        const name = `avatar-${crypto.randomUUID()}${ext}`;
-        await Bun.write(join(UPLOADS_DIR, name), file);
-        const avatarUrl = `/uploads/${name}`;
+        const name = bucketPathFor("avatar", ext);
+        const avatarUrl = await uploadToBucket(STORAGE_BUCKETS.avatar, name, new Uint8Array(await file.arrayBuffer()), file.type);
         await db.update(schema.users).set({ avatarUrl, updatedAt: new Date() }).where(eq(schema.users.id, s.userId));
         return Response.json({ data: { url: avatarUrl } });
       } catch (e) {
@@ -701,8 +744,9 @@ Bun.serve({
     // Sellers upload their store logo and banner from the studio settings
     // (JPG/PNG/WebP/GIF, 5 MB each). Authenticated with a seller session
     // token or the legacy seller_code + seller_key in the multipart form.
-    // Files are named store-<uuid>.<ext> and served from /uploads/; the
-    // saveStoreAssets action attaches them to the store.
+    // Files are named store-<uuid>.<ext> in the Supabase `site-assets` bucket
+    // (logo and banner both land there; the kind distinction is semantic);
+    // the saveStoreAssets action attaches the returned URL to the store.
     if (url.pathname === "/api/store-uploads" && req.method === "POST") {
       try {
         const form = await req.formData();
@@ -717,9 +761,9 @@ Bun.serve({
         const ext = UPLOAD_MIME_TO_EXT[file.type];
         if (!ext) throw new Error(`"${file.name || "file"}" is not a JPG, PNG, WebP or GIF image.`);
         if (file.size > MAX_UPLOAD_BYTES) throw new Error(`"${file.name || "file"}" is over 5 MB.`);
-        const name = `store-${crypto.randomUUID()}${ext}`;
-        await Bun.write(join(UPLOADS_DIR, name), file);
-        return Response.json({ data: { url: `/uploads/${name}` } });
+        const name = bucketPathFor("store", ext);
+        const url = await uploadToBucket(STORAGE_BUCKETS.store, name, new Uint8Array(await file.arrayBuffer()), file.type);
+        return Response.json({ data: { url } });
       } catch (e) {
         return Response.json({ error: e instanceof Error ? e.message : "Upload failed." }, { status: 400 });
       }
@@ -742,7 +786,7 @@ Bun.serve({
 });
 
 console.log(`Nepal Shopping Site running at http://localhost:${PORT}`);
-console.log(`Database: ${DB_PATH}`);
+console.log(`Database: Supabase Postgres`);
 
 // Unpaid online order expiry: stock is reserved at checkout, so groups left
 // waiting for an eSewa/Khalti payment (abandoned wallet, expired session,
@@ -751,9 +795,9 @@ console.log(`Database: ${DB_PATH}`);
 {
   // Throttle: a persistently broken sweep must not mail the admin every 10 minutes.
   let lastSweepAlertAt = 0;
-  const sweep = () => {
+  const sweep = async () => {
     try {
-      const { swept, groups } = sweepExpiredUnpaidGroups(db);
+      const { swept, groups } = await sweepExpiredUnpaidGroups(db);
       if (swept > 0) console.log(`[payments] released ${swept} expired unpaid order group(s): ${groups.join(", ")}`);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);

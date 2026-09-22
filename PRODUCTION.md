@@ -1,18 +1,27 @@
-# Production go-live checklist — Nepal Shop (v7)
+# Production go-live checklist — Nepal Shop (Supabase era)
 
 Work through every item before taking real orders. The stack is Bun +
-SQLite (WAL mode) + Drizzle, served by `selfhost.ts`. The full deploy
-reference (service settings, every env var, backups, monitoring) lives in
-`README.md` — "Deploy on Render". This file is the checklist you tick off.
+Supabase Postgres + Supabase Storage + Drizzle, served by `selfhost.ts`.
+The full deploy reference (service settings, every env var, backups,
+monitoring, the SQLite → Postgres cutover) lives in `README.md` — "Deploy
+on Render" and "Supabase cutover". This file is the checklist you tick off.
 
 ## 1. Environment
 
-- [ ] `DB_PATH` points at the persistent disk (`/var/shop-data/app.db` on
-      Render). Never use the default `./data/app.db` in production — the
-      filesystem is ephemeral and orders would be lost on redeploy.
-- [ ] `UPLOADS_DIR` points at the persistent disk
-      (`/var/shop-data/uploads` on Render). Without this, seller product
-      photos are lost on every redeploy or sleep/wake cycle.
+- [ ] `DATABASE_URL` is the Supabase **pooler** connection string
+      (Project Settings → Database → Connection string → pooler host,
+      port 6543). The server refuses to boot without it.
+- [ ] `SUPABASE_URL=https://bdocgqightjjthuosvch.supabase.co`
+      (Project Settings → General) and `SUPABASE_SERVICE_ROLE_KEY`
+      (Project Settings → API, secret) are set — uploads need them.
+      The service-role key is server-side only: never commit it, never
+      expose it to the client.
+- [ ] `SKIP_SEED=1` is set — the demo seed (admin, demo sellers, sample
+      products) must never run on the live database.
+- [ ] **No persistent disk is needed.** The database lives in Supabase
+      Postgres and uploads in Supabase Storage; deploys and sleep/wake
+      cycles lose nothing. If the old `/var/shop-data` disk is still
+      attached, detach it.
 - [ ] `PUBLIC_BASE_URL` set to the real public URL, e.g.
       `https://nepal-shop-2.onrender.com`. Payment callbacks, the sitemap
       and `robots.txt` all use it.
@@ -47,8 +56,9 @@ products whose credentials are documented in the README. The server warns
 loudly on every boot while any remain (`[security] Demo seller still
 present: …`) — going live with them must be a conscious choice.
 
-- [ ] Decide: **start fresh** (recommended — boot with an empty `DB_PATH`,
-      let migrations create the schema, provision the real admin via
+- [ ] Decide: **start fresh** (recommended — run `supabase/schema.sql`
+      then `supabase/storage.sql` in the SQL editor, boot with
+      `SKIP_SEED=1`, provision the real admin via
       `ADMIN_EMAIL`/`ADMIN_PASSWORD`) or **clean the seed**: suspend/delete
       the `@demo.local` sellers in the admin panel (or SQL), delete their
       products, and delete/deactivate the demo coupons `WELCOME10` and
@@ -82,20 +92,24 @@ present: …`) — going live with them must be a conscious choice.
 
 ## 5. Backups
 
-- [ ] The persistent disk protects against redeploys and restarts. It does
-      **not** protect against disk loss, corruption, or a bad deploy — so
-      schedule `scripts/backup.ts` (Render cron job or any machine with Bun
-      and disk access):
-      `DB_PATH=/var/shop-data/app.db UPLOADS_DIR=/var/shop-data/uploads BACKUP_DIR=/var/shop-data/backups KEEP_DAILY=7 bun scripts/backup.ts`
-- [ ] It snapshots the live DB with `VACUUM INTO` (online-safe; never
-      plain `cp` on a live WAL database) and tars the uploads directory,
-      keeping the last 7 of each. Exit code 1 on failure — alert on that.
-- [ ] There are **no automated off-site backups**. Do not claim there are.
-      If you need off-site copies, sync `BACKUP_DIR` somewhere yourself.
-- [ ] Restore was tested 2026-09-22 (backup → wipe → restore → boot →
-      data intact). The procedure is in `README.md` ("Backups and
-      restore"). Re-test it yourself once against a scratch path before
-      you need it for real.
+- [ ] Supabase point-in-time recovery is enabled (Project Settings →
+      Database) — this is the primary protection against data loss.
+- [ ] Schedule `scripts/backup.ts` as well (Render cron job or any machine
+      with Bun and the PostgreSQL client tools):
+      `DATABASE_URL=… BACKUP_DIR=./backups KEEP_DAILY=7 bun scripts/backup.ts`
+- [ ] It dumps the live database with `pg_dump -Fc`, keeping the last 7
+      dumps. Exit code 1 on failure — alert on that. The script fails
+      clearly if `pg_dump` is missing from `PATH`.
+- [ ] `pg_dump` backs up the **database only** — product/banner/avatar
+      images live in Supabase Storage buckets, so keep bucket
+      versioning/PITR enabled for those too.
+- [ ] There are **no automated off-site backups** beyond what you
+      configure. Do not claim there are. If you need off-site copies,
+      sync `BACKUP_DIR` somewhere yourself.
+- [ ] The restore procedure is in `README.md` ("Backups and restore").
+      The old SQLite restore was tested 2026-09-22; the `pg_restore` flow
+      has not been restore-tested yet — test it once against a scratch
+      database before you need it for real.
 
 ## 6. Monitoring
 
@@ -128,21 +142,26 @@ present: …`) — going live with them must be a conscious choice.
       `bun scripts/verify-v4.ts --port <PORT>` against a fresh boot) after
       every deploy.
 
-## 8. Deploy checklist (v7, no questions asked)
+## 8. Deploy checklist (no questions asked)
 
 1. `bun install` — dependencies (the SDK is vendored in `./vendor`).
 2. If `client/src` changed: `bun scripts/build-client-local.mjs`
    (the Render/self-host builder — NOT `client/build.mjs`, which is the
    SDK-guarded Hatch artifact builder).
 3. `bun run typecheck` — server + client must be green.
-4. `bun scripts/verify-v4.ts --port <PORT>` against a fresh-boot server —
-   expect 36/36.
-5. Replace the repo contents with this folder, commit, push.
-6. Render → **Manual Deploy → Deploy latest commit** (existing service
-   settings: runtime Bun, build `bun install`, start `bun selfhost.ts`,
-   disk at `/var/shop-data`, health check `/api/health`).
-7. Watch the deploy logs: migrations apply, no `[security] Demo seller`
-   warnings, `/api/health` returns `"status":"ok"`.
+4. `bun scripts/schema-parity.ts` — drizzle schema and
+   `supabase/schema.sql` must agree (also runs in CI).
+5. `bun scripts/verify-v4.ts --port <PORT>` and
+   `bun scripts/verify-v9.ts --port <PORT>` against a fresh-boot server
+   on a scratch Postgres — expect all green.
+6. Replace the repo contents with this folder, commit, push.
+7. Render → **Manual Deploy → Deploy latest commit** (service settings:
+   runtime Bun, build `bun install`, start `bun selfhost.ts`, NO
+   persistent disk, health check `/api/health`). Env must include
+   `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+   `SKIP_SEED=1`.
+8. Watch the deploy logs: `supabase/schema.sql` applies, no `[security]
+   Demo seller` warnings, `/api/health` returns `"status":"ok"`.
 
 ## 9. Known limits (do not work around, plan for them)
 
@@ -151,7 +170,8 @@ present: …`) — going live with them must be a conscious choice.
 - No live chat; support is ticket-based.
 - One order = one seller. The checkout rejects mixed-seller baskets with a
   clear message.
-- Backups are on-disk snapshots, not off-site — see section 5.
+- Backups are `pg_dump` files plus Supabase PITR — not off-site until
+  you sync them somewhere yourself; see section 5.
 - No external APM; monitoring is the health endpoint + structured logs +
   admin email alerts (an honest, dependency-free scope).
 - Privacy Policy and Terms drafts (in the app) still need a local

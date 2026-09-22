@@ -1,5 +1,5 @@
 // Commission + payouts checkpoint: full money loop over real HTTP.
-// Usage: PORT=3899 DB_PATH=/tmp/verify-commission.db bun selfhost.ts (shell 1),
+// Usage: PORT=3899 DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres bun selfhost.ts (shell 1),
 //        then: bun scripts/verify-commission.ts --port 3899
 const port = process.argv.includes("--port") ? process.argv[process.argv.indexOf("--port") + 1] : "3899";
 const BASE = `http://localhost:${port}`;

@@ -1,9 +1,11 @@
 {
   "dependencies": {
     "@hatch/space-sdk": "file:./vendor/space-sdk.tgz",
+    "@supabase/supabase-js": "^2.116.0",
     "@tanstack/react-query": "5.100.10",
     "drizzle-orm": "0.45.2",
     "nodemailer": "^10.0.10",
+    "postgres": "^3.4.9",
     "react": "19.2.5",
     "react-dom": "19.2.5",
     "zod": "4.4.3"

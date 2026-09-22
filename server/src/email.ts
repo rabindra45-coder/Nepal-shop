@@ -16,7 +16,7 @@
 // enumeration, but no email goes out and the server log says so).
 import nodemailer, { type Transporter } from "nodemailer";
 import { eq } from "drizzle-orm";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 // Runtime import (not type-only): dbSmtpConfig queries smtp_settings.
 // schema.ts only depends on drizzle-orm, so there is no import cycle.
 import * as schema from "./schema";
@@ -90,7 +90,7 @@ export interface SmtpConfig {
   version: string;
 }
 
-type SmtpDb = BunSQLiteDatabase<typeof schema>;
+type SmtpDb = PostgresJsDatabase<typeof schema>;
 let dbProvider: (() => SmtpDb) | null = null;
 export function setSmtpDbProvider(provider: (() => SmtpDb) | null): void {
   dbProvider = provider;

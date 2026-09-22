@@ -21,6 +21,7 @@ export function AboutPage() {
           you order.
         </p>
       </section>
+      <DraftBanner />
       <section className="studio-section">
         <h2>What makes us different</h2>
         <ul className="tick-list">
@@ -84,6 +85,7 @@ export function ContactPage() {
         <h1>Talk to us.</h1>
         <p>Questions, problems or feedback — we read everything.</p>
       </section>
+      <DraftBanner />
       <section className="studio-section">
         <h2>Reach us directly</h2>
         <dl className="contact-grid">
@@ -118,7 +120,7 @@ export function ContactPage() {
 function DraftBanner() {
   return (
     <p className="banner warn draft-banner" role="note">
-      <b>Draft — get local legal review before serving real customers.</b>
+      <b>Draft — needs review by a Nepal-qualified lawyer before serving real customers.</b>
       <span> This policy is a starting point. Have it checked by a lawyer in Nepal before you take real orders or store real customer data.</span>
     </p>
   );
@@ -246,6 +248,175 @@ export function TermsPage() {
         <p>We may update these terms as the marketplace grows. Material changes will be announced on the site, and continued use after they take effect means you accept them.</p>
         <h2>12. Contact</h2>
         <p>Questions about these terms: [Your email address] or our <button className="linklike" onClick={() => go("/contact")}>Contact page</button>.</p>
+      </section>
+    </main>
+  );
+}
+
+// --- refund policy ------------------------------------------------------------
+export function RefundPolicyPage() {
+  return (
+    <main className="track-page legal-page doc-page">
+      <section className="track-intro">
+        <p className="eyebrow">Refund policy</p>
+        <h1>When money comes back.</h1>
+        <p className="muted">Last updated: September 2026</p>
+      </section>
+      <DraftBanner />
+      <section className="studio-section doc-body">
+        <h2>1. When a refund applies</h2>
+        <ul>
+          <li>Your return was accepted and the item came back in its original condition.</li>
+          <li>Your order was cancelled before dispatch — no payment is ever taken for cancelled orders.</li>
+          <li>An online payment (eSewa/Khalti) was charged but the order did not go through.</li>
+        </ul>
+        <h2>2. How refunds are completed</h2>
+        <p>Refunds are completed <b>manually by our marketplace team</b> — there is no automatic refund button, and we tell you this so you know what to expect:</p>
+        <ul>
+          <li><b>eSewa / Khalti payments</b> are sent back through the original wallet once our team processes them. Please allow a few working days.</li>
+          <li><b>Cash on delivery:</b> no payment was ever collected, so there is nothing to refund. If you somehow paid in advance, we arrange the refund with you directly.</li>
+        </ul>
+        <h2>3. Timing</h2>
+        <p>For returns, the refund starts once the seller confirms the item arrived back in its original condition. The wallet transfer itself then takes a few working days. We keep the refund status visible on your tracking page.</p>
+        <h2>4. Delivery fees and discounts</h2>
+        <p>Product prices are refunded in full. Delivery fees are refunded only when the return is the seller's or our fault (wrong or damaged item). Coupon discounts are not paid out as cash — they simply reduce what you owed.</p>
+        <h2>5. If the money does not arrive</h2>
+        <p>Contact us with your order code via the <button className="linklike" onClick={() => go("/contact")}>Contact page</button> or a support ticket, and our team will trace it with you.</p>
+      </section>
+    </main>
+  );
+}
+
+// --- return policy ------------------------------------------------------------
+export function ReturnPolicyPage() {
+  return (
+    <main className="track-page legal-page doc-page">
+      <section className="track-intro">
+        <p className="eyebrow">Return policy</p>
+        <h1>Changed your mind? 30 days.</h1>
+        <p className="muted">Last updated: September 2026</p>
+      </section>
+      <DraftBanner />
+      <section className="studio-section doc-body">
+        <h2>1. The 30-day window</h2>
+        <p>You can request a return within <b>30 days of delivery</b>. Start it from the tracking page with your order code and a reason — the same window is enforced automatically, so anything older cannot be submitted.</p>
+        <h2>2. What you can return</h2>
+        <ul>
+          <li>Items should be unused and in their original condition and packaging where possible.</li>
+          <li>Wrong or damaged items are accepted regardless of condition — that is the seller's mistake, not yours.</li>
+          <li>Perishables, opened personal-care products, and items marked "final sale" cannot be returned.</li>
+        </ul>
+        <h2>3. How it works</h2>
+        <ol>
+          <li>Request the return from your tracking page with a reason.</li>
+          <li>The seller reviews it and may accept or decline with reasons.</li>
+          <li>If you disagree with a decline, our marketplace team reviews the case and can overrule the seller.</li>
+          <li>Once accepted, return the item as instructed; the refund follows our <button className="linklike" onClick={() => go("/refund")}>Refund policy</button>.</li>
+        </ol>
+        <h2>4. Who pays for return shipping</h2>
+        <p>You cover return shipping when you simply changed your mind. If the item arrived wrong, damaged, or not as described, the seller covers it.</p>
+        <h2>5. Exchanges</h2>
+        <p>We do not offer exchanges. Return the item for a refund, then place a fresh order for the size, colour, or variant you want.</p>
+      </section>
+    </main>
+  );
+}
+
+// --- shipping policy ----------------------------------------------------------
+export function ShippingPolicyPage() {
+  return (
+    <main className="track-page legal-page doc-page">
+      <section className="track-intro">
+        <p className="eyebrow">Shipping policy</p>
+        <h1>From their shelf to your door.</h1>
+        <p className="muted">Last updated: September 2026</p>
+      </section>
+      <DraftBanner />
+      <section className="studio-section doc-body">
+        <h2>1. Who ships your order</h2>
+        <p>Each seller packs and dispatches their own parcels. If your basket spans several sellers, you receive one parcel per seller — each with its own tracking.</p>
+        <h2>2. Delivery options, times and cost</h2>
+        <ul>
+          <li><b>Standard delivery:</b> 2–5 working days. The fee is set by the seller and shown at checkout.</li>
+          <li><b>Express delivery:</b> 1–2 working days where offered, with a per-seller express surcharge shown at checkout.</li>
+          <li><b>Pickup:</b> free — collect the parcel from the seller's shop yourself.</li>
+        </ul>
+        <p>Times are estimates. Weather, strikes, and other disruptions can delay couriers; delays do not make us liable, but we still help you resolve problems.</p>
+        <h2>3. Tracking</h2>
+        <p>Once your parcel is on its way, the seller adds the courier name and tracking number, which appear on your tracking page.</p>
+        <h2>4. Cash on delivery, done properly</h2>
+        <p>COD orders stay “Needs confirmation” until the seller accepts them, which keeps fake orders and missed deliveries rare. Keep your phone reachable — the courier calls the number on the order, and repeatedly refused deliveries may lead to your account being limited.</p>
+        <h2>5. Coverage</h2>
+        <p>Couriers reach most of Nepal. Deliveries to remote areas can take longer and may carry a higher fee, always shown before you confirm the order.</p>
+      </section>
+    </main>
+  );
+}
+
+// --- seller terms -------------------------------------------------------------
+export function SellerTermsPage() {
+  return (
+    <main className="track-page legal-page doc-page">
+      <section className="track-intro">
+        <p className="eyebrow">Seller terms</p>
+        <h1>Sell on Nepal Shop.</h1>
+        <p className="muted">Last updated: September 2026</p>
+      </section>
+      <DraftBanner />
+      <section className="studio-section doc-body">
+        <h2>1. Becoming a seller</h2>
+        <p>Apply with your store name, location, and contact details. Every shop is reviewed and approved by our team before its products appear — new sellers start as “pending” and listings stay hidden until approval. Verified sellers carry a badge on their store and products.</p>
+        <h2>2. List honestly</h2>
+        <ul>
+          <li>Sell only genuine, safe products that match your listings. Counterfeits and misleading listings lead to suspension.</li>
+          <li>Keep prices, stock levels, photos, and descriptions accurate and up to date.</li>
+          <li>Do not sell prohibited items: illegal goods, weapons, or anything unsafe.</li>
+        </ul>
+        <h2>3. Handle orders properly</h2>
+        <ul>
+          <li>Confirm or decline cash-on-delivery orders promptly — buyers wait on your response.</li>
+          <li>Pack and dispatch within the delivery time you promise, and add the tracking number once shipped.</li>
+          <li>Use buyer details (name, phone, address) only to fulfil orders — never for marketing without permission.</li>
+        </ul>
+        <h2>4. Returns and disputes</h2>
+        <p>Review return requests fairly within the 30-day policy. Our marketplace team can overrule a decision, and repeated unfair refusals count against your shop.</p>
+        <h2>5. Fees and payouts</h2>
+        <p>Any commission or fee per sale is shown in your studio before you publish — you always know what a sale costs you. Payouts follow the schedule shown in your Earnings tab.</p>
+        <h2>6. Taxes</h2>
+        <p>You are responsible for your own tax obligations as a business. The marketplace adds no separate tax to sales.</p>
+        <h2>7. Suspension</h2>
+        <p>We may suspend shops for fake orders, misleading listings, counterfeit goods, repeated fulfilment failures, or misuse of buyer data. Serious cases are removed permanently.</p>
+        <h2>8. Questions</h2>
+        <p>Thinking of selling? Start at our <button className="linklike" onClick={() => go("/seller")}>Seller studio</button>, or ask us anything on the <button className="linklike" onClick={() => go("/contact")}>Contact page</button>.</p>
+      </section>
+    </main>
+  );
+}
+
+// --- cookie policy ------------------------------------------------------------
+export function CookiePolicyPage() {
+  return (
+    <main className="track-page legal-page doc-page">
+      <section className="track-intro">
+        <p className="eyebrow">Cookie policy</p>
+        <h1>A few cookies, nothing sneaky.</h1>
+        <p className="muted">Last updated: September 2026</p>
+      </section>
+      <DraftBanner />
+      <section className="studio-section doc-body">
+        <h2>1. What we store on your device</h2>
+        <ul>
+          <li><b>Sign-in session:</b> keeps you logged in so you do not have to sign in on every page.</li>
+          <li><b>Your basket:</b> remembers what you added while you shop.</li>
+          <li><b>Your cookie choice:</b> remembers whether you accepted or declined, so we do not ask again.</li>
+        </ul>
+        <p>We do not use advertising or cross-site tracking cookies.</p>
+        <h2>2. Strictly necessary vs optional</h2>
+        <p>The sign-in and basket storage are strictly necessary — the shop cannot work without them. Preferences like your cookie choice are only stored after you interact with the banner.</p>
+        <h2>3. Your choice</h2>
+        <p>On your first visit you are asked to accept or decline non-essential cookies, and your choice is remembered. You can change it at any time by clearing this site's storage in your browser settings.</p>
+        <h2>4. More detail</h2>
+        <p>See our <button className="linklike" onClick={() => go("/privacy")}>Privacy policy</button> for how your data is handled overall.</p>
       </section>
     </main>
   );

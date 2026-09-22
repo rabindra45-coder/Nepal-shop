@@ -1,12 +1,13 @@
 import { defineAction, z, type ActionsModule, type Ctx } from "@hatch/space-sdk";
-import { and, count, desc, eq, gte, inArray, isNull, like, lt, ne, or } from "drizzle-orm";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
+import { and, count, desc, eq, gte, ilike, inArray, isNull, lt, ne, or } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { unlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import * as schema from "./schema";
 import { formatRs, levenshtein, runAssistant } from "./assistant";
 import { recommendForProduct } from "./recommender";
 import { buildEsewaParams, esewaConfig, esewaFormUrl, esewaTransactionStatus, initiateKhalti, lookupKhalti, verifyEsewaSignature } from "./payments";
+import { deleteFromBucket, isExpectedUploadUrl, parseStoredUploadUrl, STORAGE_BUCKETS, type StorageKind, UPLOAD_FILENAME_PATTERNS } from "./storage";
 import {
   adminAlertEmail, adminEmailAddress, buyerVerificationEmail, buyerWelcomeEmail,
   capturedEmails, clearCapturedEmails, commissionChangeEmail, emailConfigured, lowStockEmail,
@@ -23,7 +24,7 @@ import {
 // we log to stderr instead of rolling back the user's action.
 async function audit(ctx: Ctx, actorType: string, actorId: string, action: string, entityType = "", entityId = "", detail = "") {
   try {
-    const db = ctx.db<typeof schema>();
+    const db = fullDb(ctx);
     await db.insert(schema.auditLogs).values({ actorType, actorId, action, entityType, entityId, detail, createdAt: new Date() });
   } catch (e) {
     console.error(`[audit] failed to record ${action}:`, e instanceof Error ? e.message : e);
@@ -33,7 +34,7 @@ async function audit(ctx: Ctx, actorType: string, actorId: string, action: strin
 // Delete every session for a user except (optionally) the one they are using
 // right now. Used after password changes and resets.
 async function revokeOtherSessions(ctx: Ctx, userType: "buyer" | "seller" | "admin", userId: string, exceptToken?: string) {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   if (exceptToken) {
     const rows = await db.select({ token: schema.sessions.token }).from(schema.sessions)
       .where(and(eq(schema.sessions.userType, userType), eq(schema.sessions.userId, userId)));
@@ -57,33 +58,47 @@ const sellerAuthFields = {
   seller_key: keyField.optional(),
 };
 const imageUrlField = z.string().trim().max(500).refine((u) => /^https?:\/\/.+/.test(u), "Image URL must start with http:// or https://.");
-// Store logo/banner URLs: only paths produced by POST /api/store-uploads
-// (store-<uuid>.<ext> under /uploads/). External or hand-typed URLs are
-// never accepted — the studio uploader is the only way in.
-const storeAssetUrlField = z.string().trim().max(120).regex(/^\/uploads\/store-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|gif)$/, "Store images must be uploaded through the studio uploader.");
-// Homepage advertisement images: only paths produced by POST
-// /api/banner-uploads (banner-<uuid>.<ext> under /uploads/). External or
-// hand-typed URLs are never accepted — the advertisement uploader is the
-// only way in, exactly like store assets above.
+// Store logo/banner URLs: only output of POST /api/store-uploads — a legacy
+// /uploads/store-<uuid>.<ext> path, or the Supabase public URL the endpoint
+// now returns (https://<project>.supabase.co/storage/v1/object/public/
+// site-assets/store-<uuid>.<ext>). External or hand-typed URLs are never
+// accepted — the studio uploader is the only way in.
+const storeAssetUrlField = z.string().trim().max(300).refine((u) => isExpectedUploadUrl(u, "store"), "Store images must be uploaded through the studio uploader.");
+// Homepage advertisement images: only output of POST /api/banner-uploads —
+// a legacy /uploads/banner-<uuid>.<ext> path, or the Supabase public URL
+// the endpoint now returns (https://<project>.supabase.co/storage/v1/
+// object/public/banners/banner-<uuid>.<ext>). External or hand-typed URLs
+// are never accepted — the advertisement uploader is the only way in,
+// exactly like store assets above.
 // Advertisement link: hash routes (#/…) or http(s) URLs only. The link is
 // rendered as <a href> on the public homepage, so javascript: and other
 // schemes must never reach it (stored-XSS hardening, checkpoint 20).
-const bannerImageUrlField = z.string().trim().max(120).regex(/^\/uploads\/banner-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|gif)$/, "Advertisement images must be uploaded through the advertisement uploader.");
+const bannerImageUrlField = z.string().trim().max(300).refine((u) => isExpectedUploadUrl(u, "banner"), "Advertisement images must be uploaded through the advertisement uploader.");
 const bannerLinkField = z.string().trim().max(200).refine((u) => /^(#\/|https?:\/\/)/.test(u), "Advertisement link must be a #/ route or an http(s) URL.");
 
-// Remove a locally-uploaded file created by the self-hosted server. Only
-// touches files we created inside UPLOADS_DIR (banner-<uuid>, store-<uuid>
-// or a bare product-photo <uuid>, each with a whitelisted image extension);
-// anything else is left alone.
-function deleteUploadFile(url: string | null | undefined): void {
+// Remove a stored upload when its row is replaced or deleted. Supabase
+// public URLs go back to their bucket via deleteFromBucket; legacy
+// /uploads/<name> rows fall back to a best-effort local unlink. Only
+// objects whose bucket + filename match what our uploaders produce are
+// ever deleted; anything else is left alone. Best-effort: a failed delete
+// never fails the surrounding product/banner/store update.
+async function deleteStoredUpload(url: string | null | undefined): Promise<void> {
   if (!url) return;
-  const fname = url.split("/").pop() ?? "";
-  if (!/^((banner|store)-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|gif)$/.test(fname)) return;
+  const ref = parseStoredUploadUrl(url);
+  if (ref.kind === "supabase") {
+    const kind = (Object.keys(STORAGE_BUCKETS) as StorageKind[]).find((k) => STORAGE_BUCKETS[k] === ref.bucket);
+    if (!kind || !UPLOAD_FILENAME_PATTERNS[kind].test(ref.path)) return;
+    await deleteFromBucket(ref.bucket, ref.path).catch(() => { /* already gone */ });
+    return;
+  }
+  const fname = ref.filename;
+  const legacyRe = /^((banner|store|avatar|sitelogo)-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|gif)$/;
+  if (!legacyRe.test(fname)) return;
   const dir = resolve(process.env.UPLOADS_DIR ?? "./data/uploads");
-  void unlink(join(dir, fname)).catch(() => { /* already gone */ });
+  await unlink(join(dir, fname)).catch(() => { /* already gone */ });
 }
 
-const productShape = z.object({ id: z.number(), store_id: z.number(), seller_code: z.string(), store_name: z.string(), store_location: z.string(), name: z.string(), category: z.string(), description: z.string(), price_paisa: z.number(), delivery_fee_paisa: z.number(), stock: z.number(), is_active: z.boolean(), rating: z.number().nullable(), review_count: z.number(), created_at: z.string(), brand: z.string().nullable(), original_price_paisa: z.number().nullable(), discount_pct: z.number(), image_url: z.string().nullable(), images: z.array(z.string()), low_stock: z.boolean(), sku: z.string().nullable() });
+const productShape = z.object({ id: z.number(), store_id: z.number(), seller_code: z.string(), store_name: z.string(), store_location: z.string(), name: z.string(), category: z.string(), description: z.string(), price_paisa: z.number(), delivery_fee_paisa: z.number(), stock: z.number(), is_active: z.boolean(), approval_status: z.string().optional(), rating: z.number().nullable(), review_count: z.number(), created_at: z.string(), brand: z.string().nullable(), original_price_paisa: z.number().nullable(), discount_pct: z.number(), image_url: z.string().nullable(), images: z.array(z.string()), low_stock: z.boolean(), sku: z.string().nullable() });
 // Customer-facing variant (size, colour, …). Only active variants of public
 // products are ever exposed; the seller studio (Seller checkpoint) manages them.
 const variantShape = z.object({ id: z.number(), label: z.string(), sku: z.string().nullable(), price_paisa: z.number().nullable(), stock: z.number(), is_active: z.boolean() });
@@ -128,7 +143,7 @@ async function hashKey(value: string) {
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 async function requireSeller(ctx: Ctx, code: string, key: string) {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const store = (await db.select().from(schema.storeSettings).where(eq(schema.storeSettings.sellerCode, code.toUpperCase())).limit(1))[0];
   if (!store) throw new Error("Seller code or access key is incorrect.");
   // Prefer the bcrypt hash (v7+). A legacy unsalted SHA-256 hash is still
@@ -149,7 +164,7 @@ type SessionType = "buyer" | "seller" | "admin";
 const SESSION_DAYS = 30;
 
 async function createSession(ctx: Ctx, userType: SessionType, userId: string) {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const token = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 3600 * 1000);
   await db.insert(schema.sessions).values({ token, userType, userId, expiresAt });
@@ -158,7 +173,7 @@ async function createSession(ctx: Ctx, userType: SessionType, userId: string) {
 
 async function requireAuth(ctx: Ctx, token: string | undefined, ...types: SessionType[]) {
   if (!token) throw new Error("Please sign in first.");
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const session = (await db.select().from(schema.sessions).where(eq(schema.sessions.token, token)).limit(1))[0];
   if (!session || session.expiresAt.getTime() < Date.now()) {
     if (session) await db.delete(schema.sessions).where(eq(schema.sessions.token, token));
@@ -173,7 +188,7 @@ async function resolveSeller(ctx: Ctx, args: { authToken?: string; seller_code?:
   if (args.seller_code && args.seller_key) return requireSeller(ctx, args.seller_code, args.seller_key);
   if (args.authToken) {
     const auth = await requireAuth(ctx, args.authToken, "seller");
-    const db = ctx.db<typeof schema>();
+    const db = fullDb(ctx);
     const store = (await db.select().from(schema.storeSettings).where(eq(schema.storeSettings.id, Number(auth.id))).limit(1))[0];
     if (!store) throw new Error("Seller account not found.");
     return store;
@@ -215,7 +230,7 @@ function mapOrder(o: typeof schema.orders.$inferSelect, items: (typeof schema.or
 async function orderExtras(ctx: Ctx, orderIds: number[]): Promise<Map<number, OrderExtras>> {
   const out = new Map<number, OrderExtras>();
   if (!orderIds.length) return out;
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const [reasons, refunds] = await Promise.all([
     db.select({ orderId: schema.returnRequests.orderId, reason: schema.returnRequests.reason }).from(schema.returnRequests).where(inArray(schema.returnRequests.orderId, orderIds)),
     db.select({ orderId: schema.refunds.orderId, status: schema.refunds.status }).from(schema.refunds).where(inArray(schema.refunds.orderId, orderIds)),
@@ -234,7 +249,7 @@ async function orderExtras(ctx: Ctx, orderIds: number[]): Promise<Map<number, Or
 const SHIPPING_DEFAULTS = { express_fee_paisa: 12000, standard_enabled: true, express_enabled: true, pickup_enabled: true };
 export interface ShippingConfig { express_fee_paisa: number; standard_enabled: boolean; express_enabled: boolean; pickup_enabled: boolean }
 async function shippingConfig(ctx: Ctx): Promise<ShippingConfig> {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const rows = await db.select().from(schema.platformSettings);
   const get = (k: string) => rows.find((r) => r.key === k)?.value;
   const bool = (v: string | undefined, dflt: boolean) => (v == null ? dflt : v === "1" || v.toLowerCase() === "true");
@@ -251,7 +266,7 @@ async function shippingConfig(ctx: Ctx): Promise<ShippingConfig> {
 // selfhost.ts), stored as the site_logo_url key in platform_settings.
 // Missing or empty means no logo has been uploaded yet.
 async function siteLogoUrl(ctx: Ctx): Promise<string | null> {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const row = (await db.select({ value: schema.platformSettings.value }).from(schema.platformSettings).where(eq(schema.platformSettings.key, "site_logo_url")).limit(1))[0];
   const v = (row?.value ?? "").trim();
   return v ? v : null;
@@ -269,13 +284,13 @@ async function siteLogoUrl(ctx: Ctx): Promise<string | null> {
 // sendEmail directly.
 async function buyerContact(ctx: Ctx, userId: string | null): Promise<{ email: string; name: string; notify: boolean } | null> {
   if (!userId) return null;
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const user = (await db.select({ email: schema.users.email, name: schema.users.name, notify: schema.users.notifyOrderEmails }).from(schema.users).where(eq(schema.users.id, userId)).limit(1))[0];
   if (!user?.email) return null;
   return { email: user.email, name: user.name, notify: user.notify !== false };
 }
 async function sellerContact(ctx: Ctx, storeId: number): Promise<{ email: string; name: string } | null> {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const store = (await db.select({ email: schema.storeSettings.email, name: schema.storeSettings.storeName }).from(schema.storeSettings).where(eq(schema.storeSettings.id, storeId)).limit(1))[0];
   if (!store?.email) return null;
   return { email: store.email, name: store.name };
@@ -352,7 +367,7 @@ function aggregatePaymentStatus(statuses: string[]): GroupPaymentStatus {
 // Full customer/admin view of an order group: the group row plus every
 // fulfilment order (with items) and the selling store's name on each.
 async function loadOrderGroup(ctx: Ctx, groupId: number): Promise<OrderGroupView | null> {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const group = (await db.select().from(schema.orderGroups).where(eq(schema.orderGroups.id, groupId)).limit(1))[0];
   if (!group) return null;
   const subOrders = await db.select().from(schema.orders).where(eq(schema.orders.groupId, groupId)).orderBy(schema.orders.id);
@@ -388,18 +403,18 @@ function groupResponseOf(view: NonNullable<Awaited<ReturnType<typeof loadOrderGr
 }
 
 // Atomic coupon redemption, called INSIDE the placeOrder transaction.
-// Re-reads the coupon and counts existing usages inside the transaction, so
-// two checkouts racing each other cannot both slip under maxUses or the
-// per-user limit: SQLite serialises the write transactions, and the second
-// one sees the first one's committed usage row before inserting its own.
-function redeemCouponTx(tx: DbTx, couponId: number, identity: { userId: string | null; guestPhone: string | null }, subtotalPaisa: number): { discount: number; freeShipping: boolean; code: string } {
-  const coupon = tx.select().from(schema.coupons).where(eq(schema.coupons.id, couponId)).limit(1).prepare().get();
+// Re-reads the coupon with a FOR UPDATE row lock and counts existing usages
+// inside the transaction, so two checkouts racing each other cannot both
+// slip under maxUses or the per-user limit: the loser blocks on the coupon
+// row and then sees the winner's committed usage row before inserting its own.
+async function redeemCouponTx(tx: DbTx, couponId: number, identity: { userId: string | null; guestPhone: string | null }, subtotalPaisa: number): Promise<{ discount: number; freeShipping: boolean; code: string }> {
+  const coupon = (await tx.select().from(schema.coupons).where(eq(schema.coupons.id, couponId)).limit(1).for("update"))[0];
   if (!coupon) throw new Error("This coupon is no longer available.");
   if (!coupon.isActive) throw new Error("This coupon is no longer active.");
   if (coupon.expiresAt && coupon.expiresAt.getTime() < Date.now()) throw new Error("This coupon has expired.");
   if (subtotalPaisa < coupon.minOrderPaisa) throw new Error(`This coupon needs a minimum order of ${formatRs(coupon.minOrderPaisa)}.`);
   if (coupon.maxUses != null) {
-    const uses = tx.select({ id: schema.couponUsages.id }).from(schema.couponUsages).where(eq(schema.couponUsages.couponId, coupon.id)).prepare().all();
+    const uses = await tx.select({ id: schema.couponUsages.id }).from(schema.couponUsages).where(eq(schema.couponUsages.couponId, coupon.id));
     if (uses.length >= coupon.maxUses) throw new Error("This coupon has reached its usage limit.");
   }
   if (coupon.perUserLimit > 0) {
@@ -408,8 +423,8 @@ function redeemCouponTx(tx: DbTx, couponId: number, identity: { userId: string |
     // counted inside the transaction, closing the guest bypass and the
     // concurrent-checkout race at once.
     const mine = identity.userId
-      ? tx.select({ id: schema.couponUsages.id }).from(schema.couponUsages).where(and(eq(schema.couponUsages.couponId, coupon.id), eq(schema.couponUsages.userId, identity.userId))).prepare().all()
-      : tx.select({ id: schema.couponUsages.id }).from(schema.couponUsages).where(and(eq(schema.couponUsages.couponId, coupon.id), eq(schema.couponUsages.guestPhone, identity.guestPhone ?? ""))).prepare().all();
+      ? await tx.select({ id: schema.couponUsages.id }).from(schema.couponUsages).where(and(eq(schema.couponUsages.couponId, coupon.id), eq(schema.couponUsages.userId, identity.userId)))
+      : await tx.select({ id: schema.couponUsages.id }).from(schema.couponUsages).where(and(eq(schema.couponUsages.couponId, coupon.id), eq(schema.couponUsages.guestPhone, identity.guestPhone ?? "")));
     if (mine.length >= coupon.perUserLimit) throw new Error("This coupon has already been used the maximum number of times for this account.");
   }
   const freeShipping = coupon.kind === "free_shipping";
@@ -423,10 +438,10 @@ function redeemCouponTx(tx: DbTx, couponId: number, identity: { userId: string |
 // Cancel a set of fulfilment orders atomically: every one must still be
 // cancellable, otherwise nothing changes. Stock is restored per fulfilment
 // and unsettled payments voided, mirroring the old single-order path.
-function cancelFulfilmentsTx(tx: DbTx, orderIds: number[], actorType: string, actorId: string): void {
+async function cancelFulfilmentsTx(tx: DbTx, orderIds: number[], actorType: string, actorId: string): Promise<void> {
   const now = new Date();
   for (const oid of orderIds) {
-    const current = tx.select().from(schema.orders).where(eq(schema.orders.id, oid)).limit(1).prepare().get();
+    const current = (await tx.select().from(schema.orders).where(eq(schema.orders.id, oid)).limit(1).for("update"))[0];
     if (!current) throw new Error("That order was not found.");
     if (current.status !== "confirmation_needed" && current.status !== "confirmed") {
       throw new Error("This order can no longer be cancelled — a seller has already started packing it. Please contact support.");
@@ -434,28 +449,28 @@ function cancelFulfilmentsTx(tx: DbTx, orderIds: number[], actorType: string, ac
   }
   for (const oid of orderIds) {
     restoreStockTx(tx, oid, "order_cancelled", actorType, actorId);
-    tx.update(schema.orders).set({ status: "cancelled", updatedAt: now }).where(eq(schema.orders.id, oid)).prepare().run();
+    await tx.update(schema.orders).set({ status: "cancelled", updatedAt: now }).where(eq(schema.orders.id, oid));
   }
   // Void every unsettled payment attached to these fulfilments.
-  const paymentRows = tx.select().from(schema.payments).where(inArray(schema.payments.orderId, orderIds)).prepare().all();
+  const paymentRows = await tx.select().from(schema.payments).where(inArray(schema.payments.orderId, orderIds));
   for (const p of paymentRows) {
     if (p.status === "pending" || p.status === "processing" || p.status === "failed") {
-      tx.update(schema.payments).set({ status: "cancelled", updatedAt: now }).where(eq(schema.payments.id, p.id)).prepare().run();
-      tx.update(schema.orders).set({ paymentStatus: "cancelled", updatedAt: now }).where(eq(schema.orders.id, p.orderId)).prepare().run();
+      await tx.update(schema.payments).set({ status: "cancelled", updatedAt: now }).where(eq(schema.payments.id, p.id));
+      await tx.update(schema.orders).set({ paymentStatus: "cancelled", updatedAt: now }).where(eq(schema.orders.id, p.orderId));
     }
   }
 }
 
 async function productRows(ctx: Ctx, storeId?: number) {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const products = storeId
     ? await db.select().from(schema.products).where(eq(schema.products.storeId, storeId)).orderBy(desc(schema.products.createdAt))
     : await db.select().from(schema.products).orderBy(desc(schema.products.createdAt));
   const ids = products.map((p) => p.id);
   // Companion rows are fetched for exactly the products being returned —
   // never the whole reviews/images tables (sellerInventory/getStore call
-  // this scoped to one store). Chunked IN lists stay under SQLite's
-  // variable cap even for very large catalogues.
+  // this scoped to one store). Chunked IN lists stay under Postgres'
+  // parameter cap even for very large catalogues.
   const idChunks: number[][] = [];
   for (let i = 0; i < ids.length; i += 500) idChunks.push(ids.slice(i, i + 500));
   const [reviews, stores, images] = await Promise.all([
@@ -490,7 +505,7 @@ async function productRows(ctx: Ctx, storeId?: number) {
   return products.map((p) => {
     const rs = reviewsByProduct.get(p.id) ?? [], store = storeById.get(p.storeId);
     const original = p.originalPricePaisa;
-    return { id: p.id, store_id: p.storeId, seller_code: store?.sellerCode ?? "", store_name: store?.storeName ?? "Seller", store_location: store?.location ?? "", name: p.name, category: p.category, description: p.description, price_paisa: p.pricePaisa, delivery_fee_paisa: p.deliveryFeePaisa, stock: p.stock, is_active: p.isActive, rating: rs.length ? rs.reduce((n, r) => n + r.rating, 0) / rs.length : null, review_count: rs.length, created_at: p.createdAt.toISOString(), brand: p.brand ?? null, original_price_paisa: original ?? null, discount_pct: original && original > p.pricePaisa ? Math.round((original - p.pricePaisa) / original * 100) : 0, image_url: p.imageUrl ?? null, images: imagesByProduct.get(p.id) ?? [], low_stock: p.stock > 0 && p.stock <= (p.lowStockThreshold ?? 5), sku: p.sku ?? null };
+    return { id: p.id, store_id: p.storeId, seller_code: store?.sellerCode ?? "", store_name: store?.storeName ?? "Seller", store_location: store?.location ?? "", name: p.name, category: p.category, description: p.description, price_paisa: p.pricePaisa, delivery_fee_paisa: p.deliveryFeePaisa, stock: p.stock, is_active: p.isActive, approval_status: p.approvalStatus ?? "approved", rating: rs.length ? rs.reduce((n, r) => n + r.rating, 0) / rs.length : null, review_count: rs.length, created_at: p.createdAt.toISOString(), brand: p.brand ?? null, original_price_paisa: original ?? null, discount_pct: original && original > p.pricePaisa ? Math.round((original - p.pricePaisa) / original * 100) : 0, image_url: p.imageUrl ?? null, images: imagesByProduct.get(p.id) ?? [], low_stock: p.stock > 0 && p.stock <= (p.lowStockThreshold ?? 5), sku: p.sku ?? null };
   });
 }
 
@@ -498,18 +513,18 @@ type PublicProduct = Awaited<ReturnType<typeof productRows>>[number];
 
 // Full drizzle DB type (the SDK's SpaceDb pick omits `transaction`, which the
 // self-hosted server provides). Used only where transactions are needed.
-function fullDb(ctx: Ctx): BunSQLiteDatabase<typeof schema> {
-  return ctx.db<typeof schema>() as unknown as BunSQLiteDatabase<typeof schema>;
+function fullDb(ctx: Ctx): PostgresJsDatabase<typeof schema> {
+  return ctx.db() as unknown as PostgresJsDatabase<typeof schema>;
 }
 
 async function activeStoreIds(ctx: Ctx) {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const stores = await db.select({ id: schema.storeSettings.id }).from(schema.storeSettings).where(eq(schema.storeSettings.status, "active"));
   return new Set(stores.map((s) => s.id));
 }
 
 function publicOnly(products: PublicProduct[], actives: Set<number>) {
-  return products.filter((p) => p.is_active && actives.has(p.store_id));
+  return products.filter((p) => p.is_active && (p.approval_status ?? "approved") === "approved" && actives.has(p.store_id));
 }
 
 type VariantRow = typeof schema.productVariants.$inferSelect;
@@ -517,7 +532,7 @@ type VariantRow = typeof schema.productVariants.$inferSelect;
 // Active variants for one product, cheapest-sort first. Only used for public
 // (active product, active seller) products — callers must gate on that.
 async function activeVariants(ctx: Ctx, productId: number): Promise<VariantRow[]> {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   return db.select().from(schema.productVariants)
     .where(and(eq(schema.productVariants.productId, productId), eq(schema.productVariants.isActive, true)))
     .orderBy(schema.productVariants.sortOrder, schema.productVariants.id);
@@ -528,7 +543,7 @@ type SpecRow = typeof schema.productSpecifications.$inferSelect;
 // Specification rows for one product, in seller-defined order. Specs are
 // public whenever the product is public — callers must gate on that.
 async function activeSpecs(ctx: Ctx, productId: number): Promise<SpecRow[]> {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   return db.select().from(schema.productSpecifications)
     .where(eq(schema.productSpecifications.productId, productId))
     .orderBy(schema.productSpecifications.sortOrder, schema.productSpecifications.id);
@@ -539,7 +554,7 @@ async function activeSpecs(ctx: Ctx, productId: number): Promise<SpecRow[]> {
 // base product). Throws on any mismatch — the id is never trusted blindly.
 async function requireVariant(ctx: Ctx, productId: number, variantId: number): Promise<VariantRow | null> {
   if (!variantId) return null;
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const v = (await db.select().from(schema.productVariants).where(eq(schema.productVariants.id, variantId)).limit(1))[0];
   if (!v || v.productId !== productId || !v.isActive) throw new Error("That product option is no longer available.");
   return v;
@@ -553,7 +568,7 @@ async function requireVariant(ctx: Ctx, productId: number, variantId: number): P
 // Vacation-mode guard: a store on a break stays visible but cannot take new
 // orders until the seller switches vacation mode off.
 async function assertStoreTakingOrders(ctx: Ctx, storeId: number) {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const store = (await db.select({ name: schema.storeSettings.storeName, vacation: schema.storeSettings.vacationMode }).from(schema.storeSettings).where(eq(schema.storeSettings.id, storeId)).limit(1))[0];
   if (store?.vacation) throw new Error(`${store.name} is on a short break and not taking orders right now. Please check back later.`);
 }
@@ -563,50 +578,78 @@ function linePricing(product: { pricePaisa: number; stock: number }, variant: Va
 }
 
 async function notifyUser(ctx: Ctx, userId: string, n: { type: string; title: string; body: string; link?: string | null }) {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   await db.insert(schema.notifications).values({ userId, type: n.type, title: n.title, body: n.body, link: n.link ?? null, createdAt: new Date() });
+}
+
+// ---------- v9 gap-fill ----------
+// Seller and admin notification writers. The in-app notification feed is
+// buyer-facing (getNotifications resolves a buyer session), so seller/admin
+// rows are keyed "seller:<storeId>" and "admin" — they land in the same
+// notifications table (same audit evidence, future-proof for a studio feed)
+// while every read path stays buyer-scoped.
+async function notifySeller(ctx: Ctx, storeId: number, n: { type: string; title: string; body: string; link?: string | null }) {
+  await notifyUser(ctx, `seller:${storeId}`, n);
+}
+async function notifyAdminUser(ctx: Ctx, n: { type: string; title: string; body: string; link?: string | null }) {
+  await notifyUser(ctx, "admin", n);
+}
+
+// Tax honesty: the checkout path performs NO tax computation — totals are
+// subtotal − discount + delivery fees, nothing more. grep the placeOrder
+// flow for "tax" and you will find only this constant. This is the
+// canonical note shown on invoices/receipts; the client imports it via the
+// getInvoice payload (tax_note).
+export const TAX_NOTE = "No separate tax is charged on this marketplace.";
+
+// A product is publicly sellable only when it is published (is_active), has
+// cleared the approval flow (approval_status === "approved"), and belongs to
+// an active seller. approval_status backfills to "approved" on migration
+// 0061, and new rows from unapproved sellers start at "pending".
+function isSellableProduct(p: { isActive: boolean; approvalStatus: string | null; storeId: number }, actives: Set<number>): boolean {
+  return p.isActive && (p.approvalStatus ?? "approved") === "approved" && actives.has(p.storeId);
 }
 
 // The transaction object drizzle hands to db.transaction() callbacks. Stock
 // restores always run inside the same transaction as the order-status write,
 // so a concurrent second cancel/return can never restore the same stock
 // twice: the status guard and the restore are one atomic unit.
-type DbTx = Parameters<Parameters<BunSQLiteDatabase<typeof schema>["transaction"]>[0]>[0];
+type DbTx = Parameters<Parameters<PostgresJsDatabase<typeof schema>["transaction"]>[0]>[0];
 
 type StockReason = "order_placed" | "order_cancelled" | "return_accepted" | "manual_adjust" | "product_created" | "variant_created";
 
 // Append one row to the inventory ledger. Every stock change funnels through
 // here so the trail is complete and reconcilable.
-function recordMovementTx(tx: DbTx, m: {
+async function recordMovementTx(tx: DbTx, m: {
   productId: number; variantId: number; change: number; stockAfter: number;
   reason: StockReason; orderId?: number | null; actorType?: string; actorId?: string;
-}): void {
-  tx.insert(schema.stockMovements).values({
+}): Promise<void> {
+  await tx.insert(schema.stockMovements).values({
     productId: m.productId, variantId: m.variantId, change: m.change,
     stockAfter: m.stockAfter, reason: m.reason, orderId: m.orderId ?? null,
     actorType: m.actorType ?? "", actorId: m.actorId ?? "", createdAt: new Date(),
-  }).prepare().run();
+  });
 }
 
 // Returns reserved stock when an order is cancelled or a return is accepted.
 // Mirrors placeOrder's decrement exactly: variant lines restore the variant
 // row, base lines restore the product row. MUST be called inside the same
 // transaction as the order-status update.
-function restoreStockTx(tx: DbTx, orderId: number, reason: "order_cancelled" | "return_accepted", actorType: string, actorId: string): void {
-  const items = tx.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, orderId)).prepare().all();
+async function restoreStockTx(tx: DbTx, orderId: number, reason: "order_cancelled" | "return_accepted", actorType: string, actorId: string): Promise<void> {
+  const items = await tx.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, orderId));
   for (const item of items) {
     if (item.variantId) {
-      const v = tx.select().from(schema.productVariants).where(eq(schema.productVariants.id, item.variantId)).limit(1).prepare().get();
+      const v = (await tx.select().from(schema.productVariants).where(eq(schema.productVariants.id, item.variantId)).limit(1).for("update"))[0];
       if (!v) continue;
       const after = v.stock + item.quantity;
-      tx.update(schema.productVariants).set({ stock: after }).where(eq(schema.productVariants.id, v.id)).prepare().run();
-      recordMovementTx(tx, { productId: item.productId, variantId: v.id, change: item.quantity, stockAfter: after, reason, orderId, actorType, actorId });
+      await tx.update(schema.productVariants).set({ stock: after }).where(eq(schema.productVariants.id, v.id));
+      await recordMovementTx(tx, { productId: item.productId, variantId: v.id, change: item.quantity, stockAfter: after, reason, orderId, actorType, actorId });
     } else {
-      const product = tx.select().from(schema.products).where(eq(schema.products.id, item.productId)).limit(1).prepare().get();
+      const product = (await tx.select().from(schema.products).where(eq(schema.products.id, item.productId)).limit(1).for("update"))[0];
       if (!product) continue;
       const after = product.stock + item.quantity;
-      tx.update(schema.products).set({ stock: after, updatedAt: new Date() }).where(eq(schema.products.id, product.id)).prepare().run();
-      recordMovementTx(tx, { productId: item.productId, variantId: 0, change: item.quantity, stockAfter: after, reason, orderId, actorType, actorId });
+      await tx.update(schema.products).set({ stock: after, updatedAt: new Date() }).where(eq(schema.products.id, product.id));
+      await recordMovementTx(tx, { productId: item.productId, variantId: 0, change: item.quantity, stockAfter: after, reason, orderId, actorType, actorId });
     }
   }
 }
@@ -615,7 +658,7 @@ function restoreStockTx(tx: DbTx, orderId: number, reason: "order_cancelled" | "
 // the caller's shop), enriched with product names, variant labels and order
 // codes for display.
 async function loadMovements(ctx: Ctx, productIds: number[], limit: number) {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const rows = await db.select().from(schema.stockMovements)
     .where(inArray(schema.stockMovements.productId, productIds))
     .orderBy(desc(schema.stockMovements.id)).limit(limit);
@@ -645,10 +688,23 @@ function orderStatusLabel(status: string) {
 // Returns the signed-in buyer's user id, or null for guests / other sessions.
 async function buyerIdOf(ctx: Ctx, token: string | undefined) {
   if (!token) return null;
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const session = (await db.select().from(schema.sessions).where(eq(schema.sessions.token, token)).limit(1))[0];
   if (!session || session.expiresAt.getTime() < Date.now() || session.userType !== "buyer") return null;
   return session.userId;
+}
+
+// Returns the store id behind a seller authToken session, or null for
+// guests, buyers, admins and expired sessions. Used to grant the owning
+// seller read access (e.g. pending product questions) without requiring a
+// full resolveSeller throw-path on public read endpoints.
+async function sellerStoreIdOf(ctx: Ctx, token: string | undefined): Promise<number | null> {
+  if (!token) return null;
+  const db = fullDb(ctx);
+  const session = (await db.select().from(schema.sessions).where(eq(schema.sessions.token, token)).limit(1))[0];
+  if (!session || session.expiresAt.getTime() < Date.now() || session.userType !== "seller") return null;
+  const store = (await db.select({ id: schema.storeSettings.id }).from(schema.storeSettings).where(eq(schema.storeSettings.id, Number(session.userId))).limit(1))[0];
+  return store?.id ?? null;
 }
 
 interface CouponEval { valid: boolean; discount_paisa: number; free_shipping: boolean; message: string; coupon_id?: number; code?: string }
@@ -658,7 +714,7 @@ interface CouponEval { valid: boolean; discount_paisa: number; free_shipping: bo
 // preview for friendly errors; placeOrder re-enforces them atomically inside
 // its transaction via redeemCouponTx.
 async function evaluateCoupon(ctx: Ctx, code: string, userId: string | null, subtotalPaisa: number, guestPhone?: string | null): Promise<CouponEval> {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const fail = (message: string): CouponEval => ({ valid: false, discount_paisa: 0, free_shipping: false, message });
   const normalized = code.trim().toUpperCase();
   if (!normalized) return fail("Please enter a coupon code.");
@@ -717,7 +773,7 @@ async function recordFunnelEvent(
   dedupeMs = 30 * 60 * 1000,
 ): Promise<boolean> {
   try {
-    const db = ctx.db<typeof schema>();
+    const db = fullDb(ctx);
     const since = new Date(Date.now() - dedupeMs);
     const conds = [eq(schema.funnelEvents.event, event), gte(schema.funnelEvents.createdAt, since)];
     conds.push(userId ? eq(schema.funnelEvents.userId, userId) : isNull(schema.funnelEvents.userId));
@@ -737,7 +793,7 @@ async function recordFunnelEvent(
 // per 30 minutes. Anonymous views (userId null) can't be attributed, so each
 // page load is recorded — the funnel counts them honestly as raw views.
 async function recordProductView(ctx: Ctx, productId: number, userId: string | null): Promise<void> {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   if (userId) {
     const since = new Date(Date.now() - 30 * 60 * 1000);
     const existing = (await db.select({ id: schema.productViews.id }).from(schema.productViews)
@@ -759,7 +815,7 @@ interface CartLine { product_id: number; quantity: number; variant_id: number; v
 // response and cleaned up.
 async function loadCart(ctx: Ctx, userId: string | null): Promise<{ items: CartLine[]; subtotal_paisa: number }> {
   if (!userId) return { items: [], subtotal_paisa: 0 };
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const cart = (await db.select().from(schema.carts).where(eq(schema.carts.userId, userId)).limit(1))[0];
   if (!cart) return { items: [], subtotal_paisa: 0 };
   const rows = await db.select().from(schema.cartItems).where(eq(schema.cartItems.cartId, cart.id));
@@ -789,7 +845,7 @@ async function loadCart(ctx: Ctx, userId: string | null): Promise<{ items: CartL
 // Units sold per product across non-cancelled orders (optionally only orders
 // placed after `sinceMs`), used for popularity/trending rankings.
 async function popularityCounts(ctx: Ctx, sinceMs?: number): Promise<Map<number, number>> {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const [orders, items] = await Promise.all([
     sinceMs != null
       ? db.select({ id: schema.orders.id, status: schema.orders.status }).from(schema.orders).where(gte(schema.orders.createdAt, new Date(sinceMs)))
@@ -807,7 +863,7 @@ async function popularityCounts(ctx: Ctx, sinceMs?: number): Promise<Map<number,
 // Personalized picks: categories the buyer has shown interest in (wishlist,
 // recent views, past orders), filled up with trending products.
 async function recommendedFor(ctx: Ctx, userId: string, pubs: PublicProduct[], trending: PublicProduct[]): Promise<PublicProduct[]> {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const wlRows = await db.select({ productId: schema.wishlistItems.productId }).from(schema.wishlistItems)
     .innerJoin(schema.wishlists, eq(schema.wishlistItems.wishlistId, schema.wishlists.id))
     .where(eq(schema.wishlists.userId, userId));
@@ -908,33 +964,33 @@ async function transitionOrderStatus(
   // restore the same stock twice, and a retried delivery can never
   // double-post the seller's earnings (ledger_key guard).
   const cfg = await moneyConfig(ctx);
-  db.transaction((tx) => {
-    const current = tx.select().from(schema.orders).where(eq(schema.orders.id, order.id)).limit(1).prepare().get();
+  await db.transaction(async (tx) => {
+    const current = (await tx.select().from(schema.orders).where(eq(schema.orders.id, order.id)).limit(1).for("update"))[0];
     if (!current) throw new Error("Order not found.");
     if (current.status === next) return;
     if (!ORDER_TRANSITIONS[current.status]?.includes(next)) throw new Error("That order status change is not allowed.");
     if (next === "cancelled") {
-      restoreStockTx(tx, current.id, "order_cancelled", actor.type, actor.id);
+      await restoreStockTx(tx, current.id, "order_cancelled", actor.type, actor.id);
     }
     const now = new Date();
-    tx.update(schema.orders).set({ status: next, updatedAt: now, ...(next === "delivered" ? { deliveredAt: now } : {}) }).where(eq(schema.orders.id, current.id)).prepare().run();
+    await tx.update(schema.orders).set({ status: next, updatedAt: now, ...(next === "delivered" ? { deliveredAt: now } : {}) }).where(eq(schema.orders.id, current.id));
     // Keep the payment row in sync: COD is paid on delivery, unsettled
     // payments are cancelled with the order, refunds mark it refunded.
-    const payment = tx.select().from(schema.payments).where(eq(schema.payments.orderId, current.id)).limit(1).prepare().get();
+    const payment = (await tx.select().from(schema.payments).where(eq(schema.payments.orderId, current.id)).limit(1).for("update"))[0];
     if (payment) {
       let paymentNext = payment.status;
       if (next === "delivered" && payment.provider === "cod" && payment.status === "pending") paymentNext = "paid";
       else if (next === "cancelled" && (payment.status === "pending" || payment.status === "processing" || payment.status === "failed")) paymentNext = "cancelled";
       else if (next === "refunded") paymentNext = "refunded";
       if (paymentNext !== payment.status) {
-        tx.update(schema.payments).set({ status: paymentNext, updatedAt: now }).where(eq(schema.payments.id, payment.id)).prepare().run();
-        tx.update(schema.orders).set({ paymentStatus: paymentNext === "paid" ? "paid" : paymentNext === "refunded" ? "refunded" : paymentNext === "cancelled" ? "cancelled" : current.paymentStatus, updatedAt: now }).where(eq(schema.orders.id, current.id)).prepare().run();
+        await tx.update(schema.payments).set({ status: paymentNext, updatedAt: now }).where(eq(schema.payments.id, payment.id));
+        await tx.update(schema.orders).set({ paymentStatus: paymentNext === "paid" ? "paid" : paymentNext === "refunded" ? "refunded" : paymentNext === "cancelled" ? "cancelled" : current.paymentStatus, updatedAt: now }).where(eq(schema.orders.id, current.id));
       }
       // Money is earned when the payment is confirmed: COD pays on
       // delivery, so the sale and the platform commission accrue in the
       // same transaction that marks the order paid.
       if (payment && payment.status !== "paid" && paymentNext === "paid") {
-        accrueSaleCommissionTx(tx, current.id, cfg.commission_default_percent);
+        await accrueSaleCommissionTx(tx, current.id, cfg.commission_default_percent);
       }
     }
   });
@@ -964,8 +1020,8 @@ async function adminCancelOrderCore(
   const subs = order.groupId
     ? await db.select({ id: schema.orders.id }).from(schema.orders).where(eq(schema.orders.groupId, order.groupId))
     : [{ id: order.id }];
-  db.transaction((tx) => {
-    cancelFulfilmentsTx(tx, subs.map((s) => s.id), actor.type, actor.id);
+  await db.transaction(async (tx) => {
+    await cancelFulfilmentsTx(tx, subs.map((s) => s.id), actor.type, actor.id);
   });
   if (order.userId) {
     await notifyUser(ctx, order.userId, { type: "order_status", title: `Order ${order.orderCode} cancelled`, body: `Your order ${order.orderCode} was cancelled by the marketplace team. No payment is due.`, link: "#/orders" });
@@ -983,7 +1039,7 @@ async function adminCancelOrderCore(
 // send back, so the refund is recorded as not_required instead of
 // pretending a refund happened.
 async function recordRefundRequest(ctx: Ctx, storeId: number, orderId: number): Promise<{ ok: true; refund_status: "not_required" | "pending" }> {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const order = (await db.select().from(schema.orders).where(and(eq(schema.orders.id, orderId), eq(schema.orders.storeId, storeId))).limit(1))[0];
   if (!order) throw new Error("Order not found.");
   if (order.status !== "returned") throw new Error("Only returned orders can be refunded.");
@@ -1069,7 +1125,7 @@ const MONEY_DEFAULTS = { commission_default_percent: 5, payout_available_after_d
 interface MoneyConfig { commission_default_percent: number; payout_available_after_days: number; payout_min_paisa: number }
 
 async function moneyConfig(ctx: Ctx): Promise<MoneyConfig> {
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const rows = await db.select().from(schema.platformSettings);
   const get = (k: string) => rows.find((r) => r.key === k)?.value;
   const int = (v: string | undefined, dflt: number, min: number, max: number) => {
@@ -1110,44 +1166,45 @@ function resolveRuleForLine(
 
 // Running net balance for a store inside a transaction (rows are
 // append-only, so the latest row's balance_after is the truth).
-function ledgerBalanceTx(tx: Runner, storeId: number): number {
-  const last = tx.select({ b: schema.sellerLedger.balanceAfterPaisa }).from(schema.sellerLedger)
-    .where(eq(schema.sellerLedger.storeId, storeId)).orderBy(desc(schema.sellerLedger.id)).limit(1).prepare().get();
+async function ledgerBalanceTx(tx: Runner, storeId: number): Promise<number> {
+  const last = (await tx.select({ b: schema.sellerLedger.balanceAfterPaisa }).from(schema.sellerLedger)
+    .where(eq(schema.sellerLedger.storeId, storeId)).orderBy(desc(schema.sellerLedger.id)).limit(1).for("update"))[0];
   return last?.b ?? 0;
 }
 
 // Append one ledger row. The unique ledger_key makes the write idempotent:
 // a retried transition hits the conflict and keeps the original row, so
 // money can never be double-posted. ledgerKey may be null for one-off
-// rows (admin adjustments), which SQLite's unique index permits.
-function insertLedgerTx(tx: Runner, storeId: number, row: {
+// rows (admin adjustments), which Postgres' unique index permits (NULLs are
+// never considered equal).
+async function insertLedgerTx(tx: Runner, storeId: number, row: {
   orderId?: number | null; type: "sale" | "commission" | "refund" | "payout" | "adjustment";
   amountPaisa: number; ruleId?: number | null; payoutId?: number | null; ledgerKey?: string | null; note: string;
-}): void {
-  const after = ledgerBalanceTx(tx, storeId) + row.amountPaisa;
-  tx.insert(schema.sellerLedger).values({
+}): Promise<void> {
+  const after = (await ledgerBalanceTx(tx, storeId)) + row.amountPaisa;
+  await tx.insert(schema.sellerLedger).values({
     storeId, orderId: row.orderId ?? null, type: row.type, amountPaisa: row.amountPaisa,
     balanceAfterPaisa: after, ruleId: row.ruleId ?? null, payoutId: row.payoutId ?? null,
     ledgerKey: row.ledgerKey ?? null, note: row.note, createdAt: new Date(),
-  }).onConflictDoNothing({ target: schema.sellerLedger.ledgerKey }).prepare().run();
+  }).onConflictDoNothing({ target: schema.sellerLedger.ledgerKey });
 }
 
 // Commission accrual for one fulfilment order. Called from inside the
 // transaction that confirms the payment; no-ops unless the order is paid
 // and has not been accrued yet (ledger_key guard).
-function accrueSaleCommissionTx(tx: Runner, orderId: number, defaultPercent: number): void {
-  const done = tx.select({ id: schema.sellerLedger.id }).from(schema.sellerLedger)
-    .where(eq(schema.sellerLedger.ledgerKey, `sale:${orderId}`)).limit(1).prepare().get();
+async function accrueSaleCommissionTx(tx: Runner, orderId: number, defaultPercent: number): Promise<void> {
+  const done = (await tx.select({ id: schema.sellerLedger.id }).from(schema.sellerLedger)
+    .where(eq(schema.sellerLedger.ledgerKey, `sale:${orderId}`)).limit(1))[0];
   if (done) return;
-  const order = tx.select().from(schema.orders).where(eq(schema.orders.id, orderId)).limit(1).prepare().get();
+  const order = (await tx.select().from(schema.orders).where(eq(schema.orders.id, orderId)).limit(1).for("update"))[0];
   if (!order || order.paymentStatus !== "paid") return;
-  const items: (typeof schema.orderItems.$inferSelect)[] = tx.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, orderId)).prepare().all();
+  const items: (typeof schema.orderItems.$inferSelect)[] = await tx.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, orderId));
   const productIds = [...new Set(items.map((i) => i.productId))];
   const products: (typeof schema.products.$inferSelect)[] = productIds.length
-    ? tx.select().from(schema.products).where(inArray(schema.products.id, productIds)).prepare().all()
+    ? await tx.select().from(schema.products).where(inArray(schema.products.id, productIds))
     : [];
   const byId = new Map(products.map((p) => [p.id, p]));
-  const rules: (typeof schema.commissionRules.$inferSelect)[] = tx.select().from(schema.commissionRules).where(eq(schema.commissionRules.isActive, true)).prepare().all();
+  const rules: (typeof schema.commissionRules.$inferSelect)[] = await tx.select().from(schema.commissionRules).where(eq(schema.commissionRules.isActive, true));
   let commission = 0;
   const parts: string[] = [];
   const ruleIds = new Set<number>();
@@ -1160,11 +1217,11 @@ function accrueSaleCommissionTx(tx: Runner, orderId: number, defaultPercent: num
     if (r.ruleId != null) ruleIds.add(r.ruleId);
     parts.push(`${formatRs(line)} @ ${r.source} \u2192 ${formatRs(cut)}`);
   }
-  insertLedgerTx(tx, order.storeId, {
+  await insertLedgerTx(tx, order.storeId, {
     orderId, type: "sale", amountPaisa: order.subtotalPaisa, ledgerKey: `sale:${orderId}`,
     note: `Sale ${order.orderCode}: ${items.length} line(s), ${formatRs(order.subtotalPaisa)} gross of goods (delivery fee excluded).`,
   });
-  insertLedgerTx(tx, order.storeId, {
+  await insertLedgerTx(tx, order.storeId, {
     orderId, type: "commission", amountPaisa: -commission,
     ruleId: ruleIds.size === 1 ? [...ruleIds][0] : null,
     ledgerKey: `commission:${orderId}`,
@@ -1175,19 +1232,19 @@ function accrueSaleCommissionTx(tx: Runner, orderId: number, defaultPercent: num
 // Reverse the money of a refunded fulfilment: the sale is taken back and
 // the commission is returned, so the order nets to exactly zero. No-op
 // when the order never accrued (e.g. COD that was never paid).
-function reverseCommissionTx(tx: Runner, orderId: number, orderCode: string): void {
-  const sale = tx.select().from(schema.sellerLedger).where(eq(schema.sellerLedger.ledgerKey, `sale:${orderId}`)).limit(1).prepare().get();
-  const comm = tx.select().from(schema.sellerLedger).where(eq(schema.sellerLedger.ledgerKey, `commission:${orderId}`)).limit(1).prepare().get();
+async function reverseCommissionTx(tx: Runner, orderId: number, orderCode: string): Promise<void> {
+  const sale = (await tx.select().from(schema.sellerLedger).where(eq(schema.sellerLedger.ledgerKey, `sale:${orderId}`)).limit(1).for("update"))[0];
+  const comm = (await tx.select().from(schema.sellerLedger).where(eq(schema.sellerLedger.ledgerKey, `commission:${orderId}`)).limit(1).for("update"))[0];
   if (!sale && !comm) return;
   const storeId: number = (sale ?? comm).storeId;
   if (sale) {
-    insertLedgerTx(tx, storeId, {
+    await insertLedgerTx(tx, storeId, {
       orderId, type: "refund", amountPaisa: -sale.amountPaisa, ledgerKey: `refund:${orderId}`,
       note: `Refund ${orderCode}: sale of ${formatRs(sale.amountPaisa)} reversed.`,
     });
   }
   if (comm) {
-    insertLedgerTx(tx, storeId, {
+    await insertLedgerTx(tx, storeId, {
       orderId, type: "commission", amountPaisa: -comm.amountPaisa, ruleId: comm.ruleId,
       ledgerKey: `commission-reversal:${orderId}`,
       note: `Commission reversed \u2014 ${orderCode} refunded (${formatRs(-comm.amountPaisa)} returned to seller).`,
@@ -1208,7 +1265,7 @@ interface SellerBalances {
 // requested/processing are reserved from it.
 async function sellerBalances(ctx: Ctx, storeId: number): Promise<SellerBalances> {
   const cfg = await moneyConfig(ctx);
-  const db = ctx.db<typeof schema>();
+  const db = fullDb(ctx);
   const [rows, orders, payouts] = await Promise.all([
     db.select().from(schema.sellerLedger).where(eq(schema.sellerLedger.storeId, storeId)).orderBy(desc(schema.sellerLedger.id)).limit(10000),
     db.select({ id: schema.orders.id, status: schema.orders.status, deliveredAt: schema.orders.deliveredAt }).from(schema.orders).where(eq(schema.orders.storeId, storeId)),
@@ -1245,16 +1302,108 @@ function maskAccountNumber(raw: string | null | undefined): string {
   return `\u2022\u2022\u2022\u2022${digits.slice(-4)}`;
 }
 
+// ---------- v9 gap-fill: invoice plumbing ----------
+// Create the invoice row for a checkout group if it does not exist yet (used
+// on the placeOrder success path and as an auto-heal inside getInvoice, so
+// orders placed before invoices existed still get one). The yearly counter
+// bump and the invoice insert run in one transaction, and invoice_no has a
+// UNIQUE backstop: a lost race retries instead of ever issuing a duplicate.
+async function ensureGroupInvoice(ctx: Ctx, groupId: number): Promise<{ id: number; invoiceNo: string; issuedAt: Date }> {
+  const db = fullDb(ctx);
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return db.transaction(async (tx) => {
+        const existing = (await tx.select().from(schema.invoices).where(eq(schema.invoices.groupId, groupId)).limit(1))[0];
+        if (existing) return { id: existing.id, invoiceNo: existing.invoiceNo, issuedAt: existing.issuedAt };
+        const key = `INV-${new Date().getFullYear()}`;
+        let row = (await tx.select().from(schema.invoiceCounters).where(eq(schema.invoiceCounters.key, key)).limit(1).for("update"))[0];
+        if (!row) {
+          await tx.insert(schema.invoiceCounters).values({ key, last: 0 });
+          row = { key, last: 0 };
+        }
+        const next = row.last + 1;
+        await tx.update(schema.invoiceCounters).set({ last: next }).where(eq(schema.invoiceCounters.key, key));
+        const invoiceNo = `${key}-${String(next).padStart(6, "0")}`;
+        const now = new Date();
+        const inserted = await tx.insert(schema.invoices).values({ invoiceNo, orderId: null, groupId, issuedAt: now, createdAt: now }).returning({ id: schema.invoices.id });
+        const inv = inserted[0];
+        if (!inv) throw new Error("The invoice could not be created.");
+        return { id: inv.id, invoiceNo, issuedAt: now };
+      });
+    } catch (e) {
+      lastErr = e;
+      if (!(e instanceof Error) || !/UNIQUE constraint failed/i.test(e.message)) throw e;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("The invoice could not be created.");
+}
+
+// Minimal RFC-4180-ish CSV parser (quoted fields, escaped quotes, CRLF).
+// No dependency — imports must be drafted as inactive products, never
+// silently dropped, so the parser is deliberately small and strict.
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field); field = "";
+    } else if (c === "\n") {
+      row.push(field); rows.push(row); row = []; field = "";
+    } else if (c === "\r") {
+      // skipped: CRLF is normalised by the \n branch
+    } else {
+      field += c;
+    }
+  }
+  if (field !== "" || row.length > 0) { row.push(field); rows.push(row); }
+  return rows;
+}
+
 export const Actions = {
   // ---------- public storefront ----------
   getStorefront: defineAction({
     request: z.object({}), response: z.object({ seller_count: z.number(), products: z.array(productShape) }),
     async handler(ctx) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const stores = await db.select({ id: schema.storeSettings.id, status: schema.storeSettings.status }).from(schema.storeSettings);
       const activeIds = new Set(stores.filter((s) => s.status === "active").map((s) => s.id));
       const products = (await productRows(ctx)).filter((p) => p.is_active && activeIds.has(p.store_id));
       return { seller_count: activeIds.size, products };
+    },
+  }),
+  // Public category list for category pages and navigation: active
+  // categories with their admin-written SEO fields (seo_title /
+  // seo_description for <title>/<meta>, intro_content for the page H1
+  // intro block). No auth, no internal data.
+  getPublicCategories: defineAction({
+    request: z.object({}),
+    response: z.object({
+      categories: z.array(z.object({
+        id: z.number(), name: z.string(), slug: z.string(),
+        seo_title: z.string().nullable(), seo_description: z.string().nullable(),
+        intro_content: z.string().nullable(),
+      })),
+    }),
+    async handler(ctx) {
+      const db = fullDb(ctx);
+      const rows = await db.select().from(schema.categories)
+        .where(eq(schema.categories.isActive, true)).orderBy(schema.categories.name);
+      return {
+        categories: rows.map((c) => ({
+          id: c.id, name: c.name, slug: c.slug,
+          seo_title: c.seoTitle ?? null, seo_description: c.seoDescription ?? null,
+          intro_content: c.introContent ?? null,
+        })),
+      };
     },
   }),
   // Public seller store page. Only active stores are reachable: suspended or
@@ -1271,7 +1420,7 @@ export const Actions = {
       products: z.array(productShape),
     }),
     async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const code = args.seller_code.toUpperCase();
       const store = (await db.select().from(schema.storeSettings).where(eq(schema.storeSettings.sellerCode, code)).limit(1))[0];
       if (!store || store.status !== "active") throw new Error("That store is not available.");
@@ -1296,7 +1445,7 @@ export const Actions = {
     request: z.object({ name: z.string().trim().min(2).max(80), phone: z.string().trim().min(7).max(20), email: emailField.optional(), password: passwordField }),
     response: z.object({ token: z.string(), user: userShape }),
     async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const phone = args.phone.trim();
       const email = args.email?.trim() ? args.email.trim().toLowerCase() : null;
       if ((await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.phone, phone)).limit(1)).length) throw new Error("That mobile number already has an account. Please log in.");
@@ -1327,7 +1476,7 @@ export const Actions = {
     request: z.object({ phone: z.string().trim().min(7).max(20), password: z.string().min(1).max(120) }),
     response: z.object({ token: z.string(), user: userShape }),
     async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const user = (await db.select().from(schema.users).where(eq(schema.users.phone, args.phone.trim())).limit(1))[0];
       if (!user || !await Bun.password.verify(args.password, user.passwordHash)) throw new Error("Mobile number or password is incorrect.");
       if (user.status === "suspended") throw new Error("This account has been suspended. Please contact support.");
@@ -1339,7 +1488,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenField }), response: z.object({ user: userShape.extend({ avatar_url: z.string().nullable() }) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const user = (await db.select().from(schema.users).where(eq(schema.users.id, auth.id)).limit(1))[0];
       if (!user) throw new Error("Account not found.");
       return { user: { id: user.id, name: user.name, phone: user.phone, email: user.email, avatar_url: user.avatarUrl ?? null } };
@@ -1349,7 +1498,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenField }), response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       if (args.authToken) {
-        const db = ctx.db<typeof schema>();
+        const db = fullDb(ctx);
         await db.delete(schema.sessions).where(eq(schema.sessions.token, args.authToken));
       }
       return { ok: true };
@@ -1360,7 +1509,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const user = (await db.select().from(schema.users).where(eq(schema.users.id, auth.id)).limit(1))[0];
       if (!user || !await Bun.password.verify(args.old_password, user.passwordHash)) throw new Error("The current password is incorrect.");
       await db.update(schema.users).set({ passwordHash: await Bun.password.hash(args.new_password, { algorithm: "bcrypt", cost: 10 }), updatedAt: new Date() }).where(eq(schema.users.id, user.id));
@@ -1373,7 +1522,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       if (!store.passwordHash || !await Bun.password.verify(args.old_password, store.passwordHash)) throw new Error("The current password is incorrect.");
       await db.update(schema.storeSettings).set({ passwordHash: await Bun.password.hash(args.new_password, { algorithm: "bcrypt", cost: 10 }), updatedAt: new Date() }).where(eq(schema.storeSettings.id, store.id));
       await revokeOtherSessions(ctx, "seller", String(store.id), args.authToken);
@@ -1388,7 +1537,7 @@ export const Actions = {
     request: z.object({ user_type: z.enum(["buyer", "seller", "admin"]), identifier: z.string().trim().min(3).max(120) }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const ident = args.identifier.trim().toLowerCase();
       let userId: string | null = null, email: string | null = null, name = "there";
       if (args.user_type === "buyer") {
@@ -1423,7 +1572,7 @@ export const Actions = {
     request: z.object({ user_type: z.enum(["buyer", "seller", "admin"]), token: z.string().min(8).max(200), new_password: passwordField }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const tokenHash = await hashKey(args.token);
       const row = (await db.select().from(schema.passwordResetTokens).where(eq(schema.passwordResetTokens.tokenHash, tokenHash)).limit(1))[0];
       if (!row || row.userType !== args.user_type || row.usedAt || row.expiresAt.getTime() < Date.now()) {
@@ -1449,7 +1598,7 @@ export const Actions = {
     request: z.object({ token: z.string().min(8).max(200) }),
     response: z.object({ ok: z.literal(true), already_verified: z.boolean() }),
     async handler(ctx, args): Promise<{ ok: true; already_verified: boolean }> {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const row = (await db.select().from(schema.buyerEmailVerifications).where(eq(schema.buyerEmailVerifications.tokenHash, await hashKey(args.token))).limit(1))[0];
       const user = row ? (await db.select({ email: schema.users.email, verified: schema.users.emailVerified }).from(schema.users).where(eq(schema.users.id, row.userId)).limit(1))[0] : undefined;
       if (!row || !user || row.expiresAt.getTime() < Date.now()) throw new Error("This verification link is invalid or has expired. Please sign in and request a new one from your account.");
@@ -1470,7 +1619,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true), email_sent: z.boolean() }),
     async handler(ctx, args): Promise<{ ok: true; email_sent: boolean }> {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const user = (await db.select({ email: schema.users.email, name: schema.users.name, verified: schema.users.emailVerified }).from(schema.users).where(eq(schema.users.id, auth.id)).limit(1))[0];
       if (!user) throw new Error("Account not found.");
       if (!user.email) throw new Error("Add an email address to your account first.");
@@ -1500,7 +1649,7 @@ export const Actions = {
     response: z.object({ order_update_emails: z.boolean(), email_verified: z.boolean(), email: z.string().nullable() }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const user = (await db.select({ notify: schema.users.notifyOrderEmails, verified: schema.users.emailVerified, email: schema.users.email }).from(schema.users).where(eq(schema.users.id, auth.id)).limit(1))[0];
       if (!user) throw new Error("Account not found.");
       return { order_update_emails: user.notify !== false, email_verified: !!user.verified, email: user.email };
@@ -1511,7 +1660,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       await db.update(schema.users).set({ notifyOrderEmails: args.order_update_emails, updatedAt: new Date() }).where(eq(schema.users.id, auth.id));
       ctx.invalidateQueries();
       return { ok: true };
@@ -1521,7 +1670,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenField }), response: z.object({ orders: z.array(orderShape) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const orders = await db.select().from(schema.orders).where(eq(schema.orders.userId, auth.id)).orderBy(desc(schema.orders.createdAt)).limit(100);
       const items = orders.length ? await db.select().from(schema.orderItems).where(inArray(schema.orderItems.orderId, orders.map((o) => o.id))) : [];
       const groupIds = [...new Set(orders.map((o) => o.groupId).filter((g): g is number => g != null))];
@@ -1537,7 +1686,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenField }), response: z.object({ groups: z.array(orderGroupShape) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const groups = await db.select().from(schema.orderGroups).where(eq(schema.orderGroups.userId, auth.id)).orderBy(desc(schema.orderGroups.createdAt)).limit(50);
       const views: z.infer<typeof orderGroupShape>[] = [];
       for (const g of groups) {
@@ -1558,7 +1707,7 @@ export const Actions = {
     request: z.object({ store_name: z.string().trim().min(2).max(60), tagline: z.string().trim().min(3).max(120), location: z.string().trim().min(2).max(80), phone: z.string().trim().min(7).max(20), email: emailField, password: passwordField, seller_key: keyField }),
     response: z.object({ seller_code: z.string(), email_sent: z.boolean() }),
     async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const email = args.email.trim().toLowerCase();
       if ((await db.select({ id: schema.storeSettings.id }).from(schema.storeSettings).where(eq(schema.storeSettings.email, email)).limit(1)).length) throw new Error("That email is already registered as a seller.");
       const code = `SELL-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
@@ -1597,7 +1746,7 @@ export const Actions = {
     request: z.object({ token: z.string().min(8).max(200) }),
     response: z.object({ ok: z.literal(true), seller_code: z.string(), already_verified: z.boolean() }),
     async handler(ctx, args): Promise<{ ok: true; seller_code: string; already_verified: boolean }> {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const row = (await db.select().from(schema.sellerEmailVerifications).where(eq(schema.sellerEmailVerifications.tokenHash, await hashKey(args.token))).limit(1))[0];
       const store = row ? (await db.select({ code: schema.storeSettings.sellerCode, verified: schema.storeSettings.emailVerified }).from(schema.storeSettings).where(eq(schema.storeSettings.id, row.storeId)).limit(1))[0] : undefined;
       if (!row || !store || row.expiresAt.getTime() < Date.now()) throw new Error("This verification link is invalid or has expired. Please sign in and request a new one from the studio settings.");
@@ -1620,7 +1769,7 @@ export const Actions = {
       const store = await resolveSeller(ctx, args);
       if (store.emailVerified) return { ok: true, email_sent: false };
       if (!store.email) throw new Error("This seller account has no email address on file.");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const token = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
       await db.insert(schema.sellerEmailVerifications).values({
         tokenHash: await hashKey(token), storeId: store.id,
@@ -1643,7 +1792,7 @@ export const Actions = {
     request: z.object({ email: emailField, password: z.string().min(1).max(120) }),
     response: z.object({ token: z.string(), seller: z.object({ seller_code: z.string(), store_name: z.string(), status: sellerStatus, email_verified: z.boolean() }) }),
     async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const store = (await db.select().from(schema.storeSettings).where(eq(schema.storeSettings.email, args.email.trim().toLowerCase())).limit(1))[0];
       if (!store?.passwordHash || !await Bun.password.verify(args.password, store.passwordHash)) throw new Error("Email or password is incorrect.");
       if (store.status === "suspended") throw new Error("This seller account is suspended. Please contact support.");
@@ -1667,7 +1816,7 @@ export const Actions = {
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       await db.update(schema.storeSettings).set({
         storeName: args.store_name ?? store.storeName, tagline: args.tagline ?? store.tagline,
         location: args.location ?? store.location, phone: args.phone ?? store.phone,
@@ -1686,16 +1835,16 @@ export const Actions = {
     async handler(ctx, args): Promise<{ ok: true; logo_url: string | null; banner_url: string | null }> {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db<typeof schema>();
-      const pick = (incoming: string | null | undefined, current: string | null, kind: "logo" | "banner") => {
+      const db = fullDb(ctx);
+      const pick = async (incoming: string | null | undefined, current: string | null, kind: "logo" | "banner") => {
         if (incoming === undefined) return current;
         const url = incoming?.trim() || null;
-        if (url && !/^\/uploads\/store-[0-9a-f-]+\.(jpg|png|webp|gif)$/.test(url)) throw new Error(`The ${kind} image must be uploaded through the studio uploader.`);
-        if (current && current !== url && current.startsWith("/uploads/")) deleteUploadFile(current);
+        if (url && !isExpectedUploadUrl(url, "store")) throw new Error(`The ${kind} image must be uploaded through the studio uploader.`);
+        if (current && current !== url) await deleteStoredUpload(current);
         return url;
       };
-      const logoUrl = pick(args.logo_url, store.logoUrl ?? null, "logo");
-      const bannerUrl = pick(args.banner_url, store.bannerUrl ?? null, "banner");
+      const logoUrl = await pick(args.logo_url, store.logoUrl ?? null, "logo");
+      const bannerUrl = await pick(args.banner_url, store.bannerUrl ?? null, "banner");
       await db.update(schema.storeSettings).set({ logoUrl, bannerUrl, updatedAt: new Date() }).where(eq(schema.storeSettings.id, store.id));
       await audit(ctx, "seller", String(store.id), "store_assets_updated", "store", String(store.id), `logo=${logoUrl ? "set" : "none"} banner=${bannerUrl ? "set" : "none"}`);
       ctx.invalidateQueries();
@@ -1708,7 +1857,7 @@ export const Actions = {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
       if (args.original_price_paisa != null && args.original_price_paisa <= args.price_paisa) throw new Error("The original price must be higher than the selling price.");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const sku = normalizeSku(args.sku);
       if (sku) {
         const clash = (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.storeId, store.id), eq(schema.products.sku, sku))).limit(1))[0];
@@ -1717,7 +1866,12 @@ export const Actions = {
       // Sellers who are not approved yet may only save drafts — nothing they
       // create can become publicly visible before admin approval.
       const isActive = store.status === "active" && args.is_active;
-      const result = await db.insert(schema.products).values({ storeId: store.id, name: args.name, category: args.category, description: args.description, pricePaisa: args.price_paisa, deliveryFeePaisa: args.delivery_fee_paisa, stock: args.stock, brand: args.brand?.trim() || null, originalPricePaisa: args.original_price_paisa ?? null, imageUrl: args.image_url ?? null, lowStockThreshold: args.low_stock_threshold ?? 5, sku, isActive, updatedAt: new Date() }).returning({ id: schema.products.id });
+      // v9 approval flow: listings from not-yet-approved sellers start at
+      // "pending" so an admin reviews them before they can ever go public;
+      // approved sellers keep the v7 behaviour (their products are approved
+      // on creation and go live when published).
+      const approvalStatus = store.status === "active" ? "approved" : "pending";
+      const result = await db.insert(schema.products).values({ storeId: store.id, name: args.name, category: args.category, description: args.description, pricePaisa: args.price_paisa, deliveryFeePaisa: args.delivery_fee_paisa, stock: args.stock, brand: args.brand?.trim() || null, originalPricePaisa: args.original_price_paisa ?? null, imageUrl: args.image_url ?? null, lowStockThreshold: args.low_stock_threshold ?? 5, sku, isActive, approvalStatus, updatedAt: new Date() }).returning({ id: schema.products.id });
       const row = result[0];
       if (!row) throw new Error("The product could not be saved.");
       if (args.stock > 0) {
@@ -1732,7 +1886,7 @@ export const Actions = {
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const before = (await db.select().from(schema.products).where(and(eq(schema.products.id, args.id), eq(schema.products.storeId, store.id))).limit(1))[0];
       if (!before) throw new Error("Product not found.");
       if (args.original_price_paisa != null && args.original_price_paisa <= args.price_paisa) throw new Error("The original price must be higher than the selling price.");
@@ -1776,7 +1930,7 @@ export const Actions = {
     async handler(ctx, args): Promise<{ ok: true; archived: boolean }> {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: schema.products.id, name: schema.products.name }).from(schema.products).where(and(eq(schema.products.id, args.id), eq(schema.products.storeId, store.id))).limit(1))[0];
       if (!product) throw new Error("Product not found.");
       const inHistory = (await db.select({ id: schema.orderItems.id }).from(schema.orderItems).where(eq(schema.orderItems.productId, args.id)).limit(1))[0];
@@ -1787,7 +1941,7 @@ export const Actions = {
         return { ok: true, archived: true };
       }
       const imageRows = await db.select({ url: schema.productImages.url }).from(schema.productImages).where(eq(schema.productImages.productId, args.id));
-      for (const im of imageRows) deleteUploadFile(im.url);
+      for (const im of imageRows) await deleteStoredUpload(im.url);
       await db.delete(schema.productImages).where(eq(schema.productImages.productId, args.id));
       await db.delete(schema.productVariants).where(eq(schema.productVariants.productId, args.id));
       await db.delete(schema.productSpecifications).where(eq(schema.productSpecifications.productId, args.id));
@@ -1811,7 +1965,7 @@ export const Actions = {
     response: z.object({ variants: z.array(z.object({ id: z.number(), label: z.string(), sku: z.string().nullable(), price_paisa: z.number().nullable(), stock: z.number(), sort_order: z.number(), is_active: z.boolean() })) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.id, args.product_id), eq(schema.products.storeId, store.id))).limit(1))[0];
       if (!product) throw new Error("Product not found.");
       const rows = await db.select().from(schema.productVariants).where(eq(schema.productVariants.productId, args.product_id)).orderBy(schema.productVariants.sortOrder, schema.productVariants.id);
@@ -1824,7 +1978,7 @@ export const Actions = {
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.id, args.product_id), eq(schema.products.storeId, store.id))).limit(1))[0];
       if (!product) throw new Error("Product not found.");
       const sku = normalizeSku(args.sku);
@@ -1849,7 +2003,7 @@ export const Actions = {
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const variant = (await db.select().from(schema.productVariants).where(eq(schema.productVariants.id, args.id)).limit(1))[0];
       const product = variant ? (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.id, variant.productId), eq(schema.products.storeId, store.id))).limit(1))[0] : undefined;
       if (!variant || !product) throw new Error("Option not found.");
@@ -1872,7 +2026,7 @@ export const Actions = {
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const variant = (await db.select().from(schema.productVariants).where(eq(schema.productVariants.id, args.id)).limit(1))[0];
       const product = variant ? (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.id, variant.productId), eq(schema.products.storeId, store.id))).limit(1))[0] : undefined;
       if (!variant || !product) throw new Error("Option not found.");
@@ -1894,7 +2048,7 @@ export const Actions = {
     response: z.object({ movements: z.array(stockMovementShape) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const mine = await db.select({ id: schema.products.id }).from(schema.products).where(eq(schema.products.storeId, store.id));
       const mineIds = new Set(mine.map((p) => p.id));
       if (args.product_id && !mineIds.has(args.product_id)) throw new Error("Product not found.");
@@ -1908,7 +2062,7 @@ export const Actions = {
     response: z.object({ movements: z.array(stockMovementShape) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       let scope: number[];
       if (args.product_id) {
         scope = [args.product_id];
@@ -1930,7 +2084,7 @@ export const Actions = {
     response: z.object({ specs: z.array(specShape) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.id, args.product_id), eq(schema.products.storeId, store.id))).limit(1))[0];
       if (!product) throw new Error("Product not found.");
       return { specs: (await activeSpecs(ctx, args.product_id)).map((s) => ({ id: s.id, label: s.label, value: s.value })) };
@@ -1942,7 +2096,7 @@ export const Actions = {
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.id, args.product_id), eq(schema.products.storeId, store.id))).limit(1))[0];
       if (!product) throw new Error("Product not found.");
       const maxOrder = (await db.select({ o: schema.productSpecifications.sortOrder }).from(schema.productSpecifications).where(eq(schema.productSpecifications.productId, args.product_id)).orderBy(desc(schema.productSpecifications.sortOrder)).limit(1))[0]?.o ?? -1;
@@ -1958,7 +2112,7 @@ export const Actions = {
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const spec = (await db.select().from(schema.productSpecifications).where(eq(schema.productSpecifications.id, args.id)).limit(1))[0];
       const product = spec ? (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.id, spec.productId), eq(schema.products.storeId, store.id))).limit(1))[0] : undefined;
       if (!spec || !product) throw new Error("Specification not found.");
@@ -1972,7 +2126,7 @@ export const Actions = {
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const spec = (await db.select().from(schema.productSpecifications).where(eq(schema.productSpecifications.id, args.id)).limit(1))[0];
       const product = spec ? (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.id, spec.productId), eq(schema.products.storeId, store.id))).limit(1))[0] : undefined;
       if (!spec || !product) throw new Error("Specification not found.");
@@ -2050,7 +2204,7 @@ export const Actions = {
       let groupSubtotal = 0;
       for (const item of args.items) {
         const product = preview.find((p) => p.id === item.product_id);
-        if (!product || !product.isActive || !actives.has(product.storeId)) throw new Error("One of these products is no longer available.");
+        if (!product || !isSellableProduct(product, actives)) throw new Error("One of these products is no longer available.");
         const variant = await requireVariant(ctx, product.id, item.variant_id);
         const { unitPrice, stock } = linePricing(product, variant);
         if (stock < item.quantity) throw new Error(`${product.name}${variant ? ` (${variant.label})` : ""} has only ${stock} left.`);
@@ -2069,7 +2223,7 @@ export const Actions = {
       const guestPhone = userId ? null : normalizePhone(args.phone);
       // Shipping methods and the express surcharge are admin-configurable
       // (platform_settings); they are read here, outside the transaction,
-      // because the transaction callback must stay synchronous.
+      // because they are uncontended reference data.
       const ship = await shippingConfig(ctx);
       if (args.delivery_method === "express" && !ship.express_enabled) throw new Error("Express delivery is not available right now.");
       if (args.delivery_method === "pickup" && !ship.pickup_enabled) throw new Error("Store pickup is not available right now.");
@@ -2078,12 +2232,12 @@ export const Actions = {
       // stock re-checked inside it, so overselling is impossible; the coupon
       // is redeemed atomically; and the idempotency key is written with the
       // group so a retried "Place order" can only ever create one group.
-      const outcome = db.transaction((tx) => {
-        const rows = tx.select().from(schema.products).where(inArray(schema.products.id, ids)).prepare().all();
-        const variantRows = tx.select().from(schema.productVariants).where(inArray(schema.productVariants.productId, ids)).prepare().all();
+      const outcome = await db.transaction(async (tx) => {
+        const rows = await tx.select().from(schema.products).where(inArray(schema.products.id, ids)).for("update");
+        const variantRows = await tx.select().from(schema.productVariants).where(inArray(schema.productVariants.productId, ids)).for("update");
         const normalized = args.items.map((item) => {
           const product = rows.find((p) => p.id === item.product_id);
-          if (!product || !product.isActive || !actives.has(product.storeId)) throw new Error("One of these products is no longer available.");
+          if (!product || !isSellableProduct(product, actives)) throw new Error("One of these products is no longer available.");
           const variant = item.variant_id ? variantRows.find((v) => v.id === item.variant_id) ?? null : null;
           if (item.variant_id && (!variant || variant.productId !== item.product_id || !variant.isActive)) throw new Error("One of these product options is no longer available.");
           const { unitPrice, stock } = linePricing(product, variant);
@@ -2095,7 +2249,7 @@ export const Actions = {
         // the same caller and payload returns that group instead of
         // creating a second one.
         if (idemKey) {
-          const prior = tx.select().from(schema.checkoutIdempotency).where(eq(schema.checkoutIdempotency.key, idemKey)).limit(1).prepare().get();
+          const prior = (await tx.select().from(schema.checkoutIdempotency).where(eq(schema.checkoutIdempotency.key, idemKey)).limit(1))[0];
           const groupId = idemReplayOf(prior);
           if (groupId != null) return { replay: true as const, groupId };
         }
@@ -2103,7 +2257,7 @@ export const Actions = {
         // may have switched it on between the pre-check and now.
         const sellerIds = [...new Set(normalized.map((x) => x.product.storeId))];
         for (const sid of sellerIds) {
-          const txStore = tx.select({ name: schema.storeSettings.storeName, vacation: schema.storeSettings.vacationMode }).from(schema.storeSettings).where(eq(schema.storeSettings.id, sid)).limit(1).prepare().get();
+          const txStore = (await tx.select({ name: schema.storeSettings.storeName, vacation: schema.storeSettings.vacationMode }).from(schema.storeSettings).where(eq(schema.storeSettings.id, sid)).limit(1))[0];
           if (txStore?.vacation) throw new Error(`${txStore.name} is on a short break and not taking orders right now. Please check back later.`);
         }
         // Atomic coupon redemption: usage limits are enforced against counts
@@ -2111,7 +2265,7 @@ export const Actions = {
         // overshoot maxUses and guests cannot bypass the per-user limit.
         let discount = 0, freeShipping = false, couponCode: string | null = null;
         if (couponId != null) {
-          const redeemed = redeemCouponTx(tx, couponId, { userId, guestPhone }, groupSubtotal);
+          const redeemed = await redeemCouponTx(tx, couponId, { userId, guestPhone }, groupSubtotal);
           discount = redeemed.discount; freeShipping = redeemed.freeShipping; couponCode = redeemed.code;
         }
         // Per-seller fulfilment totals. Delivery follows each seller's own
@@ -2136,13 +2290,13 @@ export const Actions = {
         });
         const groupDelivery = perSeller.reduce((s, x) => s + x.delivery, 0);
         const groupTotal = perSeller.reduce((s, x) => s + x.total, 0);
-        const g = tx.insert(schema.orderGroups).values({
+        const g = await tx.insert(schema.orderGroups).values({
           groupCode, userId, customerName: args.customer_name, phone: args.phone,
           address: args.address, paymentMethod: args.payment_method,
           subtotalPaisa: groupSubtotal, deliveryFeePaisa: groupDelivery,
           discountPaisa: discount, totalPaisa: groupTotal, couponCode,
           deliveryMethod: args.delivery_method, note: args.note, createdAt: now,
-        }).returning({ id: schema.orderGroups.id }).prepare().all();
+        }).returning({ id: schema.orderGroups.id });
         const groupRow = g[0];
         if (!groupRow) throw new Error("The order could not be created.");
         const created: { orderId: number; orderCode: string }[] = [];
@@ -2153,17 +2307,17 @@ export const Actions = {
         const lowStockHits: { storeId: number; name: string; variantLabel: string | null; stock: number }[] = [];
         for (const s of perSeller) {
           const orderCode = `NP-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`;
-          const inserted = tx.insert(schema.orders).values({
+          const inserted = await tx.insert(schema.orders).values({
             storeId: s.storeId, groupId: groupRow.id, userId, orderCode,
             customerName: args.customer_name, phone: args.phone, address: args.address, note: args.note,
             subtotalPaisa: s.subtotal, deliveryFeePaisa: s.delivery, totalPaisa: s.total,
             paymentMethod: args.payment_method, paymentStatus: "pending",
             discountPaisa: s.discount, couponCode, deliveryMethod: args.delivery_method,
             addressId: args.address_id ?? null, status: "confirmation_needed", createdAt: now, updatedAt: now,
-          }).returning({ id: schema.orders.id }).prepare().all();
+          }).returning({ id: schema.orders.id });
           const orderRow = inserted[0];
           if (!orderRow) throw new Error("The order could not be created.");
-          tx.insert(schema.orderItems).values(s.lines.map(({ product, variant, quantity, unitPrice }) => ({ orderId: orderRow.id, productId: product.id, productName: product.name, quantity, unitPricePaisa: unitPrice, variantId: variant?.id ?? 0, variantLabel: variant?.label ?? null }))).prepare().run();
+          await tx.insert(schema.orderItems).values(s.lines.map(({ product, variant, quantity, unitPrice }) => ({ orderId: orderRow.id, productId: product.id, productName: product.name, quantity, unitPricePaisa: unitPrice, variantId: variant?.id ?? 0, variantLabel: variant?.label ?? null })));
           for (const { product, variant, quantity } of s.lines) {
             // Every decrement writes a movement row so sellers can reconcile
             // exactly what each order took off the shelf.
@@ -2171,21 +2325,21 @@ export const Actions = {
             if (variant) {
               const before = variant.stock;
               const after = before - quantity;
-              tx.update(schema.productVariants).set({ stock: after }).where(eq(schema.productVariants.id, variant.id)).prepare().run();
-              recordMovementTx(tx, { productId: product.id, variantId: variant.id, change: -quantity, stockAfter: after, reason: "order_placed", orderId: orderRow.id, actorType: userId ? "buyer" : "guest", actorId: userId ?? "" });
+              await tx.update(schema.productVariants).set({ stock: after }).where(eq(schema.productVariants.id, variant.id));
+              await recordMovementTx(tx, { productId: product.id, variantId: variant.id, change: -quantity, stockAfter: after, reason: "order_placed", orderId: orderRow.id, actorType: userId ? "buyer" : "guest", actorId: userId ?? "" });
               if (before > threshold && after <= threshold) lowStockHits.push({ storeId: s.storeId, name: product.name, variantLabel: variant.label, stock: after });
             } else {
               const before = product.stock;
               const after = before - quantity;
-              tx.update(schema.products).set({ stock: after, updatedAt: now }).where(eq(schema.products.id, product.id)).prepare().run();
-              recordMovementTx(tx, { productId: product.id, variantId: 0, change: -quantity, stockAfter: after, reason: "order_placed", orderId: orderRow.id, actorType: userId ? "buyer" : "guest", actorId: userId ?? "" });
+              await tx.update(schema.products).set({ stock: after, updatedAt: now }).where(eq(schema.products.id, product.id));
+              await recordMovementTx(tx, { productId: product.id, variantId: 0, change: -quantity, stockAfter: after, reason: "order_placed", orderId: orderRow.id, actorType: userId ? "buyer" : "guest", actorId: userId ?? "" });
               if (before > threshold && after <= threshold) lowStockHits.push({ storeId: s.storeId, name: product.name, variantLabel: null, stock: after });
             }
           }
           if (args.payment_method === "cod") {
             // COD keeps one payment row per fulfilment: cash is collected per
             // parcel and each seller's fulfilment settles independently.
-            tx.insert(schema.payments).values({ orderId: orderRow.id, groupId: groupRow.id, provider: "cod", amountPaisa: s.total, status: "pending", createdAt: now, updatedAt: now }).prepare().run();
+            await tx.insert(schema.payments).values({ orderId: orderRow.id, groupId: groupRow.id, provider: "cod", amountPaisa: s.total, status: "pending", createdAt: now, updatedAt: now });
           }
           created.push({ orderId: orderRow.id, orderCode });
         }
@@ -2195,24 +2349,24 @@ export const Actions = {
           // the legacy unique constraint; group_id is the authoritative link.
           const first = created[0];
           if (!first) throw new Error("The order could not be created.");
-          tx.insert(schema.payments).values({ orderId: first.orderId, groupId: groupRow.id, provider: args.payment_method, amountPaisa: groupTotal, status: "pending", createdAt: now, updatedAt: now }).prepare().run();
+          await tx.insert(schema.payments).values({ orderId: first.orderId, groupId: groupRow.id, provider: args.payment_method, amountPaisa: groupTotal, status: "pending", createdAt: now, updatedAt: now });
         }
         if (couponId != null) {
           // One usage row per group checkout (not per fulfilment): the
           // coupon was applied once, at group level.
           const first = created[0];
           if (!first) throw new Error("The order could not be created.");
-          tx.insert(schema.couponUsages).values({ couponId, userId, guestPhone, orderId: first.orderId, groupId: groupRow.id, usedAt: now }).prepare().run();
+          await tx.insert(schema.couponUsages).values({ couponId, userId, guestPhone, orderId: first.orderId, groupId: groupRow.id, usedAt: now });
         }
         if (userId) {
-          const cart = tx.select().from(schema.carts).where(eq(schema.carts.userId, userId)).limit(1).prepare().get();
-          if (cart) tx.delete(schema.cartItems).where(eq(schema.cartItems.cartId, cart.id)).prepare().run();
-          tx.insert(schema.notifications).values({ userId, type: "order_placed", title: `Order ${groupCode} placed`, body: `Thanks ${args.customer_name}! Your order of ${formatRs(groupTotal)} is awaiting confirmation.`, link: "#/orders", createdAt: now }).prepare().run();
+          const cart = (await tx.select().from(schema.carts).where(eq(schema.carts.userId, userId)).limit(1).for("update"))[0];
+          if (cart) await tx.delete(schema.cartItems).where(eq(schema.cartItems.cartId, cart.id));
+          await tx.insert(schema.notifications).values({ userId, type: "order_placed", title: `Order ${groupCode} placed`, body: `Thanks ${args.customer_name}! Your order of ${formatRs(groupTotal)} is awaiting confirmation.`, link: "#/orders", createdAt: now });
         }
         if (idemKey) {
-          tx.insert(schema.checkoutIdempotency).values({ key: idemKey, groupId: groupRow.id, userId: idemOwnerId, guestPhone: idemGuestPhone, payload: idemPayload, createdAt: now }).prepare().run();
+          await tx.insert(schema.checkoutIdempotency).values({ key: idemKey, groupId: groupRow.id, userId: idemOwnerId, guestPhone: idemGuestPhone, payload: idemPayload, createdAt: now });
           // Prune keys older than 7 days so the table does not grow forever.
-          tx.delete(schema.checkoutIdempotency).where(lt(schema.checkoutIdempotency.createdAt, new Date(Date.now() - 7 * 86400 * 1000))).prepare().run();
+          await tx.delete(schema.checkoutIdempotency).where(lt(schema.checkoutIdempotency.createdAt, new Date(Date.now() - 7 * 86400 * 1000)));
         }
         return { replay: false as const, groupId: groupRow.id, lowStockHits };
       });
@@ -2258,6 +2412,15 @@ export const Actions = {
           await emailSellerMsg(ctx, storeId, (to, storeName) => lowStockEmail(to, storeName, items));
         }
       }
+      // The invoice row for this checkout group: created once, right after
+      // the order commits. Idempotent (no-op when the row already exists),
+      // and best-effort — a failure here must never break the order, and
+      // getInvoice auto-heals the row on demand anyway.
+      try {
+        await ensureGroupInvoice(ctx, outcome.groupId);
+      } catch (e) {
+        console.error(`[invoices] failed to create invoice for group ${outcome.groupId}:`, e instanceof Error ? e.message : e);
+      }
       return groupResponseOf(view);
     },
   }),
@@ -2265,7 +2428,7 @@ export const Actions = {
     request: z.object({ ...sellerAuthFields, limit: z.number().int().positive().max(100).default(50) }), response: z.object({ orders: z.array(orderShape) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const orders = await db.select().from(schema.orders).where(eq(schema.orders.storeId, store.id)).orderBy(desc(schema.orders.createdAt)).limit(args.limit);
       const items = orders.length ? await db.select().from(schema.orderItems).where(inArray(schema.orderItems.orderId, orders.map((o) => o.id))) : [];
       const groupIds = [...new Set(orders.map((o) => o.groupId).filter((g): g is number => g != null))];
@@ -2282,7 +2445,7 @@ export const Actions = {
   trackOrder: defineAction({
     request: z.object({ order_code: z.string().trim().min(4), phone: z.string().trim().min(7), authToken: authTokenField }), response: z.object({ order: orderShape.nullable(), group: orderGroupShape.nullable() }),
     async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const code = args.order_code.toUpperCase();
       const phone = args.phone.trim();
       const group = (await db.select().from(schema.orderGroups).where(and(eq(schema.orderGroups.groupCode, code), eq(schema.orderGroups.phone, phone))).limit(1))[0];
@@ -2322,7 +2485,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenField, order_id: z.number().int().positive().optional(), order_code: z.string().trim().min(4).max(40).optional(), group_code: z.string().trim().min(4).max(40).optional(), phone: z.string().trim().min(7).max(20).optional() }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const buyerId = await buyerIdOf(ctx, args.authToken);
       let group: typeof schema.orderGroups.$inferSelect | undefined;
       let order: typeof schema.orders.$inferSelect | undefined;
@@ -2372,8 +2535,8 @@ export const Actions = {
       // ONE transaction: double-clicking cancel (or a buyer and the seller
       // cancelling at once) can no longer restore the same stock twice, and
       // a group is never left half-cancelled.
-      fullDb(ctx).transaction((tx) => {
-        cancelFulfilmentsTx(tx, orderIds, buyerId ? "buyer" : "guest", buyerId ?? args.phone ?? "");
+      await fullDb(ctx).transaction(async (tx) => {
+        await cancelFulfilmentsTx(tx, orderIds, buyerId ? "buyer" : "guest", buyerId ?? args.phone ?? "");
       });
       if (notifyUserId) {
         await notifyUser(ctx, notifyUserId, { type: "order_status", title: `Order ${displayCode} cancelled`, body: `Your order ${displayCode} was cancelled. No payment is due.`, link: "#/orders" });
@@ -2395,7 +2558,7 @@ export const Actions = {
     request: z.object({ ...sellerAuthFields, order_id: z.number().int().positive(), status: orderStatus }), response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const order = (await db.select().from(schema.orders).where(and(eq(schema.orders.id, args.order_id), eq(schema.orders.storeId, store.id))).limit(1))[0];
       if (!order) throw new Error("Order not found.");
       await transitionOrderStatus(ctx, order, args.status, { type: "seller", id: String(store.id) });
@@ -2408,7 +2571,7 @@ export const Actions = {
   getProductReviews: defineAction({
     request: z.object({ product_id: z.number().int().positive() }), response: z.object({ reviews: z.array(z.object({ id: z.number(), reviewer_name: z.string(), rating: z.number(), body: z.string(), created_at: z.string() })) }),
     async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = await db.select().from(schema.reviews).where(eq(schema.reviews.productId, args.product_id)).orderBy(desc(schema.reviews.createdAt));
       return { reviews: rows.map((r) => ({ id: r.id, reviewer_name: r.reviewerName, rating: r.rating, body: r.body, created_at: r.createdAt.toISOString() })) };
     },
@@ -2416,7 +2579,7 @@ export const Actions = {
   addReview: defineAction({
     request: z.object({ order_code: z.string().trim().min(4), phone: z.string().trim().min(7), product_id: z.number().int().positive(), rating: z.number().int().min(1).max(5), body: z.string().trim().min(3).max(500) }), response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const order = (await db.select().from(schema.orders).where(and(eq(schema.orders.orderCode, args.order_code.toUpperCase()), eq(schema.orders.phone, args.phone), eq(schema.orders.status, "delivered"))).limit(1))[0];
       if (!order) throw new Error("Only delivered orders can leave a verified review.");
       const item = (await db.select().from(schema.orderItems).where(and(eq(schema.orderItems.orderId, order.id), eq(schema.orderItems.productId, args.product_id))).limit(1))[0];
@@ -2430,6 +2593,12 @@ export const Actions = {
       } catch {
         throw new Error("You have already reviewed this product from this order.");
       }
+      // The product's seller hears about the new review as an in-app
+      // notification row (keyed "seller:<id>").
+      const product = (await db.select({ id: schema.products.id, name: schema.products.name, storeId: schema.products.storeId }).from(schema.products).where(eq(schema.products.id, args.product_id)).limit(1))[0];
+      if (product) {
+        await notifySeller(ctx, product.storeId, { type: "new_review", title: `New review for ${product.name}`, body: `${order.customerName} rated it ${args.rating}/5: ${args.body.slice(0, 120)}`, link: `#/product/${product.id}` });
+      }
       ctx.invalidateQueries();
       return { ok: true };
     },
@@ -2437,7 +2606,7 @@ export const Actions = {
   reportIssue: defineAction({
     request: z.object({ order_code: z.string().trim().min(4), phone: z.string().trim().min(7), kind: z.string().trim().min(2).max(60), detail: z.string().trim().min(8).max(700) }), response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const order = (await db.select().from(schema.orders).where(and(eq(schema.orders.orderCode, args.order_code.toUpperCase()), eq(schema.orders.phone, args.phone))).limit(1))[0];
       if (!order) throw new Error("We could not match that order and phone number.");
       await db.insert(schema.buyerIssues).values({ orderId: order.id, kind: args.kind, detail: args.detail, updatedAt: new Date() });
@@ -2449,7 +2618,7 @@ export const Actions = {
     request: z.object({ ...sellerAuthFields }), response: z.object({ issues: z.array(z.object({ id: z.number(), order_code: z.string(), kind: z.string(), detail: z.string(), status: z.enum(["open", "resolved"]), created_at: z.string() })) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const orders = await db.select({ id: schema.orders.id, code: schema.orders.orderCode }).from(schema.orders).where(eq(schema.orders.storeId, store.id));
       const orderIds = orders.map((o) => o.id);
       if (!orderIds.length) return { issues: [] };
@@ -2461,7 +2630,7 @@ export const Actions = {
     request: z.object({ ...sellerAuthFields, issue_id: z.number().int().positive() }), response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const issue = (await db.select().from(schema.buyerIssues).where(eq(schema.buyerIssues.id, args.issue_id)).limit(1))[0];
       if (!issue) throw new Error("Issue not found.");
       const order = (await db.select({ storeId: schema.orders.storeId }).from(schema.orders).where(eq(schema.orders.id, issue.orderId)).limit(1))[0];
@@ -2476,7 +2645,7 @@ export const Actions = {
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
       if (args.confirmation !== store.storeName) throw new Error("Store name confirmation did not match.");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       await db.delete(schema.sessions).where(and(eq(schema.sessions.userType, "seller"), eq(schema.sessions.userId, String(store.id))));
       // v7 money tables: nothing writes them yet, but keep the hard-delete
       // cascade complete so a future ledger/payout row can never block the
@@ -2517,7 +2686,7 @@ export const Actions = {
     request: z.object({ email: emailField, password: z.string().min(1).max(120) }),
     response: z.object({ token: z.string(), admin: z.object({ name: z.string(), email: z.string() }) }),
     async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const admin = (await db.select().from(schema.admins).where(eq(schema.admins.email, args.email.trim().toLowerCase())).limit(1))[0];
       if (!admin || !await Bun.password.verify(args.password, admin.passwordHash)) throw new Error("Email or password is incorrect.");
       const token = await createSession(ctx, "admin", admin.id);
@@ -2529,7 +2698,7 @@ export const Actions = {
     response: z.object({ sellers: z.number(), products: z.number(), orders: z.number(), users: z.number(), revenue_paisa: z.number(), pending_sellers: z.number(), open_issues: z.number(), refunded_orders: z.number(), open_tickets: z.number(), open_review_reports: z.number() }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const [sellers, products, orders, users, issues, tickets, reports] = await Promise.all([
         db.select({ id: schema.storeSettings.id, status: schema.storeSettings.status }).from(schema.storeSettings),
         db.select({ id: schema.products.id }).from(schema.products),
@@ -2558,13 +2727,13 @@ export const Actions = {
     response: z.object({ sellers: z.array(z.object({ id: z.number(), seller_code: z.string(), store_name: z.string(), location: z.string(), phone: z.string(), email: z.string().nullable(), status: sellerStatus, email_verified: z.boolean(), product_count: z.number(), order_count: z.number(), created_at: z.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const q = args.q?.trim();
       // Per-seller product/order counts come from grouped COUNT queries —
       // never by loading every product and order row into memory.
       const [sellers, productCounts, orderCounts] = await Promise.all([
         q
-          ? await db.select().from(schema.storeSettings).where(or(like(schema.storeSettings.storeName, `%${q}%`), like(schema.storeSettings.sellerCode, `%${q}%`), like(schema.storeSettings.email, `%${q}%`))).orderBy(desc(schema.storeSettings.createdAt))
+          ? await db.select().from(schema.storeSettings).where(or(ilike(schema.storeSettings.storeName, `%${q}%`), ilike(schema.storeSettings.sellerCode, `%${q}%`), ilike(schema.storeSettings.email, `%${q}%`))).orderBy(desc(schema.storeSettings.createdAt))
           : await db.select().from(schema.storeSettings).orderBy(desc(schema.storeSettings.createdAt)),
         db.select({ storeId: schema.products.storeId, n: count() }).from(schema.products).groupBy(schema.products.storeId),
         db.select({ storeId: schema.orders.storeId, n: count() }).from(schema.orders).groupBy(schema.orders.storeId),
@@ -2586,7 +2755,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const store = (await db.select({ id: schema.storeSettings.id, status: schema.storeSettings.status, emailVerified: schema.storeSettings.emailVerified }).from(schema.storeSettings).where(eq(schema.storeSettings.id, args.seller_id)).limit(1))[0];
       if (!store) throw new Error("Seller not found.");
       // Legal lifecycle transitions: the admin can only move a shop along
@@ -2610,6 +2779,16 @@ export const Actions = {
       if (args.status !== "pending") {
         const event: SellerAccountEvent = args.status === "active" && store.status === "suspended" ? "reactivated" : (args.status as SellerAccountEvent);
         await emailSellerMsg(ctx, args.seller_id, (to, storeName) => sellerAccountStatusEmail(to, storeName, event));
+        // Same event as an in-app notification row (keyed "seller:<id>").
+        const statusBody: Record<string, string> = {
+          under_review: "Your seller application is now under review. We will let you know the decision soon.",
+          active: store.status === "suspended"
+            ? "Your seller account has been reactivated — you can sell again."
+            : "Your seller application was approved. Welcome to Nepal Shop — you can now list and sell products.",
+          suspended: "Your seller account has been suspended. Please contact support for details.",
+          rejected: "Your seller application was not approved. Please contact support if you have questions.",
+        };
+        await notifySeller(ctx, args.seller_id, { type: "seller_status", title: `Seller account: ${args.status}`, body: statusBody[args.status] ?? `Your seller account status changed to ${args.status}.`, link: null });
       }
       await audit(ctx, "admin", auth.id, "seller_status_changed", "store", String(args.seller_id), `${store.status} → ${args.status}`);
       ctx.invalidateQueries();
@@ -2618,10 +2797,10 @@ export const Actions = {
   }),
   adminListProducts: defineAction({
     request: z.object({ authToken: authTokenField, seller_id: z.number().int().positive().optional(), q: z.string().trim().max(80).optional(), moderation: z.boolean().optional() }),
-    response: z.object({ products: z.array(z.object({ id: z.number(), name: z.string(), category: z.string(), price_paisa: z.number(), stock: z.number(), is_active: z.boolean(), store_name: z.string(), seller_code: z.string(), seller_status: sellerStatus })) }),
+    response: z.object({ products: z.array(z.object({ id: z.number(), name: z.string(), category: z.string(), price_paisa: z.number(), stock: z.number(), is_active: z.boolean(), approval_status: z.string(), store_name: z.string(), seller_code: z.string(), seller_status: sellerStatus })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const stores = await db.select().from(schema.storeSettings);
       const storeById = new Map(stores.map((s) => [s.id, s]));
       const q = args.q?.trim().toLowerCase();
@@ -2630,14 +2809,15 @@ export const Actions = {
         : await db.select().from(schema.products).orderBy(desc(schema.products.createdAt)).limit(200);
       if (q) products = products.filter((p) => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
       if (args.moderation) {
-        // The moderation queue: hidden products plus anything listed by a
-        // shop that is not an approved, active seller.
-        products = products.filter((p) => !p.isActive || storeById.get(p.storeId)?.status !== "active");
+        // The moderation queue: products awaiting approval, hidden products,
+        // plus anything listed by a shop that is not an approved, active
+        // seller.
+        products = products.filter((p) => p.approvalStatus === "pending" || !p.isActive || storeById.get(p.storeId)?.status !== "active");
       }
       return {
         products: products.map((p) => {
           const store = storeById.get(p.storeId);
-          return { id: p.id, name: p.name, category: p.category, price_paisa: p.pricePaisa, stock: p.stock, is_active: p.isActive, store_name: store?.storeName ?? "Seller", seller_code: store?.sellerCode ?? "", seller_status: store?.status ?? "active" };
+          return { id: p.id, name: p.name, category: p.category, price_paisa: p.pricePaisa, stock: p.stock, is_active: p.isActive, approval_status: p.approvalStatus ?? "approved", store_name: store?.storeName ?? "Seller", seller_code: store?.sellerCode ?? "", seller_status: store?.status ?? "active" };
         }),
       };
     },
@@ -2647,7 +2827,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: schema.products.id, name: schema.products.name, storeId: schema.products.storeId }).from(schema.products).where(eq(schema.products.id, args.product_id)).limit(1))[0];
       if (!product) throw new Error("Product not found.");
       await db.update(schema.products).set({ isActive: args.active, updatedAt: new Date() }).where(eq(schema.products.id, args.product_id));
@@ -2662,7 +2842,7 @@ export const Actions = {
     response: z.object({ orders: z.array(orderShape.extend({ store_name: z.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const orders = args.status
         ? await db.select().from(schema.orders).where(eq(schema.orders.status, args.status)).orderBy(desc(schema.orders.createdAt)).limit(100)
         : await db.select().from(schema.orders).orderBy(desc(schema.orders.createdAt)).limit(100);
@@ -2684,7 +2864,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenField, limit: z.number().int().positive().max(100).default(50) }), response: z.object({ groups: z.array(orderGroupShape) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = await db.select().from(schema.orderGroups).orderBy(desc(schema.orderGroups.createdAt)).limit(args.limit);
       const views: z.infer<typeof orderGroupShape>[] = [];
       for (const g of rows) {
@@ -2698,7 +2878,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenField, group_id: z.number().int().positive().optional(), group_code: z.string().trim().min(4).max(40).optional() }), response: z.object({ group: orderGroupShape.nullable() }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       let groupId = args.group_id ?? null;
       if (groupId == null && args.group_code) {
         groupId = (await db.select({ id: schema.orderGroups.id }).from(schema.orderGroups).where(eq(schema.orderGroups.groupCode, args.group_code.toUpperCase())).limit(1))[0]?.id ?? null;
@@ -2713,7 +2893,7 @@ export const Actions = {
     response: z.object({ issues: z.array(z.object({ id: z.number(), order_code: z.string(), store_name: z.string(), kind: z.string(), detail: z.string(), status: z.enum(["open", "resolved"]), created_at: z.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const [issues, orders, stores] = await Promise.all([
         db.select().from(schema.buyerIssues).orderBy(desc(schema.buyerIssues.createdAt)).limit(200),
         db.select({ id: schema.orders.id, code: schema.orders.orderCode, storeId: schema.orders.storeId }).from(schema.orders),
@@ -2732,7 +2912,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const issue = (await db.select({ id: schema.buyerIssues.id }).from(schema.buyerIssues).where(eq(schema.buyerIssues.id, args.issue_id)).limit(1))[0];
       if (!issue) throw new Error("Issue not found.");
       await db.update(schema.buyerIssues).set({ status: "resolved", updatedAt: new Date() }).where(eq(schema.buyerIssues.id, args.issue_id));
@@ -2746,12 +2926,12 @@ export const Actions = {
     response: z.object({ users: z.array(z.object({ id: z.string(), name: z.string(), phone: z.string(), email: z.string().nullable(), status: z.enum(["active", "suspended"]), order_count: z.number(), created_at: z.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const q = args.q?.trim();
       // Order counts come from a grouped COUNT — never the whole orders table.
       const [users, orderCounts] = await Promise.all([
         q
-          ? await db.select().from(schema.users).where(or(like(schema.users.name, `%${q}%`), like(schema.users.phone, `%${q}%`), like(schema.users.email, `%${q}%`))).orderBy(desc(schema.users.createdAt)).limit(200)
+          ? await db.select().from(schema.users).where(or(ilike(schema.users.name, `%${q}%`), ilike(schema.users.phone, `%${q}%`), ilike(schema.users.email, `%${q}%`))).orderBy(desc(schema.users.createdAt)).limit(200)
           : await db.select().from(schema.users).orderBy(desc(schema.users.createdAt)).limit(200),
         db.select({ userId: schema.orders.userId, n: count() }).from(schema.orders).groupBy(schema.orders.userId),
       ]);
@@ -2766,7 +2946,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const admin = (await db.select().from(schema.admins).where(eq(schema.admins.id, auth.id)).limit(1))[0];
       if (!admin || !await Bun.password.verify(args.old_password, admin.passwordHash)) throw new Error("The current password is incorrect.");
       await db.update(schema.admins).set({ passwordHash: await Bun.password.hash(args.new_password, { algorithm: "bcrypt", cost: 10 }) }).where(eq(schema.admins.id, admin.id));
@@ -2781,7 +2961,7 @@ export const Actions = {
     response: z.object({ entries: z.array(z.object({ id: z.number(), actor_type: z.string(), actor_id: z.string(), action: z.string(), entity_type: z.string(), entity_id: z.string(), detail: z.string(), created_at: z.string() })), total: z.number() }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       // The total is a COUNT query — never load every row id into memory.
       const total = (await db.select({ n: count() }).from(schema.auditLogs))[0]?.n ?? 0;
       const rows = await db.select().from(schema.auditLogs).orderBy(desc(schema.auditLogs.id)).limit(args.limit).offset(args.offset);
@@ -2794,7 +2974,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const user = (await db.select({ id: schema.users.id, status: schema.users.status, name: schema.users.name }).from(schema.users).where(eq(schema.users.id, args.user_id)).limit(1))[0];
       if (!user) throw new Error("Buyer not found.");
       if (user.status === args.status) return { ok: true };
@@ -2816,7 +2996,7 @@ export const Actions = {
     }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const user = (await db.select().from(schema.users).where(eq(schema.users.id, args.user_id)).limit(1))[0];
       if (!user) throw new Error("Buyer not found.");
       const [orders, items] = await Promise.all([
@@ -2843,7 +3023,7 @@ export const Actions = {
     }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const store = (await db.select().from(schema.storeSettings).where(eq(schema.storeSettings.id, args.seller_id)).limit(1))[0];
       if (!store) throw new Error("Seller not found.");
       const [products, orders, items] = await Promise.all([
@@ -2881,7 +3061,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const order = (await db.select().from(schema.orders).where(eq(schema.orders.id, args.order_id)).limit(1))[0];
       if (!order) throw new Error("Order not found.");
       const from = order.status;
@@ -2895,7 +3075,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const order = (await db.select().from(schema.orders).where(eq(schema.orders.id, args.order_id)).limit(1))[0];
       if (!order) throw new Error("Order not found.");
       await adminCancelOrderCore(ctx, order, { type: "admin", id: auth.id });
@@ -2909,7 +3089,7 @@ export const Actions = {
     response: z.object({ payments: z.array(z.object({ id: z.number(), order_code: z.string(), group_code: z.string().nullable(), store_name: z.string(), provider: paymentMethodEnum, amount_paisa: z.number(), status: paymentStatusEnum, created_at: z.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const payments = args.status
         ? await db.select().from(schema.payments).where(eq(schema.payments.status, args.status)).orderBy(desc(schema.payments.createdAt)).limit(200)
         : await db.select().from(schema.payments).orderBy(desc(schema.payments.createdAt)).limit(200);
@@ -2936,7 +3116,7 @@ export const Actions = {
     response: z.object({ reports: z.array(z.object({ id: z.number(), review_id: z.number(), reason: z.string(), detail: z.string(), reporter_name: z.string(), status: z.enum(["open", "resolved"]), created_at: z.string(), review: z.object({ reviewer_name: z.string(), rating: z.number(), body: z.string(), product_name: z.string(), store_name: z.string() }).nullable() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const [reports, reviews, products, stores] = await Promise.all([
         args.status
           ? await db.select().from(schema.reviewReports).where(eq(schema.reviewReports.status, args.status)).orderBy(desc(schema.reviewReports.createdAt)).limit(200)
@@ -2962,7 +3142,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const report = (await db.select().from(schema.reviewReports).where(eq(schema.reviewReports.id, args.report_id)).limit(1))[0];
       if (!report) throw new Error("Report not found.");
       if (args.decision === "delete_review") {
@@ -2981,7 +3161,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const review = (await db.select({ id: schema.reviews.id, body: schema.reviews.body }).from(schema.reviews).where(eq(schema.reviews.id, args.review_id)).limit(1))[0];
       if (!review) throw new Error("Review not found.");
       await db.delete(schema.reviews).where(eq(schema.reviews.id, args.review_id));
@@ -2995,7 +3175,7 @@ export const Actions = {
     request: z.object({ review_id: z.number().int().positive(), reason: z.enum(["spam", "abuse", "fake", "other"]), detail: z.string().trim().min(8).max(500), reporter_name: z.string().trim().min(2).max(60) }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const review = (await db.select({ id: schema.reviews.id }).from(schema.reviews).where(eq(schema.reviews.id, args.review_id)).limit(1))[0];
       if (!review) throw new Error("Review not found.");
       const name = args.reporter_name.trim();
@@ -3018,10 +3198,10 @@ export const Actions = {
     request: z.object({ authToken: authTokenRequired, product_id: z.number().int().positive(), quantity: z.number().int().min(1).max(20), variant_id: variantIdField }), response: z.object({ cart: cartShape }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const product = (await db.select().from(schema.products).where(eq(schema.products.id, args.product_id)).limit(1))[0];
       if (!product) throw new Error("That product was not found.");
-      if (!product.isActive || !((await activeStoreIds(ctx)).has(product.storeId))) throw new Error("That product is no longer available.");
+      if (!isSellableProduct(product, await activeStoreIds(ctx))) throw new Error("That product is no longer available.");
       await assertStoreTakingOrders(ctx, product.storeId);
       const variant = await requireVariant(ctx, product.id, args.variant_id);
       const { stock } = linePricing(product, variant);
@@ -3063,7 +3243,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenRequired, product_id: z.number().int().positive(), quantity: z.number().int().min(0).max(20), variant_id: variantIdField }), response: z.object({ cart: cartShape }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const cart = (await db.select().from(schema.carts).where(eq(schema.carts.userId, auth.id)).limit(1))[0];
       const item = cart ? (await db.select().from(schema.cartItems).where(and(eq(schema.cartItems.cartId, cart.id), eq(schema.cartItems.productId, args.product_id), eq(schema.cartItems.variantId, args.variant_id))).limit(1))[0] : undefined;
       if (!cart || !item) throw new Error("That item is not in your cart.");
@@ -3071,7 +3251,7 @@ export const Actions = {
         await db.delete(schema.cartItems).where(eq(schema.cartItems.id, item.id));
       } else {
         const product = (await db.select().from(schema.products).where(eq(schema.products.id, args.product_id)).limit(1))[0];
-        if (!product || !product.isActive) throw new Error("That product is no longer available.");
+        if (!product || !product.isActive || (product.approvalStatus ?? "approved") !== "approved") throw new Error("That product is no longer available.");
         const variant = await requireVariant(ctx, product.id, args.variant_id);
         const { stock } = linePricing(product, variant);
         if (args.quantity > stock) throw new Error(`${product.name}${variant ? ` (${variant.label})` : ""} has only ${stock} left in stock.`);
@@ -3086,7 +3266,7 @@ export const Actions = {
     async handler(ctx, args): Promise<{ ok: true }> {
       const userId = await buyerIdOf(ctx, args.authToken);
       if (userId) {
-        const db = ctx.db<typeof schema>();
+        const db = fullDb(ctx);
         const cart = (await db.select().from(schema.carts).where(eq(schema.carts.userId, userId)).limit(1))[0];
         if (cart) {
           await db.delete(schema.cartItems).where(eq(schema.cartItems.cartId, cart.id));
@@ -3103,7 +3283,7 @@ export const Actions = {
       // Merges a guest's localStorage cart into the server cart on sign-in,
       // capping every line at available stock.
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const actives = await activeStoreIds(ctx);
       let cart = (await db.select().from(schema.carts).where(eq(schema.carts.userId, auth.id)).limit(1))[0];
       if (!cart && args.items.length) {
@@ -3137,7 +3317,7 @@ export const Actions = {
     async handler(ctx, args) {
       const userId = await buyerIdOf(ctx, args.authToken);
       if (!userId) return { addresses: [] };
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = await db.select().from(schema.addresses).where(eq(schema.addresses.userId, userId)).orderBy(desc(schema.addresses.isDefault), desc(schema.addresses.createdAt));
       return { addresses: rows.map((a) => ({ id: a.id, label: a.label, full_name: a.fullName, phone: a.phone, province: a.province, district: a.district, municipality: a.municipality, ward: a.ward, landmark: a.landmark, note: a.note, is_default: a.isDefault })) };
     },
@@ -3147,7 +3327,7 @@ export const Actions = {
     response: z.object({ id: z.number() }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const values = { userId: auth.id, label: args.label?.trim() || "Home", fullName: args.full_name.trim(), phone: args.phone.trim(), province: args.province.trim(), district: args.district.trim(), municipality: args.municipality.trim(), ward: args.ward?.trim() || null, landmark: args.landmark?.trim() || null, note: args.note?.trim() || null };
       if (args.id) {
         const existing = (await db.select().from(schema.addresses).where(and(eq(schema.addresses.id, args.id), eq(schema.addresses.userId, auth.id))).limit(1))[0];
@@ -3168,7 +3348,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenRequired, id: z.number().int().positive() }), response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const existing = (await db.select().from(schema.addresses).where(and(eq(schema.addresses.id, args.id), eq(schema.addresses.userId, auth.id))).limit(1))[0];
       if (!existing) throw new Error("That address was not found.");
       await db.delete(schema.addresses).where(eq(schema.addresses.id, args.id));
@@ -3184,7 +3364,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenRequired, id: z.number().int().positive() }), response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const existing = (await db.select({ id: schema.addresses.id }).from(schema.addresses).where(and(eq(schema.addresses.id, args.id), eq(schema.addresses.userId, auth.id))).limit(1))[0];
       if (!existing) throw new Error("That address was not found.");
       await db.update(schema.addresses).set({ isDefault: false }).where(eq(schema.addresses.userId, auth.id));
@@ -3201,7 +3381,7 @@ export const Actions = {
     async handler(ctx, args) {
       const userId = await buyerIdOf(ctx, args.authToken);
       if (!userId) return { items: [] };
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const wl = (await db.select().from(schema.wishlists).where(eq(schema.wishlists.userId, userId)).limit(1))[0];
       if (!wl) return { items: [] };
       const rows = await db.select().from(schema.wishlistItems).where(eq(schema.wishlistItems.wishlistId, wl.id)).orderBy(desc(schema.wishlistItems.addedAt));
@@ -3219,7 +3399,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenRequired, product_id: z.number().int().positive() }), response: z.object({ wishlisted: z.boolean() }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const product = (await db.select().from(schema.products).where(eq(schema.products.id, args.product_id)).limit(1))[0];
       if (!product || !product.isActive || !((await activeStoreIds(ctx)).has(product.storeId))) throw new Error("That product is not available right now.");
       let wl = (await db.select().from(schema.wishlists).where(eq(schema.wishlists.userId, auth.id)).limit(1))[0];
@@ -3255,7 +3435,7 @@ export const Actions = {
     response: z.object({ coupons: z.array(z.object({ id: z.number(), code: z.string(), kind: z.enum(["percent", "fixed", "free_shipping"]), value: z.number(), min_order_paisa: z.number(), max_discount_paisa: z.number().nullable(), max_uses: z.number().nullable(), per_user_limit: z.number(), expires_at: z.string().nullable(), is_active: z.boolean(), created_at: z.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = await db.select().from(schema.coupons).orderBy(desc(schema.coupons.createdAt));
       return { coupons: rows.map((c) => ({ id: c.id, code: c.code, kind: c.kind, value: c.value, min_order_paisa: c.minOrderPaisa, max_discount_paisa: c.maxDiscountPaisa ?? null, max_uses: c.maxUses, per_user_limit: c.perUserLimit, expires_at: c.expiresAt ? c.expiresAt.toISOString() : null, is_active: c.isActive, created_at: c.createdAt.toISOString() })) };
     },
@@ -3278,7 +3458,7 @@ export const Actions = {
         expiresAt = new Date(args.expires_at);
         if (Number.isNaN(expiresAt.getTime())) throw new Error("That expiry date is not valid.");
       }
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const clash = (await db.select({ id: schema.coupons.id }).from(schema.coupons).where(eq(schema.coupons.code, code)).limit(1))[0];
       if (clash && clash.id !== args.id) throw new Error(`The code "${code}" is already in use.`);
       const values = { code, kind: args.kind, value, minOrderPaisa: args.min_order_paisa ?? 0, maxDiscountPaisa, maxUses: args.max_uses ?? null, perUserLimit: args.per_user_limit ?? 1, expiresAt, isActive: args.is_active ?? true };
@@ -3300,7 +3480,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenField, id: z.number().int().positive(), is_active: z.boolean() }), response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const existing = (await db.select({ id: schema.coupons.id }).from(schema.coupons).where(eq(schema.coupons.id, args.id)).limit(1))[0];
       if (!existing) throw new Error("Coupon not found.");
       await db.update(schema.coupons).set({ isActive: args.is_active }).where(eq(schema.coupons.id, args.id));
@@ -3320,7 +3500,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenField, order_id: z.number().int().positive().optional(), group_id: z.number().int().positive().optional(), provider: z.enum(["esewa", "khalti"]), phone: z.string().trim().min(7).max(20).optional() }),
     response: z.object({ provider: z.enum(["esewa", "khalti"]), payment_url: z.string(), params: z.record(z.string(), z.string()).optional(), pidx: z.string().optional(), order_code: z.string(), group_id: z.number().nullable() }),
     async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       let view = args.group_id ? await loadOrderGroup(ctx, args.group_id) : null;
       if (!view && args.order_id) {
         const order = (await db.select().from(schema.orders).where(eq(schema.orders.id, args.order_id)).limit(1))[0];
@@ -3388,7 +3568,7 @@ export const Actions = {
     request: z.object({ order_id: z.number().int().positive().optional(), group_id: z.number().int().positive().optional(), data: z.string().min(8), authToken: authTokenField, phone: z.string().trim().min(7).max(20).optional() }),
     response: z.object({ ok: z.literal(true), order_code: z.string(), group_id: z.number().nullable() }),
     async handler(ctx, args): Promise<{ ok: true; order_code: string; group_id: number | null }> {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       let view = args.group_id ? await loadOrderGroup(ctx, args.group_id) : null;
       if (!view && args.order_id) {
         const order = (await db.select().from(schema.orders).where(eq(schema.orders.id, args.order_id)).limit(1))[0];
@@ -3405,9 +3585,9 @@ export const Actions = {
         const now = new Date();
         // Payment row and every fulfilment move together: the group can
         // never be left half-failed if the request is retried.
-        fullDb(ctx).transaction((tx) => {
-          tx.update(schema.payments).set({ status: "failed", updatedAt: now }).where(eq(schema.payments.id, payment.id)).prepare().run();
-          tx.update(schema.orders).set({ paymentStatus: "failed", updatedAt: now }).where(eq(schema.orders.groupId, view.id)).prepare().run();
+        await fullDb(ctx).transaction(async (tx) => {
+          await tx.update(schema.payments).set({ status: "failed", updatedAt: now }).where(eq(schema.payments.id, payment.id));
+          await tx.update(schema.orders).set({ paymentStatus: "failed", updatedAt: now }).where(eq(schema.orders.groupId, view.id));
         });
         if (view.user_id) await notifyUser(ctx, view.user_id, { type: "payment", title: `Payment failed for ${view.group_code}`, body: message, link: "#/orders" });
         await emailBuyerMsg(ctx, view.user_id, (to, name) => paymentFailedEmail(to, name, view.group_code, message));
@@ -3431,11 +3611,11 @@ export const Actions = {
       // can never be left half-paid if the request is retried or interrupted.
       // Commission accrues per fulfilment inside the same transaction.
       const cfg = await moneyConfig(ctx);
-      fullDb(ctx).transaction((tx) => {
-        tx.update(schema.payments).set({ status: "paid", transactionId: p.transaction_code ?? null, payloadJson: args.data, updatedAt: now }).where(eq(schema.payments.id, payment.id)).prepare().run();
+      await fullDb(ctx).transaction(async (tx) => {
+        await tx.update(schema.payments).set({ status: "paid", transactionId: p.transaction_code ?? null, payloadJson: args.data, updatedAt: now }).where(eq(schema.payments.id, payment.id));
         for (const o of view.orders) {
-          tx.update(schema.orders).set({ paymentStatus: "paid", status: o.status === "confirmation_needed" ? "confirmed" : o.status, updatedAt: now }).where(eq(schema.orders.id, o.id)).prepare().run();
-          accrueSaleCommissionTx(tx, o.id, cfg.commission_default_percent);
+          await tx.update(schema.orders).set({ paymentStatus: "paid", status: o.status === "confirmation_needed" ? "confirmed" : o.status, updatedAt: now }).where(eq(schema.orders.id, o.id));
+          await accrueSaleCommissionTx(tx, o.id, cfg.commission_default_percent);
         }
       });
       if (view.user_id) await notifyUser(ctx, view.user_id, { type: "payment", title: `Payment received for ${view.group_code}`, body: `Your eSewa payment of ${formatRs(view.total_paisa)} was confirmed.`, link: "#/orders" });
@@ -3453,7 +3633,7 @@ export const Actions = {
     request: z.object({ order_id: z.number().int().positive().optional(), group_id: z.number().int().positive().optional(), pidx: z.string().trim().min(4).max(120), authToken: authTokenField, phone: z.string().trim().min(7).max(20).optional() }),
     response: z.object({ ok: z.literal(true), order_code: z.string(), group_id: z.number().nullable() }),
     async handler(ctx, args): Promise<{ ok: true; order_code: string; group_id: number | null }> {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       let view = args.group_id ? await loadOrderGroup(ctx, args.group_id) : null;
       if (!view && args.order_id) {
         const order = (await db.select().from(schema.orders).where(eq(schema.orders.id, args.order_id)).limit(1))[0];
@@ -3477,9 +3657,9 @@ export const Actions = {
         const now = new Date();
         // Payment row and every fulfilment move together: the group can
         // never be left half-failed if the request is retried.
-        fullDb(ctx).transaction((tx) => {
-          tx.update(schema.payments).set({ status: "failed", updatedAt: now }).where(eq(schema.payments.id, payment.id)).prepare().run();
-          tx.update(schema.orders).set({ paymentStatus: "failed", updatedAt: now }).where(eq(schema.orders.groupId, view.id)).prepare().run();
+        await fullDb(ctx).transaction(async (tx) => {
+          await tx.update(schema.payments).set({ status: "failed", updatedAt: now }).where(eq(schema.payments.id, payment.id));
+          await tx.update(schema.orders).set({ paymentStatus: "failed", updatedAt: now }).where(eq(schema.orders.groupId, view.id));
         });
         if (view.user_id) await notifyUser(ctx, view.user_id, { type: "payment", title: `Payment failed for ${view.group_code}`, body: message, link: "#/orders" });
         await emailBuyerMsg(ctx, view.user_id, (to, name) => paymentFailedEmail(to, name, view.group_code, message));
@@ -3500,11 +3680,11 @@ export const Actions = {
         // interrupted. Commission accrues per fulfilment inside the same
         // transaction.
         const cfg = await moneyConfig(ctx);
-        fullDb(ctx).transaction((tx) => {
-          tx.update(schema.payments).set({ status: "paid", transactionId: args.pidx.trim(), payloadJson: JSON.stringify({ status, amount_paisa: amountPaisa }), updatedAt: now }).where(eq(schema.payments.id, payment.id)).prepare().run();
+        await fullDb(ctx).transaction(async (tx) => {
+          await tx.update(schema.payments).set({ status: "paid", transactionId: args.pidx.trim(), payloadJson: JSON.stringify({ status, amount_paisa: amountPaisa }), updatedAt: now }).where(eq(schema.payments.id, payment.id));
           for (const o of view.orders) {
-            tx.update(schema.orders).set({ paymentStatus: "paid", status: o.status === "confirmation_needed" ? "confirmed" : o.status, updatedAt: now }).where(eq(schema.orders.id, o.id)).prepare().run();
-            accrueSaleCommissionTx(tx, o.id, cfg.commission_default_percent);
+            await tx.update(schema.orders).set({ paymentStatus: "paid", status: o.status === "confirmation_needed" ? "confirmed" : o.status, updatedAt: now }).where(eq(schema.orders.id, o.id));
+            await accrueSaleCommissionTx(tx, o.id, cfg.commission_default_percent);
           }
         });
         if (view.user_id) await notifyUser(ctx, view.user_id, { type: "payment", title: `Payment received for ${view.group_code}`, body: `Your Khalti payment of ${formatRs(view.total_paisa)} was confirmed.`, link: "#/orders" });
@@ -3522,7 +3702,7 @@ export const Actions = {
     request: z.object({ order_id: z.number().int().positive().optional(), group_id: z.number().int().positive().optional(), authToken: authTokenField, phone: z.string().trim().min(7).max(20).optional() }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       let view = args.group_id ? await loadOrderGroup(ctx, args.group_id) : null;
       if (!view && args.order_id) {
         const order = (await db.select().from(schema.orders).where(eq(schema.orders.id, args.order_id)).limit(1))[0];
@@ -3541,8 +3721,8 @@ export const Actions = {
       // payment — so the buyer can cleanly check out again another way and
       // the sellers' inventory is never stranded by an abandoned wallet.
       const orderIds = view.orders.map((o) => o.id);
-      fullDb(ctx).transaction((tx) => {
-        cancelFulfilmentsTx(tx, orderIds, view.user_id ? "buyer" : "guest", view.user_id ?? args.phone ?? "guest");
+      await fullDb(ctx).transaction(async (tx) => {
+        await cancelFulfilmentsTx(tx, orderIds, view.user_id ? "buyer" : "guest", view.user_id ?? args.phone ?? "guest");
       });
       if (view.user_id) {
         await notifyUser(ctx, view.user_id, { type: "order_status", title: `Order ${view.group_code} released`, body: `The unpaid order ${view.group_code} was released and its items returned to stock. You can check out again whenever you are ready.`, link: "#/orders" });
@@ -3560,7 +3740,7 @@ export const Actions = {
     async handler(ctx, args) {
       const userId = await buyerIdOf(ctx, args.authToken);
       if (!userId) return { notifications: [], unread_count: 0 };
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = await db.select().from(schema.notifications).where(eq(schema.notifications.userId, userId)).orderBy(desc(schema.notifications.createdAt)).limit(args.limit);
       const unreadRows = await db.select({ id: schema.notifications.id }).from(schema.notifications).where(and(eq(schema.notifications.userId, userId), eq(schema.notifications.isRead, false)));
       return {
@@ -3573,7 +3753,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenRequired, id: z.number().int().positive() }), response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const existing = (await db.select({ id: schema.notifications.id }).from(schema.notifications).where(and(eq(schema.notifications.id, args.id), eq(schema.notifications.userId, auth.id))).limit(1))[0];
       if (!existing) throw new Error("Notification not found.");
       await db.update(schema.notifications).set({ isRead: true }).where(eq(schema.notifications.id, args.id));
@@ -3585,7 +3765,7 @@ export const Actions = {
     async handler(ctx, args): Promise<{ ok: true }> {
       const userId = await buyerIdOf(ctx, args.authToken);
       if (userId) {
-        const db = ctx.db<typeof schema>();
+        const db = fullDb(ctx);
         await db.update(schema.notifications).set({ isRead: true }).where(eq(schema.notifications.userId, userId));
       }
       return { ok: true };
@@ -3614,7 +3794,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenField, order_code: z.string().trim().min(4).max(40), phone: z.string().trim().min(7).max(20), reason: z.string().trim().min(8).max(400) }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const code = args.order_code.toUpperCase();
       const userId = await buyerIdOf(ctx, args.authToken);
       const order = userId
@@ -3631,15 +3811,19 @@ export const Actions = {
       const existing = (await db.select({ id: schema.returnRequests.id }).from(schema.returnRequests).where(eq(schema.returnRequests.orderId, order.id)).limit(1))[0];
       if (existing) throw new Error("A return has already been requested for this order.");
       const requestedBy = userId ? `buyer:${userId}` : `guest:${args.phone.trim()}`;
-      fullDb(ctx).transaction((tx) => {
-        const current = tx.select().from(schema.orders).where(eq(schema.orders.id, order.id)).limit(1).prepare().get();
+      await fullDb(ctx).transaction(async (tx) => {
+        const current = (await tx.select().from(schema.orders).where(eq(schema.orders.id, order.id)).limit(1).for("update"))[0];
         if (!current || current.status !== "delivered") throw new Error("Only delivered orders can be returned.");
-        tx.update(schema.orders).set({ status: "return_requested", updatedAt: new Date() }).where(eq(schema.orders.id, current.id)).prepare().run();
-        tx.insert(schema.returnRequests).values({ orderId: current.id, reason: args.reason.trim(), requestedBy }).prepare().run();
+        await tx.update(schema.orders).set({ status: "return_requested", updatedAt: new Date() }).where(eq(schema.orders.id, current.id));
+        await tx.insert(schema.returnRequests).values({ orderId: current.id, reason: args.reason.trim(), requestedBy });
       });
       if (order.userId) {
         await notifyUser(ctx, order.userId, { type: "order_status", title: `Return requested for ${order.orderCode}`, body: `Your return request for order ${order.orderCode} is with the seller.`, link: "#/orders" });
       }
+      // The seller and the marketplace team get the same event as in-app
+      // notification rows (the seller email above is unchanged).
+      await notifySeller(ctx, order.storeId, { type: "return_requested", title: `Return requested for ${order.orderCode}`, body: `A buyer requested a return for order ${order.orderCode}. Reason: ${args.reason.trim().slice(0, 140)}`, link: null });
+      await notifyAdminUser(ctx, { type: "return_requested", title: `Return requested for ${order.orderCode}`, body: `${order.customerName} requested a return for order ${order.orderCode}.`, link: null });
       await emailBuyerMsg(ctx, order.userId, (to, name) => returnRequestedBuyerEmail(to, name, order.orderCode));
       await emailSeller(ctx, order.storeId, `Return requested for ${order.orderCode}`, `A buyer has requested a return for order ${order.orderCode}.\n\nReason: ${args.reason.trim()}\n\nPlease review it in your seller studio.`);
       await audit(ctx, userId ? "buyer" : "guest", userId ?? args.phone.trim(), "return_requested", "order", String(order.id), order.orderCode);
@@ -3652,7 +3836,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const order = (await db.select().from(schema.orders).where(and(eq(schema.orders.id, args.order_id), eq(schema.orders.storeId, store.id))).limit(1))[0];
       if (!order) throw new Error("Order not found.");
       if (order.status !== "return_requested") throw new Error("This order does not have a pending return request.");
@@ -3663,20 +3847,20 @@ export const Actions = {
       // lines the product row). Rejecting just sends the order back to
       // delivered with no stock change. The decision itself is recorded on
       // the return_requests row, with who decided and when.
-      fullDb(ctx).transaction((tx) => {
-        const current = tx.select().from(schema.orders).where(eq(schema.orders.id, order.id)).limit(1).prepare().get();
+      await fullDb(ctx).transaction(async (tx) => {
+        const current = (await tx.select().from(schema.orders).where(eq(schema.orders.id, order.id)).limit(1).for("update"))[0];
         if (!current || current.storeId !== store.id) throw new Error("Order not found.");
         if (current.status !== "return_requested") throw new Error("This order does not have a pending return request.");
         if (next === "returned") {
-          restoreStockTx(tx, current.id, "return_accepted", "seller", String(store.id));
+          await restoreStockTx(tx, current.id, "return_accepted", "seller", String(store.id));
         }
-        tx.update(schema.orders).set({ status: next, updatedAt: new Date() }).where(eq(schema.orders.id, current.id)).prepare().run();
+        await tx.update(schema.orders).set({ status: next, updatedAt: new Date() }).where(eq(schema.orders.id, current.id));
         const now = new Date();
-        const rr = tx.select().from(schema.returnRequests).where(eq(schema.returnRequests.orderId, current.id)).limit(1).prepare().get();
+        const rr = (await tx.select().from(schema.returnRequests).where(eq(schema.returnRequests.orderId, current.id)).limit(1).for("update"))[0];
         if (!rr || rr.status !== "requested") throw new Error("This return request was already decided.");
-        tx.update(schema.returnRequests)
+        await tx.update(schema.returnRequests)
           .set({ status: args.decision, decidedBy: `seller:${store.id}`, decidedAt: now })
-          .where(eq(schema.returnRequests.id, rr.id)).prepare().run();
+          .where(eq(schema.returnRequests.id, rr.id));
       });
       if (order.userId) {
         await notifyUser(ctx, order.userId, { type: "order_status", title: `Return ${args.decision} for ${order.orderCode}`, body: args.decision === "accepted" ? `Your return for order ${order.orderCode} was accepted.` : `Your return for order ${order.orderCode} was declined.`, link: "#/orders" });
@@ -3724,17 +3908,17 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const refund = (await db.select().from(schema.refunds).where(eq(schema.refunds.id, args.refund_id)).limit(1))[0];
       if (!refund) throw new Error("Refund not found.");
       if (refund.status !== "pending" && refund.status !== "failed") throw new Error("This refund has already been resolved.");
       const order = (await db.select().from(schema.orders).where(eq(schema.orders.id, refund.orderId)).limit(1))[0];
       if (!order) throw new Error("Order not found.");
       const now = new Date();
-      fullDb(ctx).transaction((tx) => {
-        const current = tx.select().from(schema.refunds).where(eq(schema.refunds.id, refund.id)).limit(1).prepare().get();
+      await fullDb(ctx).transaction(async (tx) => {
+        const current = (await tx.select().from(schema.refunds).where(eq(schema.refunds.id, refund.id)).limit(1).for("update"))[0];
         if (!current || (current.status !== "pending" && current.status !== "failed")) throw new Error("This refund has already been resolved.");
-        tx.update(schema.refunds).set({ status: args.decision, note: args.reference.trim(), resolvedBy: `admin:${auth.id}`, updatedAt: now }).where(eq(schema.refunds.id, current.id)).prepare().run();
+        await tx.update(schema.refunds).set({ status: args.decision, note: args.reference.trim(), resolvedBy: `admin:${auth.id}`, updatedAt: now }).where(eq(schema.refunds.id, current.id));
         if (args.decision === "completed") {
           // This fulfilment's money is genuinely back: the order and its
           // own payment row move to refunded. For online groups the money
@@ -3743,19 +3927,19 @@ export const Actions = {
           // — a partial refund that pretended the whole group payment moved
           // would be a lie. Until then the group headline derives as
           // partially_refunded from the fulfilment rows.
-          tx.update(schema.orders).set({ status: "refunded", paymentStatus: "refunded", updatedAt: now }).where(eq(schema.orders.id, order.id)).prepare().run();
+          await tx.update(schema.orders).set({ status: "refunded", paymentStatus: "refunded", updatedAt: now }).where(eq(schema.orders.id, order.id));
           // The seller's ledger follows the money: the sale is taken back
           // and the commission returned, so the refunded order nets to
           // exactly zero. No-op when the order never accrued (COD unpaid).
-          reverseCommissionTx(tx, order.id, order.orderCode);
+          await reverseCommissionTx(tx, order.id, order.orderCode);
           if (refund.provider === "cod") {
             // COD: one payment row per parcel — only this parcel's row moves.
-            tx.update(schema.payments).set({ status: "refunded", updatedAt: now }).where(eq(schema.payments.orderId, order.id)).prepare().run();
+            await tx.update(schema.payments).set({ status: "refunded", updatedAt: now }).where(eq(schema.payments.orderId, order.id));
           } else if (order.groupId) {
-            const groupOrders = tx.select({ paymentStatus: schema.orders.paymentStatus }).from(schema.orders).where(eq(schema.orders.groupId, order.groupId)).prepare().all();
+            const groupOrders = await tx.select({ paymentStatus: schema.orders.paymentStatus }).from(schema.orders).where(eq(schema.orders.groupId, order.groupId));
             const covered = groupOrders.length > 0 && groupOrders.every((o) => o.paymentStatus === "refunded" || o.paymentStatus === "cancelled");
             if (covered) {
-              tx.update(schema.payments).set({ status: "refunded", updatedAt: now }).where(eq(schema.payments.groupId, order.groupId)).prepare().run();
+              await tx.update(schema.payments).set({ status: "refunded", updatedAt: now }).where(eq(schema.payments.groupId, order.groupId));
             }
           }
         }
@@ -3786,7 +3970,7 @@ export const Actions = {
     response: z.object({ refunds: z.array(z.object({ id: z.number(), order_id: z.number(), order_code: z.string(), store_name: z.string(), amount_paisa: z.number(), provider: z.enum(["cod", "esewa", "khalti"]), status: z.enum(["not_required", "pending", "completed", "failed"]), note: z.string(), requested_by: z.string(), resolved_by: z.string().nullable(), created_at: z.string(), updated_at: z.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = args.status
         ? await db.select().from(schema.refunds).where(eq(schema.refunds.status, args.status)).orderBy(desc(schema.refunds.createdAt)).limit(200)
         : await db.select().from(schema.refunds).orderBy(desc(schema.refunds.createdAt)).limit(200);
@@ -3813,7 +3997,7 @@ export const Actions = {
     response: z.object({ rules: z.array(z.object({ id: z.number(), scope: z.enum(["platform", "category", "seller", "product", "campaign"]), scope_id: z.string(), percent: z.number(), label: z.string(), starts_at: z.string().nullable(), ends_at: z.string().nullable(), is_active: z.boolean(), created_at: z.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = await db.select().from(schema.commissionRules).orderBy(schema.commissionRules.id);
       return {
         rules: rows.map((r) => ({
@@ -3838,7 +4022,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true), rule_id: z.number() }),
     async handler(ctx, args): Promise<{ ok: true; rule_id: number }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       let scopeId = args.scope_id.trim();
       if (args.scope === "platform") {
         scopeId = "";
@@ -3913,7 +4097,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rule = (await db.select().from(schema.commissionRules).where(eq(schema.commissionRules.id, args.rule_id)).limit(1))[0];
       if (!rule) throw new Error("Rule not found.");
       // Deletion is for drafts and mistakes, never for live pricing: an
@@ -3948,7 +4132,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const now = new Date();
       const rows: [string, string][] = [
         ["commission_default_percent", String(args.commission_default_percent)],
@@ -4005,7 +4189,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const existing = (await db.select().from(schema.smtpSettings).where(eq(schema.smtpSettings.id, 1)).limit(1))[0];
       const host = args.host.trim();
       const port = args.port ?? existing?.port ?? 587;
@@ -4057,7 +4241,7 @@ export const Actions = {
     }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const stores = await db.select({ id: schema.storeSettings.id, name: schema.storeSettings.storeName, code: schema.storeSettings.sellerCode, status: schema.storeSettings.status }).from(schema.storeSettings).orderBy(schema.storeSettings.id);
       // Per-seller balance reads are independent — run them in parallel
       // instead of one round-trip per seller (was serial N+1).
@@ -4081,7 +4265,7 @@ export const Actions = {
     }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const [balances, rows, payouts] = await Promise.all([
         sellerBalances(ctx, store.id),
         db.select().from(schema.sellerLedger).where(eq(schema.sellerLedger.storeId, store.id)).orderBy(desc(schema.sellerLedger.id)).limit(60),
@@ -4116,7 +4300,7 @@ export const Actions = {
     }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const d = (await db.select().from(schema.sellerPayoutDetails).where(eq(schema.sellerPayoutDetails.storeId, store.id)).limit(1))[0];
       return {
         bank_name: d?.bankName ?? null, account_name: d?.accountName ?? null,
@@ -4138,7 +4322,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const existing = (await db.select().from(schema.sellerPayoutDetails).where(eq(schema.sellerPayoutDetails.storeId, store.id)).limit(1))[0];
       // Merge semantics: a field left blank keeps its saved value, so a
       // seller topping up one method never wipes the others. Clearing a
@@ -4189,7 +4373,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true), payout_id: z.number() }),
     async handler(ctx, args): Promise<{ ok: true; payout_id: number }> {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const details = (await db.select().from(schema.sellerPayoutDetails).where(eq(schema.sellerPayoutDetails.storeId, store.id)).limit(1))[0];
       let destination: string;
       if (args.method === "bank") {
@@ -4235,11 +4419,11 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
-      fullDb(ctx).transaction((tx) => {
-        const p = tx.select().from(schema.sellerPayouts).where(eq(schema.sellerPayouts.id, args.payout_id)).limit(1).prepare().get();
+      await fullDb(ctx).transaction(async (tx) => {
+        const p = (await tx.select().from(schema.sellerPayouts).where(eq(schema.sellerPayouts.id, args.payout_id)).limit(1).for("update"))[0];
         if (!p || p.storeId !== store.id) throw new Error("Payout not found.");
         if (p.status !== "requested") throw new Error("Only a payout that is still waiting can be cancelled.");
-        tx.update(schema.sellerPayouts).set({ status: "cancelled", updatedAt: new Date() }).where(eq(schema.sellerPayouts.id, p.id)).prepare().run();
+        await tx.update(schema.sellerPayouts).set({ status: "cancelled", updatedAt: new Date() }).where(eq(schema.sellerPayouts.id, p.id));
       });
       await audit(ctx, "seller", String(store.id), "payout_cancelled", "seller_payout", String(args.payout_id), "cancelled by seller");
       ctx.invalidateQueries();
@@ -4251,7 +4435,7 @@ export const Actions = {
     response: z.object({ payouts: z.array(z.object({ id: z.number(), amount_paisa: z.number(), status: z.enum(["requested", "processing", "completed", "failed", "cancelled"]), method: z.enum(["bank", "esewa", "khalti"]), destination: z.string(), reference: z.string().nullable(), note: z.string(), created_at: z.string(), updated_at: z.string() })) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = await db.select().from(schema.sellerPayouts).where(eq(schema.sellerPayouts.storeId, store.id)).orderBy(desc(schema.sellerPayouts.id)).limit(100);
       return {
         payouts: rows.map((p) => ({
@@ -4267,7 +4451,7 @@ export const Actions = {
     response: z.object({ payouts: z.array(z.object({ id: z.number(), store_id: z.number(), store_name: z.string(), seller_code: z.string(), amount_paisa: z.number(), status: z.enum(["requested", "processing", "completed", "failed", "cancelled"]), method: z.enum(["bank", "esewa", "khalti"]), destination: z.string(), reference: z.string().nullable(), note: z.string(), created_at: z.string(), updated_at: z.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = args.status
         ? await db.select().from(schema.sellerPayouts).where(eq(schema.sellerPayouts.status, args.status)).orderBy(desc(schema.sellerPayouts.createdAt)).limit(200)
         : await db.select().from(schema.sellerPayouts).orderBy(desc(schema.sellerPayouts.createdAt)).limit(200);
@@ -4299,7 +4483,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true), status: z.string() }),
     async handler(ctx, args): Promise<{ ok: true; status: string }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const payout = (await db.select().from(schema.sellerPayouts).where(eq(schema.sellerPayouts.id, args.payout_id)).limit(1))[0];
       if (!payout) throw new Error("Payout not found.");
       const allowed: Record<string, string[]> = {
@@ -4321,21 +4505,21 @@ export const Actions = {
         throw new Error("The seller's available balance no longer covers this payout — it cannot be completed.");
       }
       const now = new Date();
-      fullDb(ctx).transaction((tx) => {
-        const current = tx.select().from(schema.sellerPayouts).where(eq(schema.sellerPayouts.id, payout.id)).limit(1).prepare().get();
+      await fullDb(ctx).transaction(async (tx) => {
+        const current = (await tx.select().from(schema.sellerPayouts).where(eq(schema.sellerPayouts.id, payout.id)).limit(1).for("update"))[0];
         if (!current || !allowed[current.status]?.includes(args.status)) {
           throw new Error(`A payout that is ${current?.status ?? "unknown"} cannot move to ${args.status}.`);
         }
-        tx.update(schema.sellerPayouts).set({
+        await tx.update(schema.sellerPayouts).set({
           status: args.status,
           reference: args.status === "completed" ? reference : current.reference,
           note: (args.note ?? "").trim() || current.note,
           updatedAt: now,
-        }).where(eq(schema.sellerPayouts.id, current.id)).prepare().run();
+        }).where(eq(schema.sellerPayouts.id, current.id));
         if (args.status === "completed") {
           // The money genuinely leaves: one ledger debit, idempotent on
           // the payout id, so completing twice is impossible.
-          insertLedgerTx(tx, current.storeId, {
+          await insertLedgerTx(tx, current.storeId, {
             type: "payout", amountPaisa: -current.amountPaisa, payoutId: current.id,
             ledgerKey: `payout:${current.id}`,
             note: `Payout completed via ${current.method} (${current.destination}). Reference: ${reference}.`,
@@ -4353,6 +4537,18 @@ export const Actions = {
           ? `Your payout of ${formatRs(payout.amountPaisa)} via ${payout.method} (${payout.destination}) has been sent.\n\nReference: ${reference}\n\n${availabilityNote}`
           : `Your payout request for ${formatRs(payout.amountPaisa)} via ${payout.method} (${payout.destination}) ${statusLabel[args.status]}.${args.note?.trim() ? `\n\nNote from our team: ${args.note.trim()}` : ""}\n\n${availabilityNote}`);
       await audit(ctx, "admin", auth.id, "payout_status_changed", "seller_payout", String(payout.id), `${payout.status} → ${args.status}${reference ? ` (${reference.slice(0, 60)})` : ""}`);
+      // In-app notification rows for the seller on the terminal outcomes
+      // (completed / failed), mirroring the email above — no duplicate send.
+      if (args.status === "completed" || args.status === "failed") {
+        await notifySeller(ctx, payout.storeId, {
+          type: "payout",
+          title: `Payout ${args.status}: ${formatRs(payout.amountPaisa)}`,
+          body: args.status === "completed"
+            ? `Your payout of ${formatRs(payout.amountPaisa)} via ${payout.method} (${payout.destination}) has been sent. Reference: ${reference}.`
+            : `Your payout of ${formatRs(payout.amountPaisa)} via ${payout.method} could not be completed. The amount is available in your earnings again.`,
+          link: null,
+        });
+      }
       ctx.invalidateQueries();
       return { ok: true, status: args.status };
     },
@@ -4371,11 +4567,11 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const store = (await db.select({ id: schema.storeSettings.id, name: schema.storeSettings.storeName }).from(schema.storeSettings).where(eq(schema.storeSettings.id, args.store_id)).limit(1))[0];
       if (!store) throw new Error("Seller not found.");
-      fullDb(ctx).transaction((tx) => {
-        insertLedgerTx(tx, store.id, {
+      await fullDb(ctx).transaction(async (tx) => {
+        await insertLedgerTx(tx, store.id, {
           type: "adjustment", amountPaisa: args.amount_paisa,
           note: `Manual adjustment by marketplace team: ${args.reason.trim()}`,
         });
@@ -4392,7 +4588,7 @@ export const Actions = {
     response: z.object({ orders: z.array(orderShape) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const all = await db.select().from(schema.orders).where(eq(schema.orders.storeId, store.id)).orderBy(desc(schema.orders.createdAt)).limit(200);
       const orders = all.filter((o) => o.status === "return_requested" || o.status === "returned" || o.status === "refunded").slice(0, 100);
       const items = orders.length ? await db.select().from(schema.orderItems).where(inArray(schema.orderItems.orderId, orders.map((o) => o.id))) : [];
@@ -4407,23 +4603,23 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const order = (await db.select().from(schema.orders).where(eq(schema.orders.id, args.order_id)).limit(1))[0];
       if (!order) throw new Error("Order not found.");
       if (order.status !== "return_requested") throw new Error("This order does not have a pending return request.");
       const next = args.decision === "accepted" ? "returned" : "delivered";
-      fullDb(ctx).transaction((tx) => {
-        const current = tx.select().from(schema.orders).where(eq(schema.orders.id, order.id)).limit(1).prepare().get();
+      await fullDb(ctx).transaction(async (tx) => {
+        const current = (await tx.select().from(schema.orders).where(eq(schema.orders.id, order.id)).limit(1).for("update"))[0];
         if (!current) throw new Error("Order not found.");
         if (current.status !== "return_requested") throw new Error("This order does not have a pending return request.");
-        if (next === "returned") restoreStockTx(tx, current.id, "return_accepted", "admin", auth.id);
-        tx.update(schema.orders).set({ status: next, updatedAt: new Date() }).where(eq(schema.orders.id, current.id)).prepare().run();
+        if (next === "returned") await restoreStockTx(tx, current.id, "return_accepted", "admin", auth.id);
+        await tx.update(schema.orders).set({ status: next, updatedAt: new Date() }).where(eq(schema.orders.id, current.id));
         const now = new Date();
-        const rr = tx.select().from(schema.returnRequests).where(eq(schema.returnRequests.orderId, current.id)).limit(1).prepare().get();
+        const rr = (await tx.select().from(schema.returnRequests).where(eq(schema.returnRequests.orderId, current.id)).limit(1).for("update"))[0];
         if (!rr || rr.status !== "requested") throw new Error("This return request was already decided.");
-        tx.update(schema.returnRequests)
+        await tx.update(schema.returnRequests)
           .set({ status: args.decision, decidedBy: `admin:${auth.id}`, decidedAt: now })
-          .where(eq(schema.returnRequests.id, rr.id)).prepare().run();
+          .where(eq(schema.returnRequests.id, rr.id));
       });
       if (order.userId) {
         await notifyUser(ctx, order.userId, { type: "order_status", title: `Return ${args.decision} for ${order.orderCode}`, body: `The marketplace team ${args.decision} your return for order ${order.orderCode}.`, link: "#/orders" });
@@ -4440,7 +4636,7 @@ export const Actions = {
     response: z.object({ returns: z.array(z.object({ id: z.number(), order_id: z.number(), order_code: z.string(), store_name: z.string(), reason: z.string(), status: z.enum(["requested", "accepted", "rejected"]), requested_by: z.string(), decided_by: z.string().nullable(), created_at: z.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = args.status
         ? await db.select().from(schema.returnRequests).where(eq(schema.returnRequests.status, args.status)).orderBy(desc(schema.returnRequests.createdAt)).limit(200)
         : await db.select().from(schema.returnRequests).orderBy(desc(schema.returnRequests.createdAt)).limit(200);
@@ -4468,7 +4664,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const order = (await db.select().from(schema.orders).where(and(eq(schema.orders.id, args.order_id), eq(schema.orders.storeId, store.id))).limit(1))[0];
       if (!order) throw new Error("Order not found.");
       if (order.status === "cancelled" || order.status === "refunded") throw new Error("Shipment details cannot be set on a cancelled or refunded order.");
@@ -4492,7 +4688,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const order = (await db.select().from(schema.orders).where(eq(schema.orders.id, args.order_id)).limit(1))[0];
       if (!order) throw new Error("Order not found.");
       if (order.status === "cancelled" || order.status === "refunded") throw new Error("Shipment details cannot be set on a cancelled or refunded order.");
@@ -4507,6 +4703,481 @@ export const Actions = {
       return { ok: true };
     },
   }),
+  // ==================== v9 gap-fill: invoices, Q&A, account, CSV import,
+  // category SEO, product approval ====================
+
+  // ---------- invoices ----------
+  // One invoice per checkout group. getInvoice accepts a group code (NSG-…)
+  // or a single fulfilment code (NP-…) and always resolves to the group.
+  // Role scoping: buyers see only their own groups; sellers see only their
+  // own fulfilment slice; admins see everything. Unauthenticated callers are
+  // rejected by requireAuth.
+  getInvoice: defineAction({
+    request: z.object({ authToken: authTokenRequired, order_code: z.string().trim().min(4).max(40) }),
+    response: z.object({
+      invoice: z.object({
+        invoice_no: z.string(), issued_at: z.string(), group_code: z.string(), order_date: z.string(),
+        customer: z.object({ name: z.string(), phone: z.string(), address: z.string() }),
+        fulfilments: z.array(z.object({
+          order_code: z.string(), status: z.string(), payment_status: z.string(),
+          seller_name: z.string(), store_name: z.string(),
+          contact_phone: z.string().nullable(), contact_email: z.string().nullable(),
+          items: z.array(z.object({ product_name: z.string(), variant_label: z.string().nullable(), quantity: z.number(), unit_price_paisa: z.number(), line_total_paisa: z.number() })),
+          subtotal_paisa: z.number(), discount_paisa: z.number(), delivery_fee_paisa: z.number(), total_paisa: z.number(),
+        })),
+        subtotal_paisa: z.number(), discount_paisa: z.number(), delivery_fee_paisa: z.number(), grand_total_paisa: z.number(),
+        payment: z.object({ provider: z.string(), status: z.string() }),
+        tax_note: z.string(),
+      }),
+    }),
+    async handler(ctx, args) {
+      const auth = await requireAuth(ctx, args.authToken, "buyer", "seller", "admin");
+      const db = fullDb(ctx);
+      const code = args.order_code.toUpperCase();
+      let groupId: number | null = null;
+      const orderRow = (await db.select({ groupId: schema.orders.groupId }).from(schema.orders).where(eq(schema.orders.orderCode, code)).limit(1))[0];
+      if (orderRow?.groupId) {
+        groupId = orderRow.groupId;
+      } else {
+        const g = (await db.select({ id: schema.orderGroups.id }).from(schema.orderGroups).where(eq(schema.orderGroups.groupCode, code)).limit(1))[0];
+        if (g) groupId = g.id;
+      }
+      if (groupId == null) throw new Error("No order was found for that order code.");
+      const group = (await db.select().from(schema.orderGroups).where(eq(schema.orderGroups.id, groupId)).limit(1))[0];
+      if (!group) throw new Error("No order was found for that order code.");
+      if (auth.type === "buyer" && group.userId !== auth.id) throw new Error("That order does not belong to your account.");
+      const storeId = auth.type === "seller" ? Number(auth.id) : null;
+      let fuls = await db.select().from(schema.orders).where(eq(schema.orders.groupId, group.id)).orderBy(schema.orders.id);
+      if (storeId != null) {
+        fuls = fuls.filter((o) => o.storeId === storeId);
+        if (!fuls.length) throw new Error("That order does not belong to your shop.");
+      }
+      if (!fuls.length) throw new Error("No order was found for that order code.");
+      // Auto-heal: orders placed before invoices existed (or a failed hook)
+      // get their row on demand.
+      const inv = await ensureGroupInvoice(ctx, group.id);
+      const itemRows = await db.select().from(schema.orderItems).where(inArray(schema.orderItems.orderId, fuls.map((f) => f.id)));
+      const storeRows = await db.select({ id: schema.storeSettings.id, name: schema.storeSettings.storeName, phone: schema.storeSettings.phone, email: schema.storeSettings.email })
+        .from(schema.storeSettings).where(inArray(schema.storeSettings.id, [...new Set(fuls.map((f) => f.storeId))]));
+      const storeOf = (id: number) => storeRows.find((s) => s.id === id);
+      const fulfilments = fuls.map((o) => {
+        const s = storeOf(o.storeId);
+        return {
+          order_code: o.orderCode, status: o.status, payment_status: o.paymentStatus,
+          seller_name: s?.name ?? "Seller", store_name: s?.name ?? "Seller",
+          contact_phone: s?.phone ?? null, contact_email: s?.email ?? null,
+          items: itemRows.filter((i) => i.orderId === o.id).map((i) => ({
+            product_name: i.productName, variant_label: i.variantLabel,
+            quantity: i.quantity, unit_price_paisa: i.unitPricePaisa,
+            line_total_paisa: i.unitPricePaisa * i.quantity,
+          })),
+          subtotal_paisa: o.subtotalPaisa, discount_paisa: o.discountPaisa,
+          delivery_fee_paisa: o.deliveryFeePaisa, total_paisa: o.totalPaisa,
+        };
+      });
+      // A seller sees only their own slice: totals are their fulfilment's
+      // own numbers, never the group's. Buyers and admins see the group.
+      const totals = storeId != null
+        ? { subtotal: fulfilments.reduce((n, f) => n + f.subtotal_paisa, 0), discount: fulfilments.reduce((n, f) => n + f.discount_paisa, 0), delivery: fulfilments.reduce((n, f) => n + f.delivery_fee_paisa, 0), grand: fulfilments.reduce((n, f) => n + f.total_paisa, 0) }
+        : { subtotal: group.subtotalPaisa, discount: group.discountPaisa, delivery: group.deliveryFeePaisa, grand: group.totalPaisa };
+      const paymentStatus = storeId != null
+        ? fuls[0]?.paymentStatus ?? "pending"
+        : aggregatePaymentStatus(fuls.map((o) => o.paymentStatus));
+      return {
+        invoice: {
+          invoice_no: inv.invoiceNo, issued_at: inv.issuedAt.toISOString(),
+          group_code: group.groupCode, order_date: group.createdAt.toISOString(),
+          customer: { name: group.customerName, phone: group.phone, address: group.address },
+          fulfilments,
+          subtotal_paisa: totals.subtotal, discount_paisa: totals.discount,
+          delivery_fee_paisa: totals.delivery, grand_total_paisa: totals.grand,
+          payment: { provider: group.paymentMethod, status: paymentStatus },
+          tax_note: TAX_NOTE,
+        },
+      };
+    },
+  }),
+
+  // ---------- product Q&A ----------
+  // A signed-in buyer asks; only the product's owning seller may answer.
+  // Answered questions are public; a pending question is visible only to
+  // its own asker — and to the owning seller, so they can discover and
+  // answer unanswered questions. Never visible to other buyers.
+  askQuestion: defineAction({
+    request: z.object({ authToken: authTokenRequired, product_id: z.number().int().positive(), question: z.string().trim().min(3).max(500) }),
+    response: z.object({ id: z.number() }),
+    async handler(ctx, args): Promise<{ id: number }> {
+      const auth = await requireAuth(ctx, args.authToken, "buyer");
+      const db = fullDb(ctx);
+      const product = (await db.select({ id: schema.products.id }).from(schema.products).where(eq(schema.products.id, args.product_id)).limit(1))[0];
+      if (!product) throw new Error("That product was not found.");
+      const user = (await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, auth.id)).limit(1))[0];
+      const dup = (await db.select({ id: schema.productQuestions.id }).from(schema.productQuestions)
+        .where(and(eq(schema.productQuestions.productId, args.product_id), eq(schema.productQuestions.userId, auth.id), isNull(schema.productQuestions.answer))).limit(1))[0];
+      if (dup) throw new Error("You already have a pending question on this product — the seller will answer it soon.");
+      const inserted = await db.insert(schema.productQuestions).values({
+        productId: args.product_id, userId: auth.id, askerName: user?.name ?? "Buyer",
+        question: args.question.trim(), createdAt: new Date(),
+      }).returning({ id: schema.productQuestions.id });
+      const row = inserted[0];
+      if (!row) throw new Error("Your question could not be saved.");
+      ctx.invalidateQueries();
+      return { id: row.id };
+    },
+  }),
+  answerQuestion: defineAction({
+    request: z.object({ ...sellerAuthFields, question_id: z.number().int().positive(), answer: z.string().trim().min(1).max(1000) }),
+    response: z.object({ ok: z.literal(true) }),
+    async handler(ctx, args): Promise<{ ok: true }> {
+      const store = await resolveSeller(ctx, args);
+      const db = fullDb(ctx);
+      const q = (await db.select().from(schema.productQuestions).where(eq(schema.productQuestions.id, args.question_id)).limit(1))[0];
+      if (!q) throw new Error("Question not found.");
+      const product = (await db.select({ id: schema.products.id, name: schema.products.name, storeId: schema.products.storeId }).from(schema.products).where(eq(schema.products.id, q.productId)).limit(1))[0];
+      if (!product || product.storeId !== store.id) throw new Error("You can only answer questions on your own products.");
+      await db.update(schema.productQuestions).set({ answer: args.answer.trim(), answeredAt: new Date() }).where(eq(schema.productQuestions.id, q.id));
+      // The asker hears that their question was answered.
+      await notifyUser(ctx, q.userId, { type: "question_answered", title: `Answered: ${product.name}`, body: args.answer.trim().slice(0, 140), link: `#/product/${product.id}` });
+      await audit(ctx, "seller", String(store.id), "question_answered", "product_question", String(q.id), product.name);
+      ctx.invalidateQueries();
+      return { ok: true };
+    },
+  }),
+  getProductQuestions: defineAction({
+    // Accepts the seller auth fields too (token session or legacy code+key)
+    // so the studio's SellerQuestions tab can pass its own seller creds.
+    request: z.object({ product_id: z.number().int().positive(), ...sellerAuthFields }),
+    response: z.object({
+      questions: z.array(z.object({
+        id: z.number(), question: z.string(), answer: z.string().nullable(),
+        answered_at: z.string().nullable(), asker_name: z.string(),
+        mine: z.boolean(), created_at: z.string(),
+      })),
+    }),
+    async handler(ctx, args) {
+      const db = fullDb(ctx);
+      const askerId = await buyerIdOf(ctx, args.authToken);
+      // A seller (token session or legacy code+key) sees pending questions
+      // too — but strictly on their own products. Other buyers keep seeing
+      // only answered questions and their own pending ones.
+      let ownerStoreId: number | null = null;
+      if (askerId == null) {
+        try {
+          if (args.seller_code && args.seller_key) {
+            ownerStoreId = (await requireSeller(ctx, args.seller_code, args.seller_key)).id;
+          } else {
+            ownerStoreId = await sellerStoreIdOf(ctx, args.authToken);
+          }
+        } catch {
+          ownerStoreId = null; // not seller auth — public read rules apply
+        }
+      }
+      const rows = await db.select().from(schema.productQuestions)
+        .where(and(eq(schema.productQuestions.productId, args.product_id), eq(schema.productQuestions.isVisible, true)))
+        .orderBy(desc(schema.productQuestions.createdAt));
+      let isOwner = false;
+      if (ownerStoreId != null) {
+        const product = (await db.select({ storeId: schema.products.storeId }).from(schema.products).where(eq(schema.products.id, args.product_id)).limit(1))[0];
+        isOwner = product != null && product.storeId === ownerStoreId;
+      }
+      const visible = rows.filter((q) => q.answer != null || (askerId != null && q.userId === askerId) || isOwner);
+      return {
+        questions: visible.map((q) => ({
+          id: q.id, question: q.question, answer: q.answer ?? null,
+          answered_at: q.answeredAt ? q.answeredAt.toISOString() : null,
+          asker_name: q.askerName, mine: askerId != null && q.userId === askerId,
+          created_at: q.createdAt.toISOString(),
+        })),
+      };
+    },
+  }),
+
+  // ---------- account: delete + export ----------
+  // Full account deletion. The password is verified and the caller must
+  // type DELETE (in capitals). PII is anonymised and every session revoked;
+  // orders, order items and ledger-adjacent rows are KEPT (financial
+  // integrity) with the user id retained but de-linked from any identity.
+  // Returns an honest summary of what was removed and what was kept.
+  deleteAccount: defineAction({
+    request: z.object({ authToken: authTokenRequired, password: z.string().min(1).max(120), confirm_text: z.string().min(1).max(20) }),
+    response: z.object({ ok: z.literal(true), orders_kept: z.number(), addresses_deleted: z.number(), wishlist_items_removed: z.number() }),
+    async handler(ctx, args): Promise<{ ok: true; orders_kept: number; addresses_deleted: number; wishlist_items_removed: number }> {
+      const auth = await requireAuth(ctx, args.authToken, "buyer");
+      const db = fullDb(ctx);
+      const user = (await db.select().from(schema.users).where(eq(schema.users.id, auth.id)).limit(1))[0];
+      if (!user) throw new Error("Account not found.");
+      if (!await Bun.password.verify(args.password, user.passwordHash)) throw new Error("The password you entered is incorrect.");
+      if (args.confirm_text !== "DELETE") throw new Error("Type DELETE (in capitals) to confirm you want to delete your account.");
+      const summary = await fullDb(ctx).transaction(async (tx) => {
+        const myOrders = await tx.select({ id: schema.orders.id }).from(schema.orders).where(eq(schema.orders.userId, auth.id));
+        const orderIds = myOrders.map((o) => o.id);
+        // Review text stays (history), the display name is anonymised.
+        for (let i = 0; i < orderIds.length; i += 500) {
+          const chunk = orderIds.slice(i, i + 500);
+          if (chunk.length) await tx.update(schema.reviews).set({ reviewerName: "Deleted user" }).where(inArray(schema.reviews.orderId, chunk));
+        }
+        const addrCount = (await tx.select({ id: schema.addresses.id }).from(schema.addresses).where(eq(schema.addresses.userId, auth.id))).length;
+        if (addrCount) await tx.delete(schema.addresses).where(eq(schema.addresses.userId, auth.id));
+        const wl = (await tx.select({ id: schema.wishlists.id }).from(schema.wishlists).where(eq(schema.wishlists.userId, auth.id)).limit(1))[0];
+        let wlItems = 0;
+        if (wl) {
+          wlItems = (await tx.select({ id: schema.wishlistItems.id }).from(schema.wishlistItems).where(eq(schema.wishlistItems.wishlistId, wl.id))).length;
+          if (wlItems) await tx.delete(schema.wishlistItems).where(eq(schema.wishlistItems.wishlistId, wl.id));
+          await tx.delete(schema.wishlists).where(eq(schema.wishlists.id, wl.id));
+        }
+        const cart = (await tx.select({ id: schema.carts.id }).from(schema.carts).where(eq(schema.carts.userId, auth.id)).limit(1))[0];
+        if (cart) {
+          await tx.delete(schema.cartItems).where(eq(schema.cartItems.cartId, cart.id));
+          await tx.delete(schema.carts).where(eq(schema.carts.id, cart.id));
+        }
+        await tx.delete(schema.recentlyViewed).where(eq(schema.recentlyViewed.userId, auth.id));
+        // Analytics and support artefacts keep their rows as anonymous
+        // aggregates; the link to this identity is removed.
+        await tx.update(schema.productViews).set({ userId: null }).where(eq(schema.productViews.userId, auth.id));
+        await tx.update(schema.searchEvents).set({ userId: null }).where(eq(schema.searchEvents.userId, auth.id));
+        await tx.update(schema.funnelEvents).set({ userId: null }).where(eq(schema.funnelEvents.userId, auth.id));
+        await tx.update(schema.supportTickets).set({ userId: null }).where(eq(schema.supportTickets.userId, auth.id));
+        await tx.update(schema.couponUsages).set({ userId: null }).where(eq(schema.couponUsages.userId, auth.id));
+        await tx.delete(schema.buyerEmailVerifications).where(eq(schema.buyerEmailVerifications.userId, auth.id));
+        await tx.delete(schema.passwordResetTokens).where(and(eq(schema.passwordResetTokens.userType, "buyer"), eq(schema.passwordResetTokens.userId, auth.id)));
+        // Revoke every session, including the one making this call.
+        await tx.delete(schema.sessions).where(and(eq(schema.sessions.userType, "buyer"), eq(schema.sessions.userId, auth.id)));
+        // Anonymise the profile row. phone is NOT NULL+unique, so it gets a
+        // unique tombstone; status "suspended" blocks any future login.
+        await tx.update(schema.users).set({
+          name: "Deleted user", email: null, phone: `DELETED:${auth.id}`, avatarUrl: null,
+          status: "suspended", emailVerified: false, notifyOrderEmails: false, updatedAt: new Date(),
+        }).where(eq(schema.users.id, auth.id));
+        return { orders_kept: orderIds.length, addresses_deleted: addrCount, wishlist_items_removed: wlItems };
+      });
+      await audit(ctx, "buyer", auth.id, "account_deleted", "user", auth.id, `${summary.orders_kept} orders kept for records`);
+      ctx.invalidateQueries();
+      return { ok: true as const, ...summary };
+    },
+  }),
+  // Machine-readable export of everything the marketplace holds about a
+  // buyer. The client offers it as a JSON download.
+  exportAccountData: defineAction({
+    request: z.object({ authToken: authTokenRequired }),
+    response: z.object({
+      exported_at: z.string(),
+      profile: z.object({ id: z.string(), name: z.string(), phone: z.string(), email: z.string().nullable(), email_verified: z.boolean(), created_at: z.string() }),
+      addresses: z.array(z.object({ label: z.string(), full_name: z.string(), phone: z.string(), province: z.string(), district: z.string(), municipality: z.string(), ward: z.string().nullable(), landmark: z.string().nullable(), is_default: z.boolean() })),
+      orders: z.array(orderGroupShape),
+      wishlist: z.array(z.object({ product_id: z.number(), product_name: z.string(), added_price_paisa: z.number(), added_at: z.string() })),
+      reviews: z.array(z.object({ product_id: z.number(), product_name: z.string(), rating: z.number(), body: z.string(), created_at: z.string() })),
+      notification_prefs: z.object({ order_emails: z.boolean() }),
+    }),
+    async handler(ctx, args) {
+      const auth = await requireAuth(ctx, args.authToken, "buyer");
+      const db = fullDb(ctx);
+      const user = (await db.select().from(schema.users).where(eq(schema.users.id, auth.id)).limit(1))[0];
+      if (!user) throw new Error("Account not found.");
+      const addrRows = await db.select().from(schema.addresses).where(eq(schema.addresses.userId, auth.id)).orderBy(schema.addresses.id);
+      const groupRows = await db.select({ id: schema.orderGroups.id }).from(schema.orderGroups).where(eq(schema.orderGroups.userId, auth.id)).orderBy(desc(schema.orderGroups.createdAt));
+      const orders: z.infer<typeof orderGroupShape>[] = [];
+      for (const g of groupRows) {
+        const view = await loadOrderGroup(ctx, g.id);
+        if (view) orders.push(publicGroupView(view));
+      }
+      const wlRows = await db.select({
+        productId: schema.wishlistItems.productId, productName: schema.products.name,
+        addedPricePaisa: schema.wishlistItems.addedPricePaisa, addedAt: schema.wishlistItems.addedAt, wishlistId: schema.wishlistItems.wishlistId,
+      }).from(schema.wishlistItems)
+        .innerJoin(schema.wishlists, eq(schema.wishlistItems.wishlistId, schema.wishlists.id))
+        .innerJoin(schema.products, eq(schema.wishlistItems.productId, schema.products.id))
+        .where(eq(schema.wishlists.userId, auth.id));
+      const reviewRows = await db.select({
+        productId: schema.reviews.productId, productName: schema.products.name,
+        rating: schema.reviews.rating, body: schema.reviews.body, createdAt: schema.reviews.createdAt,
+      }).from(schema.reviews)
+        .innerJoin(schema.orders, eq(schema.reviews.orderId, schema.orders.id))
+        .innerJoin(schema.products, eq(schema.reviews.productId, schema.products.id))
+        .where(eq(schema.orders.userId, auth.id)).orderBy(desc(schema.reviews.createdAt));
+      return {
+        exported_at: new Date().toISOString(),
+        profile: { id: user.id, name: user.name, phone: user.phone, email: user.email, email_verified: user.emailVerified, created_at: user.createdAt.toISOString() },
+        addresses: addrRows.map((a) => ({
+          label: a.label, full_name: a.fullName, phone: a.phone, province: a.province,
+          district: a.district, municipality: a.municipality, ward: a.ward ?? null,
+          landmark: a.landmark ?? null, is_default: a.isDefault,
+        })),
+        orders,
+        wishlist: wlRows.map((w) => ({ product_id: w.productId, product_name: w.productName, added_price_paisa: w.addedPricePaisa, added_at: w.addedAt.toISOString() })),
+        reviews: reviewRows.map((r) => ({ product_id: r.productId, product_name: r.productName, rating: r.rating, body: r.body, created_at: r.createdAt.toISOString() })),
+        notification_prefs: { order_emails: user.notifyOrderEmails },
+      };
+    },
+  }),
+
+  // ---------- seller CSV import ----------
+  // Bulk product import for sellers. CSV with a header row; required
+  // columns: name, price_paisa (whole paisa, e.g. 129900 = Rs 1,299).
+  // Optional: stock (default 0), sku (unique per shop), category (default
+  // "General"). Every valid row becomes an INACTIVE draft product the seller
+  // reviews and publishes; every bad row is reported in `errors` with its
+  // line number and reason — nothing is ever silently dropped.
+  sellerCsvImport: defineAction({
+    request: z.object({ ...sellerAuthFields, csv_text: z.string().min(1).max(204800) }),
+    response: z.object({ created: z.number(), skipped: z.number(), errors: z.array(z.object({ row: z.number(), message: z.string() })) }),
+    async handler(ctx, args): Promise<{ created: number; skipped: number; errors: { row: number; message: string }[] }> {
+      const store = await resolveSeller(ctx, args);
+      assertSellerCanSell(store);
+      const db = fullDb(ctx);
+      const rows = parseCsv(args.csv_text);
+      const headerRow = rows[0];
+      if (!rows.length || !headerRow) throw new Error("The CSV is empty.");
+      const header = headerRow.map((h) => h.trim().toLowerCase());
+      const col = (name: string) => header.indexOf(name);
+      const iName = col("name"), iPrice = col("price_paisa"), iStock = col("stock"), iSku = col("sku"), iCategory = col("category");
+      if (iName < 0 || iPrice < 0) throw new Error('The CSV needs a header row with at least "name" and "price_paisa" columns (optional: stock, sku, category).');
+      const data = rows.slice(1).filter((r) => r.some((c) => c.trim() !== ""));
+      if (data.length > 500) throw new Error("The CSV has more than 500 product rows — split it into smaller imports.");
+      const existingSkus = new Set(
+        (await db.select({ sku: schema.products.sku }).from(schema.products).where(eq(schema.products.storeId, store.id)))
+          .map((r) => r.sku).filter((s): s is string => !!s)
+      );
+      const seenSkus = new Set<string>();
+      const approvalStatus = store.status === "active" ? "approved" : "pending";
+      const now = new Date();
+      let created = 0;
+      const errors: { row: number; message: string }[] = [];
+      for (let i = 0; i < data.length; i++) {
+        const lineNo = i + 2; // 1-based file line; the header is line 1
+        const r = data[i];
+        if (!r) continue;
+        const fail = (message: string) => { errors.push({ row: lineNo, message }); };
+        const name = (r[iName] ?? "").trim();
+        const priceRaw = (r[iPrice] ?? "").trim();
+        const stockRaw = iStock >= 0 ? (r[iStock] ?? "").trim() : "";
+        const skuRaw = iSku >= 0 ? (r[iSku] ?? "").trim() : "";
+        const category = ((iCategory >= 0 ? (r[iCategory] ?? "").trim() : "") || "General");
+        if (name.length < 2 || name.length > 80) { fail("Name must be between 2 and 80 characters."); continue; }
+        if (!/^\d+$/.test(priceRaw)) { fail("price_paisa must be a whole positive number of paisa (e.g. 129900 for Rs 1,299)."); continue; }
+        const price = Number(priceRaw);
+        if (price <= 0) { fail("price_paisa must be greater than zero."); continue; }
+        let stock = 0;
+        if (stockRaw !== "") {
+          if (!/^\d+$/.test(stockRaw)) { fail("stock must be a whole number of 0 or more."); continue; }
+          stock = Number(stockRaw);
+        }
+        if (category.length < 2 || category.length > 40) { fail("category must be between 2 and 40 characters."); continue; }
+        const sku = normalizeSku(skuRaw || null);
+        if (sku && (existingSkus.has(sku) || seenSkus.has(sku))) { fail(`The SKU "${sku}" is already used by another product in this shop.`); continue; }
+        try {
+          const inserted = await db.insert(schema.products).values({
+            storeId: store.id, name, category, description: `Imported from CSV: ${name}.`,
+            pricePaisa: price, deliveryFeePaisa: 0, stock, sku,
+            lowStockThreshold: 5, isActive: false, approvalStatus, updatedAt: now,
+          }).returning({ id: schema.products.id });
+          const prow = inserted[0];
+          if (!prow) { fail("The product could not be saved."); continue; }
+          if (stock > 0) {
+            await db.insert(schema.stockMovements).values({ productId: prow.id, variantId: 0, change: stock, stockAfter: stock, reason: "product_created", actorType: "seller", actorId: String(store.id), createdAt: now });
+          }
+          if (sku) { seenSkus.add(sku); existingSkus.add(sku); }
+          created++;
+        } catch (e) {
+          fail(e instanceof Error ? e.message : "The product could not be saved.");
+        }
+      }
+      await audit(ctx, "seller", String(store.id), "csv_import", "product", "", `${created} created, ${errors.length} skipped`);
+      ctx.invalidateQueries();
+      return { created, skipped: errors.length, errors };
+    },
+  }),
+
+  // ---------- category SEO ----------
+  // Admin-only SEO fields for categories. Each field is optional; undefined
+  // leaves the column untouched, null clears it.
+  adminUpdateCategorySeo: defineAction({
+    request: z.object({
+      authToken: authTokenField, category_id: z.number().int().positive(),
+      seo_title: z.string().trim().max(120).nullish(),
+      seo_description: z.string().trim().max(320).nullish(),
+      intro_content: z.string().trim().max(10000).nullish(),
+    }),
+    response: z.object({ ok: z.literal(true) }),
+    async handler(ctx, args): Promise<{ ok: true }> {
+      const auth = await requireAuth(ctx, args.authToken, "admin");
+      const db = fullDb(ctx);
+      const existing = (await db.select({ id: schema.categories.id }).from(schema.categories).where(eq(schema.categories.id, args.category_id)).limit(1))[0];
+      if (!existing) throw new Error("Category not found.");
+      const patch: { seoTitle?: string | null; seoDescription?: string | null; introContent?: string | null } = {};
+      if (args.seo_title !== undefined) patch.seoTitle = args.seo_title?.trim() || null;
+      if (args.seo_description !== undefined) patch.seoDescription = args.seo_description?.trim() || null;
+      if (args.intro_content !== undefined) patch.introContent = args.intro_content?.trim() || null;
+      if (Object.keys(patch).length) {
+        await db.update(schema.categories).set(patch).where(eq(schema.categories.id, args.category_id));
+      }
+      await audit(ctx, "admin", auth.id, "category_seo_updated", "category", String(args.category_id), Object.keys(patch).join(","));
+      ctx.invalidateQueries();
+      return { ok: true };
+    },
+  }),
+
+  // ---------- product approval flow ----------
+  // Neither half existed (v7 had only the is_active publish toggle). The
+  // seller submits a draft for review; an admin approves or rejects it.
+  // Submitting takes the listing off sale until the admin decides; approval
+  // does NOT publish it — the seller's is_active toggle still controls that.
+  submitProductForApproval: defineAction({
+    request: z.object({ ...sellerAuthFields, product_id: z.number().int().positive() }),
+    response: z.object({ ok: z.literal(true) }),
+    async handler(ctx, args): Promise<{ ok: true }> {
+      const store = await resolveSeller(ctx, args);
+      if (store.status === "suspended" || store.status === "rejected") throw new Error("This shop cannot submit products for approval right now.");
+      const db = fullDb(ctx);
+      const product = (await db.select().from(schema.products).where(and(eq(schema.products.id, args.product_id), eq(schema.products.storeId, store.id))).limit(1))[0];
+      if (!product) throw new Error("Product not found.");
+      if (product.approvalStatus === "pending") throw new Error("This product is already awaiting approval.");
+      // While under review the product is not for sale.
+      await db.update(schema.products).set({ approvalStatus: "pending", isActive: false, updatedAt: new Date() }).where(eq(schema.products.id, product.id));
+      await audit(ctx, "seller", String(store.id), "product_submitted_for_approval", "product", String(product.id), product.name);
+      ctx.invalidateQueries();
+      return { ok: true };
+    },
+  }),
+  adminApproveProduct: defineAction({
+    request: z.object({ authToken: authTokenField, product_id: z.number().int().positive() }),
+    response: z.object({ ok: z.literal(true) }),
+    async handler(ctx, args): Promise<{ ok: true }> {
+      const auth = await requireAuth(ctx, args.authToken, "admin");
+      const db = fullDb(ctx);
+      const product = (await db.select().from(schema.products).where(eq(schema.products.id, args.product_id)).limit(1))[0];
+      if (!product) throw new Error("Product not found.");
+      if (product.approvalStatus === "approved") throw new Error("This product is already approved.");
+      await db.update(schema.products).set({ approvalStatus: "approved", updatedAt: new Date() }).where(eq(schema.products.id, product.id));
+      await emailSellerMsg(ctx, product.storeId, (to, storeName) => productModerationEmail(to, storeName, product.name, true));
+      await notifySeller(ctx, product.storeId, { type: "product_approved", title: `Product approved: ${product.name}`, body: "Your product passed review. Publish it from your seller studio whenever you are ready.", link: `#/product/${product.id}` });
+      await audit(ctx, "admin", auth.id, "product_approved", "product", String(product.id), product.name);
+      ctx.invalidateQueries();
+      return { ok: true };
+    },
+  }),
+  adminRejectProduct: defineAction({
+    request: z.object({ authToken: authTokenField, product_id: z.number().int().positive(), reason: z.string().trim().max(400).optional() }),
+    response: z.object({ ok: z.literal(true) }),
+    async handler(ctx, args): Promise<{ ok: true }> {
+      const auth = await requireAuth(ctx, args.authToken, "admin");
+      const db = fullDb(ctx);
+      const product = (await db.select().from(schema.products).where(eq(schema.products.id, args.product_id)).limit(1))[0];
+      if (!product) throw new Error("Product not found.");
+      if (product.approvalStatus === "rejected") throw new Error("This product is already rejected.");
+      await db.update(schema.products).set({ approvalStatus: "rejected", isActive: false, updatedAt: new Date() }).where(eq(schema.products.id, product.id));
+      await emailSellerMsg(ctx, product.storeId, (to, storeName) => productModerationEmail(to, storeName, product.name, false));
+      await notifySeller(ctx, product.storeId, {
+        type: "product_rejected",
+        title: `Product not approved: ${product.name}`,
+        body: args.reason?.trim() ? `Reason: ${args.reason.trim()}` : "Your product did not pass review. Edit it and submit it for approval again.",
+        link: null,
+      });
+      await audit(ctx, "admin", auth.id, "product_rejected", "product", String(product.id), `${product.name}${args.reason?.trim() ? ` — ${args.reason.trim().slice(0, 80)}` : ""}`);
+      ctx.invalidateQueries();
+      return { ok: true };
+    },
+  }),
+
   // Public shipping methods: which delivery speeds the marketplace offers
   // and what the express surcharge currently is (admin-configurable).
   // Standard delivery follows each product's own delivery fee; the surcharge
@@ -4556,7 +5227,7 @@ export const Actions = {
       if (!args.standard_enabled && !args.express_enabled && !args.pickup_enabled) {
         throw new Error("At least one delivery method must stay enabled.");
       }
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const now = new Date();
       const rows: [string, string][] = [
         ["shipping_express_fee_paisa", String(args.express_fee_paisa)],
@@ -4585,7 +5256,7 @@ export const Actions = {
       seller: z.object({ store_name: z.string(), location: z.string(), rating: z.number().nullable(), product_count: z.number(), verified: z.boolean() }),
     }),
     async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const actives = await activeStoreIds(ctx);
       const pubs = publicOnly(await productRows(ctx), actives);
       const product = pubs.find((p) => p.id === args.product_id);
@@ -4665,7 +5336,7 @@ export const Actions = {
     response: z.object({ images: z.array(z.object({ id: z.number(), url: z.string() })) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.id, args.product_id), eq(schema.products.storeId, store.id))).limit(1))[0];
       if (!product) throw new Error("Product not found.");
       const rows = await db.select().from(schema.productImages).where(eq(schema.productImages.productId, args.product_id)).orderBy(schema.productImages.sortOrder, schema.productImages.id);
@@ -4689,7 +5360,7 @@ export const Actions = {
     }),
     response: z.object({ products: z.array(productShape), total: z.number() }),
     async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const actives = await activeStoreIds(ctx);
       let pubs = publicOnly(await productRows(ctx), actives);
       const q = args.query.toLowerCase().trim().replace(/\s+/g, " ");
@@ -4769,7 +5440,7 @@ export const Actions = {
     async handler(ctx, args) {
       const userId = await buyerIdOf(ctx, args.authToken);
       if (!userId) return { products: [] };
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = await db.select().from(schema.recentlyViewed).where(eq(schema.recentlyViewed.userId, userId)).orderBy(desc(schema.recentlyViewed.viewedAt)).limit(12);
       const byId = new Map(publicOnly(await productRows(ctx), await activeStoreIds(ctx)).map((p) => [p.id, p]));
       const products = rows.flatMap((r) => {
@@ -4787,7 +5458,7 @@ export const Actions = {
       site_logo_url: z.string().nullable(),
     }),
     async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const actives = await activeStoreIds(ctx);
       const pubs = publicOnly(await productRows(ctx), actives);
       const banners = (await db.select().from(schema.homepageBanners).where(eq(schema.homepageBanners.isActive, true)).orderBy(schema.homepageBanners.sortOrder))
@@ -4850,7 +5521,7 @@ export const Actions = {
     }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const cutoff = Date.now() - 30 * 86400 * 1000;
       const cutoffDate = new Date(cutoff);
       const isBillable = (s: string) => s !== "cancelled" && s !== "refunded";
@@ -4962,7 +5633,7 @@ export const Actions = {
     }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const cutoff = Date.now() - 30 * 86400 * 1000;
       const cutoffDate = new Date(cutoff);
       const isBillable = (s: string) => s !== "cancelled" && s !== "refunded";
@@ -5056,12 +5727,12 @@ export const Actions = {
   }),
   adminListCategories: defineAction({
     request: z.object({ authToken: authTokenField }),
-    response: z.object({ categories: z.array(z.object({ id: z.number(), name: z.string(), slug: z.string(), is_active: z.boolean() })) }),
+    response: z.object({ categories: z.array(z.object({ id: z.number(), name: z.string(), slug: z.string(), is_active: z.boolean(), seo_title: z.string().nullable(), seo_description: z.string().nullable(), intro_content: z.string().nullable() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = await db.select().from(schema.categories).orderBy(schema.categories.name);
-      return { categories: rows.map((c) => ({ id: c.id, name: c.name, slug: c.slug, is_active: c.isActive })) };
+      return { categories: rows.map((c) => ({ id: c.id, name: c.name, slug: c.slug, is_active: c.isActive, seo_title: c.seoTitle ?? null, seo_description: c.seoDescription ?? null, intro_content: c.introContent ?? null })) };
     },
   }),
   adminSaveCategory: defineAction({
@@ -5072,7 +5743,7 @@ export const Actions = {
       const name = args.name.trim();
       const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
       if (!slug) throw new Error("That category name cannot be used.");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const clash = (await db.select({ id: schema.categories.id }).from(schema.categories).where(eq(schema.categories.slug, slug)).limit(1))[0];
       if (clash && clash.id !== args.id) throw new Error(`The category "${name}" already exists.`);
       if (args.id) {
@@ -5093,7 +5764,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenField, id: z.number().int().positive() }), response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const category = (await db.select().from(schema.categories).where(eq(schema.categories.id, args.id)).limit(1))[0];
       if (!category) throw new Error("Category not found.");
       const inUse = (await db.select({ id: schema.products.id }).from(schema.products).where(eq(schema.products.category, category.name)).limit(1)).length;
@@ -5108,7 +5779,7 @@ export const Actions = {
     response: z.object({ banners: z.array(z.object({ id: z.number(), title: z.string(), subtitle: z.string().nullable(), link: z.string().nullable(), image_url: z.string().nullable(), is_active: z.boolean(), sort_order: z.number() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = await db.select().from(schema.homepageBanners).orderBy(schema.homepageBanners.sortOrder);
       return { banners: rows.map((b) => ({ id: b.id, title: b.title, subtitle: b.subtitle, link: b.link, image_url: b.imageUrl, is_active: b.isActive, sort_order: b.sortOrder })) };
     },
@@ -5118,7 +5789,7 @@ export const Actions = {
     response: z.object({ id: z.number() }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const imageUrl = args.image_url?.trim() || null;
       if (!args.id && !imageUrl) throw new Error("Please upload a banner image — every advertisement is shown with its image.");
       const values = { title: args.title.trim(), subtitle: args.subtitle?.trim() || null, link: args.link?.trim() || null, imageUrl, isActive: args.is_active ?? true, sortOrder: args.sort_order ?? 0 };
@@ -5126,7 +5797,7 @@ export const Actions = {
         const existing = (await db.select().from(schema.homepageBanners).where(eq(schema.homepageBanners.id, args.id)).limit(1))[0];
         if (!existing) throw new Error("Banner not found.");
         if (!imageUrl && !existing.imageUrl) throw new Error("Please upload a banner image — every advertisement is shown with its image.");
-        if (existing.imageUrl && imageUrl && existing.imageUrl !== imageUrl) deleteUploadFile(existing.imageUrl);
+        if (existing.imageUrl && imageUrl && existing.imageUrl !== imageUrl) await deleteStoredUpload(existing.imageUrl);
         await db.update(schema.homepageBanners).set(values).where(eq(schema.homepageBanners.id, args.id));
         ctx.invalidateQueries();
         return { id: args.id };
@@ -5142,9 +5813,9 @@ export const Actions = {
     request: z.object({ authToken: authTokenField, id: z.number().int().positive() }), response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const existing = (await db.select().from(schema.homepageBanners).where(eq(schema.homepageBanners.id, args.id)).limit(1))[0];
-      if (existing?.imageUrl) deleteUploadFile(existing.imageUrl);
+      if (existing?.imageUrl) await deleteStoredUpload(existing.imageUrl);
       await db.delete(schema.homepageBanners).where(eq(schema.homepageBanners.id, args.id));
       ctx.invalidateQueries();
       return { ok: true };
@@ -5155,7 +5826,7 @@ export const Actions = {
     response: z.object({ sections: z.array(z.object({ key: z.string(), title: z.string(), is_active: z.boolean(), sort_order: z.number() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = await db.select().from(schema.homepageSections).orderBy(schema.homepageSections.sortOrder);
       return { sections: rows.map((s) => ({ key: s.key, title: s.title, is_active: s.isActive, sort_order: s.sortOrder })) };
     },
@@ -5165,7 +5836,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       await db.insert(schema.homepageSections).values({ key: args.key, title: args.title.trim(), isActive: args.is_active, sortOrder: args.sort_order })
         .onConflictDoUpdate({ target: schema.homepageSections.key, set: { title: args.title.trim(), isActive: args.is_active, sortOrder: args.sort_order } });
       ctx.invalidateQueries();
@@ -5177,7 +5848,7 @@ export const Actions = {
     response: z.object({ tickets: z.array(z.object({ ticket_code: z.string(), name: z.string(), contact: z.string(), subject: z.string(), message: z.string(), order_code: z.string().nullable(), status: z.enum(["open", "answered", "closed"]), admin_reply: z.string().nullable(), created_at: z.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = args.status
         ? await db.select().from(schema.supportTickets).where(eq(schema.supportTickets.status, args.status)).orderBy(desc(schema.supportTickets.createdAt)).limit(200)
         : await db.select().from(schema.supportTickets).orderBy(desc(schema.supportTickets.createdAt)).limit(200);
@@ -5189,7 +5860,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const ticket = (await db.select().from(schema.supportTickets).where(eq(schema.supportTickets.ticketCode, args.ticket_code.trim().toUpperCase())).limit(1))[0];
       if (!ticket) throw new Error("Ticket not found.");
       await db.update(schema.supportTickets).set({ adminReply: args.reply.trim(), status: "answered", updatedAt: new Date() }).where(eq(schema.supportTickets.id, ticket.id));
@@ -5206,7 +5877,7 @@ export const Actions = {
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const ticket = (await db.select({ id: schema.supportTickets.id }).from(schema.supportTickets).where(eq(schema.supportTickets.ticketCode, args.ticket_code.trim().toUpperCase())).limit(1))[0];
       if (!ticket) throw new Error("Ticket not found.");
       await db.update(schema.supportTickets).set({ status: "closed", updatedAt: new Date() }).where(eq(schema.supportTickets.id, ticket.id));
@@ -5221,7 +5892,7 @@ export const Actions = {
     request: z.object({ authToken: authTokenField, name: z.string().trim().min(2).max(80), contact: z.string().trim().min(5).max(40), subject: z.string().trim().min(4).max(80), message: z.string().trim().min(10).max(1000), order_code: z.string().trim().min(4).max(40).optional() }),
     response: z.object({ ticket_code: z.string() }),
     async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const userId = await buyerIdOf(ctx, args.authToken);
       let ticketCode = "";
       for (let i = 0; i < 5; i++) {
@@ -5258,7 +5929,7 @@ export const Actions = {
     async handler(ctx, args) {
       const userId = await buyerIdOf(ctx, args.authToken);
       if (!userId) return { tickets: [] };
-      const db = ctx.db<typeof schema>();
+      const db = fullDb(ctx);
       const rows = await db.select().from(schema.supportTickets).where(eq(schema.supportTickets.userId, userId)).orderBy(desc(schema.supportTickets.createdAt)).limit(50);
       return { tickets: rows.map((t) => ({ ticket_code: t.ticketCode, subject: t.subject, message: t.message, order_code: t.orderCode, status: t.status, admin_reply: t.adminReply, created_at: t.createdAt.toISOString() })) };
     },
@@ -5277,25 +5948,23 @@ export const Actions = {
 // never swept; paid/refunded/cancelled groups are terminal and untouched.
 export const UNPAID_GROUP_TTL_MS = 45 * 60 * 1000;
 
-export function sweepExpiredUnpaidGroups(fullDb: BunSQLiteDatabase<typeof schema>, nowMs = Date.now()): { swept: number; groups: string[] } {
+export async function sweepExpiredUnpaidGroups(fullDb: PostgresJsDatabase<typeof schema>, nowMs = Date.now()): Promise<{ swept: number; groups: string[] }> {
   const cutoff = new Date(nowMs - UNPAID_GROUP_TTL_MS);
   const swept: { userId: string | null; groupCode: string }[] = [];
-  fullDb.transaction((tx) => {
-    const stale = tx
+  await fullDb.transaction(async (tx) => {
+    const stale = await tx
       .select({ id: schema.orderGroups.id })
       .from(schema.orderGroups)
-      .where(and(lt(schema.orderGroups.createdAt, cutoff), ne(schema.orderGroups.paymentMethod, "cod")))
-      .prepare()
-      .all();
+      .where(and(lt(schema.orderGroups.createdAt, cutoff), ne(schema.orderGroups.paymentMethod, "cod")));
     for (const g of stale) {
-      const subs = tx.select().from(schema.orders).where(eq(schema.orders.groupId, g.id)).prepare().all();
+      const subs = await tx.select().from(schema.orders).where(eq(schema.orders.groupId, g.id));
       if (!subs.length) continue;
       // Never sweep a group a seller has started fulfilling.
       if (!subs.every((o) => o.status === "confirmation_needed")) continue;
-      const pay = tx.select().from(schema.payments).where(eq(schema.payments.groupId, g.id)).limit(1).prepare().get();
+      const pay = (await tx.select().from(schema.payments).where(eq(schema.payments.groupId, g.id)).limit(1).for("update"))[0];
       if (!pay || pay.status === "paid" || pay.status === "refunded" || pay.status === "cancelled") continue;
-      const group = tx.select().from(schema.orderGroups).where(eq(schema.orderGroups.id, g.id)).limit(1).prepare().get();
-      cancelFulfilmentsTx(tx, subs.map((o) => o.id), "system", "payment_expired");
+      const group = (await tx.select().from(schema.orderGroups).where(eq(schema.orderGroups.id, g.id)).limit(1).for("update"))[0];
+      await cancelFulfilmentsTx(tx, subs.map((o) => o.id), "system", "payment_expired");
       if (group) swept.push({ userId: group.userId, groupCode: group.groupCode });
     }
   });
@@ -5304,7 +5973,7 @@ export function sweepExpiredUnpaidGroups(fullDb: BunSQLiteDatabase<typeof schema
   for (const s of swept) {
     if (!s.userId) continue;
     try {
-      fullDb.insert(schema.notifications).values({ userId: s.userId, type: "order_status", title: `Order ${s.groupCode} expired`, body: `The unpaid order ${s.groupCode} was released after 45 minutes without payment and its items returned to stock. You can check out again whenever you are ready.`, link: "#/orders", createdAt: at }).prepare().run();
+      await fullDb.insert(schema.notifications).values({ userId: s.userId, type: "order_status", title: `Order ${s.groupCode} expired`, body: `The unpaid order ${s.groupCode} was released after 45 minutes without payment and its items returned to stock. You can check out again whenever you are ready.`, link: "#/orders", createdAt: at });
     } catch { /* a missed notification must never break the sweep */ }
   }
   return { swept: swept.length, groups: swept.map((s) => s.groupCode) };

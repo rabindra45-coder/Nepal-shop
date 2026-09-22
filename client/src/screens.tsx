@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
-import { api2, fmtDate, money, placeOrder, type P2Address, type P2Product } from "./phase2api";
+import { api2, fmtDate, money, placeOrder, MARKETPLACE_TAX_NOTE, type P2Address, type P2Product } from "./phase2api";
 import { useAuth, go } from "./session";
 import { useCart } from "./cart";
 import { EmptyBlock, Loading, PageError, ProductCard, ProductImage, Stars, getCompareIds, isCompared, toggleCompareId, useToast } from "./ui";
@@ -70,15 +70,79 @@ function ReportReviewLink({ reviewId }: { reviewId: number }) {
   );
 }
 
+// --- product Q&A ---------------------------------------------------------------
+// Signed-in buyers can ask the seller a question; answered questions are
+// public. A buyer also sees their own unanswered questions as "waiting".
+function ProductQA({ productId }: { productId: number }) {
+  const { auth } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [q, setQ] = useState("");
+  const list = useQuery({
+    queryKey: ["product-questions", productId],
+    queryFn: () => api.getProductQuestions({ product_id: productId }),
+    staleTime: 60_000,
+  });
+  const ask = useMutation({
+    mutationFn: (text: string) => api.askQuestion({ authToken: auth?.token ?? "", product_id: productId, question: text }),
+    onSuccess: () => {
+      setQ("");
+      void queryClient.invalidateQueries({ queryKey: ["product-questions", productId] });
+      toast("Question sent to the seller.");
+    },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not send the question.", "err"),
+  });
+  const questions = list.data?.questions ?? [];
+  const visible = questions.filter((x) => x.answer || x.mine);
+  return (
+    <section className="reviews qa">
+      <h2>Questions & answers ({visible.length})</h2>
+      {list.isPending && <p className="muted">Loading questions…</p>}
+      {list.error && <p className="form-error">Could not load the questions.</p>}
+      {!list.isPending && !list.error && visible.length === 0 && (
+        <p className="muted">No questions yet — ask the seller anything about this product.</p>
+      )}
+      {visible.map((x) => (
+        <article key={x.id}>
+          <p><b>Q:</b> {x.question}</p>
+          {x.answer
+            ? <p className="qa-answer"><b>A:</b> {x.answer}</p>
+            : <p className="muted"><small>Waiting for the seller's answer…</small></p>}
+          <small>{x.asker_name}{x.answered_at ? ` · Answered ${fmtDate(x.answered_at)}` : ""}</small>
+        </article>
+      ))}
+      {auth?.type === "buyer" ? (
+        <form className="stack-form compact" onSubmit={(e) => { e.preventDefault(); const t = q.trim(); if (t.length >= 3) ask.mutate(t); }}>
+          <label>Ask the seller<textarea value={q} onChange={(e) => setQ(e.target.value)} minLength={3} maxLength={500} required placeholder="e.g. Is this compatible with…" /></label>
+          <button className="primary" disabled={ask.isPending || q.trim().length < 3}>{ask.isPending ? "Sending…" : "Ask a question"}</button>
+        </form>
+      ) : (
+        <p className="muted"><button className="linklike" onClick={() => go("/login")}>Log in</button> to ask the seller a question.</p>
+      )}
+    </section>
+  );
+}
+
 function ProductGallery({ product }: { product: P2Product }) {
   const photos = product.images?.length ? product.images : product.image_url ? [product.image_url] : [];
   const [sel, setSel] = useState(0);
-  useEffect(() => { setSel(0); }, [product.id]);
+  const [zoom, setZoom] = useState(false);
+  useEffect(() => { setSel(0); setZoom(false); }, [product.id]);
+  // Lightbox: Escape closes; the page behind does not scroll while it is open.
+  useEffect(() => {
+    if (!zoom) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setZoom(false); };
+    document.addEventListener("keydown", onKey);
+    document.body.classList.add("drawer-open");
+    return () => { document.removeEventListener("keydown", onKey); document.body.classList.remove("drawer-open"); };
+  }, [zoom]);
   if (!photos.length) return <ProductImage product={product} className="big" />;
   return (
     <div className="pd-gallery">
       <div className="g-main">
-        <img src={photos[sel]} alt={product.name} decoding="async" />
+        <button type="button" className="g-zoom" onClick={() => setZoom(true)} aria-label={`Open full-size photo of ${product.name}`}>
+          <img src={photos[sel]} alt={product.name} decoding="async" />
+        </button>
       </div>
       {photos.length > 1 && (
         <div className="g-thumbs" role="group" aria-label="Product photos">
@@ -90,6 +154,27 @@ function ProductGallery({ product }: { product: P2Product }) {
         </div>
       )}
       {product.original_price_paisa && product.original_price_paisa > product.price_paisa && <span className="off-badge">-{product.discount_pct}%</span>}
+      {zoom && (
+        <div className="lightbox" role="dialog" aria-modal="true" aria-label={`${product.name} photos`} onClick={() => setZoom(false)}>
+          <button type="button" className="lb-close" onClick={(e) => { e.stopPropagation(); setZoom(false); }} aria-label="Close photo viewer">✕</button>
+          {photos.length > 1 && (
+            <>
+              <button type="button" className="lb-prev" onClick={(e) => { e.stopPropagation(); setSel((s) => (s - 1 + photos.length) % photos.length); }} aria-label="Previous photo">‹</button>
+              <button type="button" className="lb-next" onClick={(e) => { e.stopPropagation(); setSel((s) => (s + 1) % photos.length); }} aria-label="Next photo">›</button>
+            </>
+          )}
+          <img className="lb-img" src={photos[sel]} alt={`${product.name} — photo ${sel + 1} of ${photos.length}`} onClick={(e) => e.stopPropagation()} />
+          {photos.length > 1 && (
+            <div className="lb-thumbs" role="group" aria-label="Product photos">
+              {photos.map((src, i) => (
+                <button key={src} type="button" className={i === sel ? "sel" : ""} onClick={(e) => { e.stopPropagation(); setSel(i); }} aria-label={`Show photo ${i + 1} of ${photos.length}`} aria-pressed={i === sel}>
+                  <img src={src} alt="" loading="lazy" decoding="async" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -434,6 +519,7 @@ export function ProductPage({ id }: { id: number }) {
             <strong>{money(unitPrice)}</strong>
             {p.original_price_paisa && p.original_price_paisa > p.price_paisa && !variant && <s className="was">{money(p.original_price_paisa)}</s>}
           </div>
+          <p className="muted tax-note">{MARKETPLACE_TAX_NOTE}</p>
           {variants.length > 0 && (
             <div className="variant-picker">
               <p className="variant-label">Choose an option</p>
@@ -488,6 +574,8 @@ export function ProductPage({ id }: { id: number }) {
         <button className="linklike" onClick={() => go("/track")}>Bought this? Write a verified review from your order page →</button>
       </section>
 
+      <ProductQA productId={p.id} />
+
       {fbt.length > 0 && <SectionRow title="Frequently bought together" products={fbt} onOpen={(x) => go(`/product/${x.id}`)} onAdd={add} />}
       {recs.data && recs.data.products.length > 0 && (
         <SectionRow
@@ -498,6 +586,7 @@ export function ProductPage({ id }: { id: number }) {
           onAdd={add}
         />
       )}
+      {auth?.type === "buyer" && <RecentViewedRow excludeId={p.id} />}
 
       <div className="sticky-buy">
         <div><strong>{money(unitPrice)}</strong><small>{avail > 0 ? `${avail} in stock` : "Out of stock"}</small></div>
@@ -827,6 +916,7 @@ export function CheckoutPage() {
             <span>Delivery ({delivery}) <b>{deliveryFee === 0 ? "Free" : money(deliveryFee)}</b></span>
             <span className="total">Total <b>{money(total)}</b></span>
           </div>
+          <p className="muted tax-note">{MARKETPLACE_TAX_NOTE}</p>
           <div className="step-nav"><button className="ghost" onClick={() => setStep(2)}>Back</button><button className="primary" onClick={() => setStep(4)}>Continue to payment</button></div>
         </section>
       )}

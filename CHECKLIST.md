@@ -1,4 +1,8 @@
-# Production-Ready Website Checklist — Nepal Shop (v8 audit)
+# Production-Ready Website Checklist — Nepal Shop (v10 audit)
+
+> **v10 (SQLite → Supabase Postgres migration, 2026-09-22):** the shop now runs on Supabase Postgres instead of local SQLite. `server/src/schema.ts` is 48 `pgTable` tables (names identical; `timestamptz` timestamps, 14 real booleans, serial PKs); `supabase/schema.sql` is the idempotent boot-applied baseline, `supabase/seed.sql` the idempotent demo seed (1 admin, 3 sellers, 12 products, WELCOME10 + FREESHIP, sequences repaired), `supabase/storage.sql` the 4 buckets + public-read policy. `selfhost.ts` connects via `postgres` 3.4.9, fail-fasts on missing `DATABASE_URL`, applies schema + seed at boot (`SKIP_SEED=1` skips seed), probes DB health, warns while demo sellers exist. Verified for real on PostgreSQL 18.4: boot-apply creates all 48 tables from a fresh DB (`sql.unsafe` multi-statement apply works — no splitter needed), re-boot is idempotent (IF NOT EXISTS / ON CONFLICT no-ops), `getStorefront` returns 12 products + 3 sellers, sequence insert lands on max+1, booleans read back as real booleans and timestamps as Dates. **Bug found and fixed this pass:** `fullDb()` in `server/src/actions.ts` called *itself* instead of `ctx.db()` — infinite recursion across all 196 call sites; the first `getStorefront` request tail-looped and wedged the entire server (every route hung). Fixed to `ctx.db()`, verified `getStorefront` returns data and the server stays responsive. Regression suites on a fresh PG database: **36/36** (`scripts/verify-v4.ts`) and **45/45** (`scripts/verify-v9.ts`), both pure-HTTP with zero SQLite usage. `scripts/migrate-to-supabase.ts` dry-run against a scratch SQLite DB (boolean ints, epoch-ms timestamps, FK parent→child): 9/9 rows copied in FK-safe order, 0/1 → false/true, epoch ms exact to the millisecond, sequences repaired (next id = max+1), non-empty target refused without `--force` (exit 1), `--force` truncated + re-copied cleanly, file step skipped with a warning when Supabase keys are absent. Upload wiring with a dummy service-role key: unauthenticated → 400 "Admin sign-in required."; non-image → 400 type error and 6 MB file → 400 size error, both before any network attempt; authenticated valid PNG → clean 400 + `Supabase storage upload failed (banners/banner-<uuid>.png): Invalid Compact JWS` in ~1.4 s — error propagates, no hang, no crash, server alive after. Server + client typechecks clean, client rebuilt via `scripts/build-client-local.mjs`. Honest limits (NOT verified here): applying schema/seed/storage SQL to the **real** Supabase project, a **real bucket round-trip** (no service-role key in this environment), and the **live cutover** itself — the remaining steps are: apply `supabase/storage.sql` in the Supabase SQL editor, set Render env (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`), boot once with `SKIP_SEED=1`, run `scripts/migrate-to-supabase.ts` with real keys, then boot normally and smoke-test. Note: upload endpoints map storage failures to 400 with the storage message (documented in `server/src/storage.ts`) — not 500; deliberate, flag before changing.
+
+> **v9 (integration + new surfaces, 2026-09-22):** closed the two Worker B integration gaps with small server edits — public `getPublicCategories` read path (active categories with `seo_title`/`seo_description`/`intro_content`; no new migration) and owning-seller visibility of pending product questions in `getProductQuestions` (seller token session or legacy code+key; other sellers/buyers still can't see them). Verified over real HTTP on a fresh DB: **45/45** new-surface checks (invoice role scoping buyer/seller/admin + stranger rejected, unique `INV-2026-000001` numbers, Q&A ask→seller-sees-pending→answer→public + asker notified + mark-read, CSV import per-row error reporting, deleteAccount keeps orders + blocks login + wrong-password/lowercase-DELETE rejected, exportAccountData, category SEO admin→public round-trip, invalid order transitions still rejected, notification bell flow, cart merge on login) — plus the **36/36** v4 regression green, server + client typechecks clean, client rebuilt via `scripts/build-client-local.mjs`, all 61 migrations apply on fresh boot, zip boots clean from extraction. New: `.github/workflows/ci.yml` (typechecks + client build + both suites on push/PR) and `scripts/verify-v9.ts`. Honest caveats kept: hash routing (no clean URLs), no-JS crawlers only see the SPA shell, typo-search precision limits, `DELETED:<id>` phone tombstone on account deletion, admin MFA/SMS/courier unconfigured, legal pages are lawyer-review drafts.
 
 > **v8 (user-reported fixes, 2026-09-22):** eight problems found testing v7 on phone + desktop, all fixed and verified over real HTTP on fresh boots: mobile-only hamburger drawer nav (desktop/tablet untouched); "Seller studio" hidden from the public nav unless seller; product photos are real file uploads (URL paste removed, per-file progress); admin Email/SMTP tab with masked password, test-email button and env>DB>none precedence (verification emails now actually send when configured); seller logo/banner upload fixed (session token now attached); admin-uploadable site logo shown in navbar + hero; account page rebuilt as a sidebar (mobile drawer) with buyer profile-photo upload shown in header/sidebar/navbar chip; same sidebar pattern in studio + admin; mobile overflow/tap-target pass. New: migrations 0055–0057, `POST /api/site-logo-uploads`, `POST /api/profile-uploads`, `adminGetSmtpSettings`/`adminSaveSmtpSettings`/`adminSendTestSmtpEmail`. Verified: typechecks clean, client rebuilt, 36/36 verify suite, 21-assertion HTTP integration suite, fresh-DB boot with 57 migrations, zip boots clean from extraction. Honest caveat: drawer animation verified from markup + CSS media queries only (no headless browser) — a quick real-phone check is worthwhile.
 
@@ -38,6 +42,13 @@ Audited against the code in this repo and the live site. **Status key:** `DONE` 
 - [DONE] Terms & Conditions — `/terms`: complete draft (accounts, orders, COD, returns, liability, Nepal governing law); same legal-review banner.
 - [DONE] 404 page — custom "This shelf is empty." page; unknown routes land here, `/` still loads the homepage.
 - [DONE] Cookie/consent mechanism if required — banner with Accept/Decline persisted in `localStorage`; choice never asked twice; linked to `/privacy`.
+- [DONE] Invoice page — `#/invoice/<order_code>` with print CSS; numbers come straight from the `getInvoice` payload (buyer/seller/admin role-scoped; strangers rejected).
+- [DONE] Refund Policy — `/refund` draft (returns → refund mechanics); opens with the legal-review banner.
+- [DONE] Return Policy — `/return` draft (30-day window, conditions, process); same banner.
+- [DONE] Shipping Policy — `/shipping` draft (methods, fees, timelines); same banner.
+- [DONE] Seller Terms — `/seller-terms` draft (fees, payouts, obligations); same banner.
+- [DONE] Cookie Policy — `/cookies` standalone page (was only a privacy section); same banner.
+- [DONE] Product Q&A — buyers ask from the product page; owning seller answers in the studio; answered questions public; pending visible only to asker + owning seller.
 
 ## 3. Responsive Design
 
@@ -83,6 +94,14 @@ Audited against the code in this repo and the live site. **Status key:** `DONE` 
 - [DONE] Error states — `PageError` with retry on every data screen; friendly 400/422/429 messages.
 - [DONE] Loading states — skeletons/spinners on every async view.
 - [DONE] Empty states — cart, wishlist, orders, search, notifications, tickets all have guided empty states.
+- [DONE] Invoices — one auto-created per checkout group with unique `INV-2026-000001` numbers; role-scoped payload (buyer sees own group, seller sees own fulfilment slice, admin sees all); tax note "No separate tax is charged on this marketplace."
+- [DONE] Product Q&A — `askQuestion`/`answerQuestion`/`getProductQuestions`; asker notified on answer; pending questions hidden from other buyers and other sellers.
+- [DONE] Account export — `exportAccountData` returns a machine-readable download of profile, orders, addresses, wishlist, reviews, tickets.
+- [DONE] Account deletion — password verified + typed `DELETE`; sessions revoked, PII anonymised, orders kept for records (phone becomes a `DELETED:<id>` tombstone since the column is NOT NULL + unique; login blocked).
+- [DONE] Seller CSV import — `sellerCsvImport` with per-row error reporting (row number + message); bad rows don't block good ones.
+- [DONE] Category SEO — admin editor + `adminUpdateCategorySeo`; public `getPublicCategories` read path for H1/intro/meta.
+- [DONE] Product approval flow — seller submits for review (listing goes off-sale until decided); admin approves/rejects.
+- [DONE] Reorder, recently-viewed, photo lightbox — one-tap reorder from order history; recently viewed on the product page; full-screen photo lightbox.
 
 ## 5. Security
 
@@ -99,6 +118,8 @@ Audited against the code in this repo and the live site. **Status key:** `DONE` 
 - [DONE] CORS configured correctly — same-origin API; no cross-origin surface to configure.
 - [DONE] Database permissions reviewed — single app-owned SQLite file on a persistent disk; never directly exposed.
 - [DONE] Error messages don't expose sensitive information — curated user-facing messages; zod errors sanitised (one theoretical path noted: raw non-zod errors would pass through, but no handler throws them today).
+- [GAP] Admin MFA — no provider wired (honest design limit, not a bug); admin accounts rely on strong passwords + rate-limited login.
+- [GAP] SMS notifications — no SMS provider configured; order updates go via in-app notifications + email (when SMTP is set).
 
 ## 6. Performance
 
@@ -128,6 +149,10 @@ Audited against the code in this repo and the live site. **Status key:** `DONE` 
 - [DONE] Twitter/X metadata if relevant — summary card tags added in v4.
 - [DONE] Image alt text — meaningful alts after the v4 pass (hero, product images).
 - [DONE] Structured data/schema where appropriate — JSON-LD `Product` schema (price, availability, ratings) on product pages.
+- [DONE] Category SEO — per-category `seo_title`/`seo_description`/`intro_content` editable in the admin; served publicly via `getPublicCategories` for the category page H1/intro/meta.
+- [GAP] Clean per-page URLs — hash routing (`/#/product/12`) makes descriptive URLs impossible without a routing rewrite; deferred.
+- [GAP] No-JS crawler rendering — client-side meta (category SEO, invoice `noindex`, legal pages) is only visible to JS-capable crawlers; no-JS crawlers see just the SPA shell.
+- [GAP] Typo-search precision — common misspellings are corrected, but very short or ambiguous queries have honest precision limits.
 - [NEEDS-USER] Google Search Console configured — submit the sitemap after launch.
 - [NEEDS-USER] Search indexing checked — verify pages get indexed once live.
 
@@ -170,13 +195,13 @@ Audited against the code in this repo and the live site. **Status key:** `DONE` 
 
 - [DONE] Privacy Policy — `/privacy` draft live.
 - [DONE] Terms of Service — `/terms` draft live.
-- [DONE] Cookie policy/consent where applicable — banner + cookie section in the privacy draft.
+- [DONE] Cookie policy/consent where applicable — standalone `/cookies` page + banner + cookie section in the privacy draft.
 - [DONE] Data collection explained — accounts, orders, support, cookies covered in the draft.
-- [NEEDS-USER] Account deletion process if applicable — currently handled via support ticket; add a self-serve flow later if volume demands it.
+- [DONE] Account deletion process if applicable — self-serve in the account danger zone (password + typed `DELETE`); orders kept for records, PII anonymised, sessions revoked.
 - [NEEDS-USER] Contact/support information — placeholders on `/contact` and in the legal drafts; fill in before launch.
 - [DONE] Third-party services disclosed where required — eSewa/Khalti/COD disclosed in the drafts.
 - [DONE] Appropriate age/usage notices where relevant — eligibility covered in the terms draft.
-- [NEEDS-USER] Legal review — get both drafts reviewed by a lawyer in Nepal before serving real customers (banner on each page says so).
+- [NEEDS-USER] Legal review — all seven legal pages (Privacy, Terms, Refund, Return, Shipping, Seller Terms, Cookie) are drafts reviewed by no lawyer; each carries a "Draft — needs review by a Nepal-qualified lawyer before serving real customers." banner. Get them reviewed before real customers.
 
 ## 12. Final QA
 
@@ -203,6 +228,7 @@ Audited against the code in this repo and the live site. **Status key:** `DONE` 
 - [DONE] Remove unused packages — `recharts` removed in v4.
 - [DONE] Fix build warnings — client build verified clean for v4.
 - [DONE] Fix TypeScript/Dart analyzer errors — server + client `tsc --noEmit` clean.
-- [DONE] Run tests — core journey + new pages + fresh-DB boot run for v4 (see README test report).
+- [DONE] Run tests — core journey + new pages + fresh-DB boot run for v4 (see README test report); v9 adds `scripts/verify-v9.ts` (45 checks) alongside `scripts/verify-v4.ts` (36 checks); both run in CI on every push/PR.
+- [DONE] CI — `.github/workflows/ci.yml`: bun install, server + client typechecks, client build, fresh-DB boot, v4 regression + v9 integration suites.
 - [DONE] Run production build — canonical client build + postbuild sanity checks pass.
 - [NEEDS-USER] Review Git history for accidentally committed secrets — `.gitignore` is in place; scan history before the first public push.

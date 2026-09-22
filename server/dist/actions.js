@@ -1,5 +1,35 @@
 // @bun
+var __create = Object.create;
+var __getProtoOf = Object.getPrototypeOf;
 var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+function __accessProp(key) {
+  return this[key];
+}
+var __toESMCache_node;
+var __toESMCache_esm;
+var __toESM = (mod, isNodeMode, target) => {
+  var canCache = mod != null && typeof mod === "object";
+  if (canCache) {
+    var cache = isNodeMode ? __toESMCache_node ??= new WeakMap : __toESMCache_esm ??= new WeakMap;
+    var cached = cache.get(mod);
+    if (cached)
+      return cached;
+  }
+  target = mod != null ? __create(__getProtoOf(mod)) : {};
+  const to = isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
+  for (let key of __getOwnPropNames(mod))
+    if (!__hasOwnProp.call(to, key))
+      __defProp(to, key, {
+        get: __accessProp.bind(mod, key),
+        enumerable: true
+      });
+  if (canCache)
+    cache.set(mod, to);
+  return to;
+};
+var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 var __returnValue = (v) => v;
 function __exportSetter(name, newValue) {
   this[name] = __returnValue.bind(null, newValue);
@@ -106,8 +136,8 @@ async function esewaTransactionStatus(args) {
     const res = await fetch(url2);
     if (!res.ok)
       return null;
-    const json2 = await res.json().catch(() => null);
-    return json2?.status ?? null;
+    const json3 = await res.json().catch(() => null);
+    return json3?.status ?? null;
   } catch {
     return null;
   }
@@ -143,11 +173,11 @@ async function initiateKhalti(args) {
   } catch {
     throw new Error("Khalti could not be reached. Please try again or choose Cash on Delivery.");
   }
-  const json2 = await res.json().catch(() => null);
-  if (!res.ok || !json2?.pidx || !json2?.payment_url) {
-    throw new Error(json2?.detail ?? "Khalti could not start this payment. Please try again or choose Cash on Delivery.");
+  const json3 = await res.json().catch(() => null);
+  if (!res.ok || !json3?.pidx || !json3?.payment_url) {
+    throw new Error(json3?.detail ?? "Khalti could not start this payment. Please try again or choose Cash on Delivery.");
   }
-  return { pidx: json2.pidx, paymentUrl: json2.payment_url };
+  return { pidx: json3.pidx, paymentUrl: json3.payment_url };
 }
 async function lookupKhalti(pidx) {
   const { secretKey, mode } = khaltiConfig();
@@ -162,12 +192,617 @@ async function lookupKhalti(pidx) {
     });
     if (!res.ok)
       return { status: null, amountPaisa: null };
-    const json2 = await res.json().catch(() => null);
-    return { status: json2?.status ?? null, amountPaisa: typeof json2?.total_amount === "number" ? json2.total_amount : null };
+    const json3 = await res.json().catch(() => null);
+    return { status: json3?.status ?? null, amountPaisa: typeof json3?.total_amount === "number" ? json3.total_amount : null };
   } catch {
     return { status: null, amountPaisa: null };
   }
 }
+
+// ../node_modules/tslib/tslib.js
+var require_tslib = __commonJS((exports, module) => {
+  var __extends;
+  var __assign;
+  var __rest;
+  var __decorate;
+  var __param;
+  var __esDecorate;
+  var __runInitializers;
+  var __propKey;
+  var __setFunctionName;
+  var __metadata;
+  var __awaiter;
+  var __generator;
+  var __exportStar;
+  var __values;
+  var __read;
+  var __spread;
+  var __spreadArrays;
+  var __spreadArray;
+  var __await;
+  var __asyncGenerator;
+  var __asyncDelegator;
+  var __asyncValues;
+  var __makeTemplateObject;
+  var __importStar;
+  var __importDefault;
+  var __classPrivateFieldGet;
+  var __classPrivateFieldSet;
+  var __classPrivateFieldIn;
+  var __createBinding;
+  var __addDisposableResource;
+  var __disposeResources;
+  var __rewriteRelativeImportExtension;
+  (function(factory) {
+    var root = typeof global === "object" ? global : typeof self === "object" ? self : typeof this === "object" ? this : {};
+    if (typeof define === "function" && define.amd) {
+      define("tslib", ["exports"], function(exports2) {
+        factory(createExporter(root, createExporter(exports2)));
+      });
+    } else if (typeof module === "object" && typeof exports === "object") {
+      factory(createExporter(root, createExporter(exports)));
+    } else {
+      factory(createExporter(root));
+    }
+    function createExporter(exports2, previous) {
+      if (exports2 !== root) {
+        if (typeof Object.create === "function") {
+          Object.defineProperty(exports2, "__esModule", { value: true });
+        } else {
+          exports2.__esModule = true;
+        }
+      }
+      return function(id, v) {
+        return exports2[id] = previous ? previous(id, v) : v;
+      };
+    }
+  })(function(exporter) {
+    var extendStatics = Object.setPrototypeOf || { __proto__: [] } instanceof Array && function(d, b) {
+      d.__proto__ = b;
+    } || function(d, b) {
+      for (var p in b)
+        if (Object.prototype.hasOwnProperty.call(b, p))
+          d[p] = b[p];
+    };
+    __extends = function(d, b) {
+      if (typeof b !== "function" && b !== null)
+        throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+      extendStatics(d, b);
+      function __() {
+        this.constructor = d;
+      }
+      d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __);
+    };
+    __assign = Object.assign || function(t) {
+      for (var s, i = 1, n = arguments.length;i < n; i++) {
+        s = arguments[i];
+        for (var p in s)
+          if (Object.prototype.hasOwnProperty.call(s, p))
+            t[p] = s[p];
+      }
+      return t;
+    };
+    __rest = function(s, e) {
+      var t = {};
+      for (var p in s)
+        if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+          t[p] = s[p];
+      if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s);i < p.length; i++) {
+          if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+            t[p[i]] = s[p[i]];
+        }
+      return t;
+    };
+    __decorate = function(decorators, target, key, desc2) {
+      var c = arguments.length, r = c < 3 ? target : desc2 === null ? desc2 = Object.getOwnPropertyDescriptor(target, key) : desc2, d;
+      if (typeof Reflect === "object" && typeof Reflect.decorate === "function")
+        r = Reflect.decorate(decorators, target, key, desc2);
+      else
+        for (var i = decorators.length - 1;i >= 0; i--)
+          if (d = decorators[i])
+            r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+      return c > 3 && r && Object.defineProperty(target, key, r), r;
+    };
+    __param = function(paramIndex, decorator) {
+      return function(target, key) {
+        decorator(target, key, paramIndex);
+      };
+    };
+    __esDecorate = function(ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {
+      function accept(f) {
+        if (f !== undefined && typeof f !== "function")
+          throw new TypeError("Function expected");
+        return f;
+      }
+      var kind = contextIn.kind, key = kind === "getter" ? "get" : kind === "setter" ? "set" : "value";
+      var target = !descriptorIn && ctor ? contextIn["static"] ? ctor : ctor.prototype : null;
+      var descriptor = descriptorIn || (target ? Object.getOwnPropertyDescriptor(target, contextIn.name) : {});
+      var _, done = false;
+      for (var i = decorators.length - 1;i >= 0; i--) {
+        var context = {};
+        for (var p in contextIn)
+          context[p] = p === "access" ? {} : contextIn[p];
+        for (var p in contextIn.access)
+          context.access[p] = contextIn.access[p];
+        context.addInitializer = function(f) {
+          if (done)
+            throw new TypeError("Cannot add initializers after decoration has completed");
+          extraInitializers.push(accept(f || null));
+        };
+        var result = (0, decorators[i])(kind === "accessor" ? { get: descriptor.get, set: descriptor.set } : descriptor[key], context);
+        if (kind === "accessor") {
+          if (result === undefined)
+            continue;
+          if (result === null || typeof result !== "object")
+            throw new TypeError("Object expected");
+          if (_ = accept(result.get))
+            descriptor.get = _;
+          if (_ = accept(result.set))
+            descriptor.set = _;
+          if (_ = accept(result.init))
+            initializers.unshift(_);
+        } else if (_ = accept(result)) {
+          if (kind === "field")
+            initializers.unshift(_);
+          else
+            descriptor[key] = _;
+        }
+      }
+      if (target)
+        Object.defineProperty(target, contextIn.name, descriptor);
+      done = true;
+    };
+    __runInitializers = function(thisArg, initializers, value) {
+      var useValue = arguments.length > 2;
+      for (var i = 0;i < initializers.length; i++) {
+        value = useValue ? initializers[i].call(thisArg, value) : initializers[i].call(thisArg);
+      }
+      return useValue ? value : undefined;
+    };
+    __propKey = function(x) {
+      return typeof x === "symbol" ? x : "".concat(x);
+    };
+    __setFunctionName = function(f, name, prefix) {
+      if (typeof name === "symbol")
+        name = name.description ? "[".concat(name.description, "]") : "";
+      return Object.defineProperty(f, "name", { configurable: true, value: prefix ? "".concat(prefix, " ", name) : name });
+    };
+    __metadata = function(metadataKey, metadataValue) {
+      if (typeof Reflect === "object" && typeof Reflect.metadata === "function")
+        return Reflect.metadata(metadataKey, metadataValue);
+    };
+    __awaiter = function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    __generator = function(thisArg, body) {
+      var _ = { label: 0, sent: function() {
+        if (t[0] & 1)
+          throw t[1];
+        return t[1];
+      }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+      return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() {
+        return this;
+      }), g;
+      function verb(n) {
+        return function(v) {
+          return step([n, v]);
+        };
+      }
+      function step(op) {
+        if (f)
+          throw new TypeError("Generator is already executing.");
+        while (g && (g = 0, op[0] && (_ = 0)), _)
+          try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done)
+              return t;
+            if (y = 0, t)
+              op = [op[0] & 2, t.value];
+            switch (op[0]) {
+              case 0:
+              case 1:
+                t = op;
+                break;
+              case 4:
+                _.label++;
+                return { value: op[1], done: false };
+              case 5:
+                _.label++;
+                y = op[1];
+                op = [0];
+                continue;
+              case 7:
+                op = _.ops.pop();
+                _.trys.pop();
+                continue;
+              default:
+                if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) {
+                  _ = 0;
+                  continue;
+                }
+                if (op[0] === 3 && (!t || op[1] > t[0] && op[1] < t[3])) {
+                  _.label = op[1];
+                  break;
+                }
+                if (op[0] === 6 && _.label < t[1]) {
+                  _.label = t[1];
+                  t = op;
+                  break;
+                }
+                if (t && _.label < t[2]) {
+                  _.label = t[2];
+                  _.ops.push(op);
+                  break;
+                }
+                if (t[2])
+                  _.ops.pop();
+                _.trys.pop();
+                continue;
+            }
+            op = body.call(thisArg, _);
+          } catch (e) {
+            op = [6, e];
+            y = 0;
+          } finally {
+            f = t = 0;
+          }
+        if (op[0] & 5)
+          throw op[1];
+        return { value: op[0] ? op[1] : undefined, done: true };
+      }
+    };
+    __exportStar = function(m, o) {
+      for (var p in m)
+        if (p !== "default" && !Object.prototype.hasOwnProperty.call(o, p))
+          __createBinding(o, m, p);
+    };
+    __createBinding = Object.create ? function(o, m, k, k2) {
+      if (k2 === undefined)
+        k2 = k;
+      var desc2 = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc2 || ("get" in desc2 ? !m.__esModule : desc2.writable || desc2.configurable)) {
+        desc2 = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc2);
+    } : function(o, m, k, k2) {
+      if (k2 === undefined)
+        k2 = k;
+      o[k2] = m[k];
+    };
+    __values = function(o) {
+      var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+      if (m)
+        return m.call(o);
+      if (o && typeof o.length === "number")
+        return {
+          next: function() {
+            if (o && i >= o.length)
+              o = undefined;
+            return { value: o && o[i++], done: !o };
+          }
+        };
+      throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+    };
+    __read = function(o, n) {
+      var m = typeof Symbol === "function" && o[Symbol.iterator];
+      if (!m)
+        return o;
+      var i = m.call(o), r, ar = [], e;
+      try {
+        while ((n === undefined || n-- > 0) && !(r = i.next()).done)
+          ar.push(r.value);
+      } catch (error51) {
+        e = { error: error51 };
+      } finally {
+        try {
+          if (r && !r.done && (m = i["return"]))
+            m.call(i);
+        } finally {
+          if (e)
+            throw e.error;
+        }
+      }
+      return ar;
+    };
+    __spread = function() {
+      for (var ar = [], i = 0;i < arguments.length; i++)
+        ar = ar.concat(__read(arguments[i]));
+      return ar;
+    };
+    __spreadArrays = function() {
+      for (var s = 0, i = 0, il = arguments.length;i < il; i++)
+        s += arguments[i].length;
+      for (var r = Array(s), k = 0, i = 0;i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length;j < jl; j++, k++)
+          r[k] = a[j];
+      return r;
+    };
+    __spreadArray = function(to, from, pack) {
+      if (pack || arguments.length === 2)
+        for (var i = 0, l = from.length, ar;i < l; i++) {
+          if (ar || !(i in from)) {
+            if (!ar)
+              ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+          }
+        }
+      return to.concat(ar || Array.prototype.slice.call(from));
+    };
+    __await = function(v) {
+      return this instanceof __await ? (this.v = v, this) : new __await(v);
+    };
+    __asyncGenerator = function(thisArg, _arguments, generator) {
+      if (!Symbol.asyncIterator)
+        throw new TypeError("Symbol.asyncIterator is not defined.");
+      var g = generator.apply(thisArg, _arguments || []), i, q = [];
+      return i = Object.create((typeof AsyncIterator === "function" ? AsyncIterator : Object).prototype), verb("next"), verb("throw"), verb("return", awaitReturn), i[Symbol.asyncIterator] = function() {
+        return this;
+      }, i;
+      function awaitReturn(f) {
+        return function(v) {
+          return Promise.resolve(v).then(f, reject);
+        };
+      }
+      function verb(n, f) {
+        if (g[n]) {
+          i[n] = function(v) {
+            return new Promise(function(a, b) {
+              q.push([n, v, a, b]) > 1 || resume(n, v);
+            });
+          };
+          if (f)
+            i[n] = f(i[n]);
+        }
+      }
+      function resume(n, v) {
+        try {
+          step(g[n](v));
+        } catch (e) {
+          settle(q[0][3], e);
+        }
+      }
+      function step(r) {
+        r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r);
+      }
+      function fulfill(value) {
+        resume("next", value);
+      }
+      function reject(value) {
+        resume("throw", value);
+      }
+      function settle(f, v) {
+        if (f(v), q.shift(), q.length)
+          resume(q[0][0], q[0][1]);
+      }
+    };
+    __asyncDelegator = function(o) {
+      var i, p;
+      return i = {}, verb("next"), verb("throw", function(e) {
+        throw e;
+      }), verb("return"), i[Symbol.iterator] = function() {
+        return this;
+      }, i;
+      function verb(n, f) {
+        i[n] = o[n] ? function(v) {
+          return (p = !p) ? { value: __await(o[n](v)), done: false } : f ? f(v) : v;
+        } : f;
+      }
+    };
+    __asyncValues = function(o) {
+      if (!Symbol.asyncIterator)
+        throw new TypeError("Symbol.asyncIterator is not defined.");
+      var m = o[Symbol.asyncIterator], i;
+      return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function() {
+        return this;
+      }, i);
+      function verb(n) {
+        i[n] = o[n] && function(v) {
+          return new Promise(function(resolve, reject) {
+            v = o[n](v), settle(resolve, reject, v.done, v.value);
+          });
+        };
+      }
+      function settle(resolve, reject, d, v) {
+        Promise.resolve(v).then(function(v2) {
+          resolve({ value: v2, done: d });
+        }, reject);
+      }
+    };
+    __makeTemplateObject = function(cooked, raw) {
+      if (Object.defineProperty) {
+        Object.defineProperty(cooked, "raw", { value: raw });
+      } else {
+        cooked.raw = raw;
+      }
+      return cooked;
+    };
+    var __setModuleDefault = Object.create ? function(o, v) {
+      Object.defineProperty(o, "default", { enumerable: true, value: v });
+    } : function(o, v) {
+      o["default"] = v;
+    };
+    var ownKeys = function(o) {
+      ownKeys = Object.getOwnPropertyNames || function(o2) {
+        var ar = [];
+        for (var k in o2)
+          if (Object.prototype.hasOwnProperty.call(o2, k))
+            ar[ar.length] = k;
+        return ar;
+      };
+      return ownKeys(o);
+    };
+    __importStar = function(mod) {
+      if (mod && mod.__esModule)
+        return mod;
+      var result = {};
+      if (mod != null) {
+        for (var k = ownKeys(mod), i = 0;i < k.length; i++)
+          if (k[i] !== "default")
+            __createBinding(result, mod, k[i]);
+      }
+      __setModuleDefault(result, mod);
+      return result;
+    };
+    __importDefault = function(mod) {
+      return mod && mod.__esModule ? mod : { default: mod };
+    };
+    __classPrivateFieldGet = function(receiver, state, kind, f) {
+      if (kind === "a" && !f)
+        throw new TypeError("Private accessor was defined without a getter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver))
+        throw new TypeError("Cannot read private member from an object whose class did not declare it");
+      return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+    };
+    __classPrivateFieldSet = function(receiver, state, value, kind, f) {
+      if (kind === "m")
+        throw new TypeError("Private method is not writable");
+      if (kind === "a" && !f)
+        throw new TypeError("Private accessor was defined without a setter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver))
+        throw new TypeError("Cannot write private member to an object whose class did not declare it");
+      return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
+    };
+    __classPrivateFieldIn = function(state, receiver) {
+      if (receiver === null || typeof receiver !== "object" && typeof receiver !== "function")
+        throw new TypeError("Cannot use 'in' operator on non-object");
+      return typeof state === "function" ? receiver === state : state.has(receiver);
+    };
+    __addDisposableResource = function(env, value, async) {
+      if (value !== null && value !== undefined) {
+        if (typeof value !== "object" && typeof value !== "function")
+          throw new TypeError("Object expected.");
+        var dispose, inner;
+        if (async) {
+          if (!Symbol.asyncDispose)
+            throw new TypeError("Symbol.asyncDispose is not defined.");
+          dispose = value[Symbol.asyncDispose];
+        }
+        if (dispose === undefined) {
+          if (!Symbol.dispose)
+            throw new TypeError("Symbol.dispose is not defined.");
+          dispose = value[Symbol.dispose];
+          if (async)
+            inner = dispose;
+        }
+        if (typeof dispose !== "function")
+          throw new TypeError("Object not disposable.");
+        if (inner)
+          dispose = function() {
+            try {
+              inner.call(this);
+            } catch (e) {
+              return Promise.reject(e);
+            }
+          };
+        env.stack.push({ value, dispose, async });
+      } else if (async) {
+        env.stack.push({ async: true });
+      }
+      return value;
+    };
+    var _SuppressedError = typeof SuppressedError === "function" ? SuppressedError : function(error51, suppressed, message) {
+      var e = new Error(message);
+      return e.name = "SuppressedError", e.error = error51, e.suppressed = suppressed, e;
+    };
+    __disposeResources = function(env) {
+      function fail(e) {
+        env.error = env.hasError ? new _SuppressedError(e, env.error, "An error was suppressed during disposal.") : e;
+        env.hasError = true;
+      }
+      var r, s = 0;
+      function next() {
+        while (r = env.stack.pop()) {
+          try {
+            if (!r.async && s === 1)
+              return s = 0, env.stack.push(r), Promise.resolve().then(next);
+            if (r.dispose) {
+              var result = r.dispose.call(r.value);
+              if (r.async)
+                return s |= 2, Promise.resolve(result).then(next, function(e) {
+                  fail(e);
+                  return next();
+                });
+            } else
+              s |= 1;
+          } catch (e) {
+            fail(e);
+          }
+        }
+        if (s === 1)
+          return env.hasError ? Promise.reject(env.error) : Promise.resolve();
+        if (env.hasError)
+          throw env.error;
+      }
+      return next();
+    };
+    __rewriteRelativeImportExtension = function(path, preserveJsx) {
+      if (typeof path === "string" && /^\.\.?\//.test(path)) {
+        return path.replace(/\.(tsx)$|((?:\.d)?)((?:\.[^./]+?)?)\.([cm]?)ts$/i, function(m, tsx, d, ext, cm) {
+          return tsx ? preserveJsx ? ".jsx" : ".js" : d && (!ext || !cm) ? m : d + ext + "." + cm.toLowerCase() + "js";
+        });
+      }
+      return path;
+    };
+    exporter("__extends", __extends);
+    exporter("__assign", __assign);
+    exporter("__rest", __rest);
+    exporter("__decorate", __decorate);
+    exporter("__param", __param);
+    exporter("__esDecorate", __esDecorate);
+    exporter("__runInitializers", __runInitializers);
+    exporter("__propKey", __propKey);
+    exporter("__setFunctionName", __setFunctionName);
+    exporter("__metadata", __metadata);
+    exporter("__awaiter", __awaiter);
+    exporter("__generator", __generator);
+    exporter("__exportStar", __exportStar);
+    exporter("__createBinding", __createBinding);
+    exporter("__values", __values);
+    exporter("__read", __read);
+    exporter("__spread", __spread);
+    exporter("__spreadArrays", __spreadArrays);
+    exporter("__spreadArray", __spreadArray);
+    exporter("__await", __await);
+    exporter("__asyncGenerator", __asyncGenerator);
+    exporter("__asyncDelegator", __asyncDelegator);
+    exporter("__asyncValues", __asyncValues);
+    exporter("__makeTemplateObject", __makeTemplateObject);
+    exporter("__importStar", __importStar);
+    exporter("__importDefault", __importDefault);
+    exporter("__classPrivateFieldGet", __classPrivateFieldGet);
+    exporter("__classPrivateFieldSet", __classPrivateFieldSet);
+    exporter("__classPrivateFieldIn", __classPrivateFieldIn);
+    exporter("__addDisposableResource", __addDisposableResource);
+    exporter("__disposeResources", __disposeResources);
+    exporter("__rewriteRelativeImportExtension", __rewriteRelativeImportExtension);
+  });
+});
 
 // ../node_modules/zod/v4/classic/external.js
 var exports_external = {};
@@ -14596,6 +15231,60 @@ class ColumnBuilder {
 // ../node_modules/drizzle-orm/table.utils.js
 var TableName = Symbol.for("drizzle:Name");
 
+// ../node_modules/drizzle-orm/pg-core/foreign-keys.js
+class ForeignKeyBuilder {
+  static [entityKind] = "PgForeignKeyBuilder";
+  reference;
+  _onUpdate = "no action";
+  _onDelete = "no action";
+  constructor(config2, actions) {
+    this.reference = () => {
+      const { name, columns, foreignColumns } = config2();
+      return { name, columns, foreignTable: foreignColumns[0].table, foreignColumns };
+    };
+    if (actions) {
+      this._onUpdate = actions.onUpdate;
+      this._onDelete = actions.onDelete;
+    }
+  }
+  onUpdate(action) {
+    this._onUpdate = action === undefined ? "no action" : action;
+    return this;
+  }
+  onDelete(action) {
+    this._onDelete = action === undefined ? "no action" : action;
+    return this;
+  }
+  build(table) {
+    return new ForeignKey(table, this);
+  }
+}
+
+class ForeignKey {
+  constructor(table, builder) {
+    this.table = table;
+    this.reference = builder.reference;
+    this.onUpdate = builder._onUpdate;
+    this.onDelete = builder._onDelete;
+  }
+  static [entityKind] = "PgForeignKey";
+  reference;
+  onUpdate;
+  onDelete;
+  getName() {
+    const { name, columns, foreignColumns } = this.reference();
+    const columnNames = columns.map((column) => column.name);
+    const foreignColumnNames = foreignColumns.map((column) => column.name);
+    const chunks = [
+      this.table[TableName],
+      ...columnNames,
+      foreignColumns[0].table[TableName],
+      ...foreignColumnNames
+    ];
+    return name ?? `${chunks.join("_")}_fk`;
+  }
+}
+
 // ../node_modules/drizzle-orm/tracing-utils.js
 function iife(fn, ...args) {
   return fn(...args);
@@ -14606,7 +15295,129 @@ function uniqueKeyName(table, columns) {
   return `${table[TableName]}_${columns.join("_")}_unique`;
 }
 
+// ../node_modules/drizzle-orm/pg-core/utils/array.js
+function parsePgArrayValue(arrayString, startFrom, inQuotes) {
+  for (let i = startFrom;i < arrayString.length; i++) {
+    const char = arrayString[i];
+    if (char === "\\") {
+      i++;
+      continue;
+    }
+    if (char === '"') {
+      return [arrayString.slice(startFrom, i).replace(/\\/g, ""), i + 1];
+    }
+    if (inQuotes) {
+      continue;
+    }
+    if (char === "," || char === "}") {
+      return [arrayString.slice(startFrom, i).replace(/\\/g, ""), i];
+    }
+  }
+  return [arrayString.slice(startFrom).replace(/\\/g, ""), arrayString.length];
+}
+function parsePgNestedArray(arrayString, startFrom = 0) {
+  const result = [];
+  let i = startFrom;
+  let lastCharIsComma = false;
+  while (i < arrayString.length) {
+    const char = arrayString[i];
+    if (char === ",") {
+      if (lastCharIsComma || i === startFrom) {
+        result.push("");
+      }
+      lastCharIsComma = true;
+      i++;
+      continue;
+    }
+    lastCharIsComma = false;
+    if (char === "\\") {
+      i += 2;
+      continue;
+    }
+    if (char === '"') {
+      const [value2, startFrom2] = parsePgArrayValue(arrayString, i + 1, true);
+      result.push(value2);
+      i = startFrom2;
+      continue;
+    }
+    if (char === "}") {
+      return [result, i + 1];
+    }
+    if (char === "{") {
+      const [value2, startFrom2] = parsePgNestedArray(arrayString, i + 1);
+      result.push(value2);
+      i = startFrom2;
+      continue;
+    }
+    const [value, newStartFrom] = parsePgArrayValue(arrayString, i, false);
+    result.push(value);
+    i = newStartFrom;
+  }
+  return [result, i];
+}
+function parsePgArray(arrayString) {
+  const [result] = parsePgNestedArray(arrayString, 1);
+  return result;
+}
+function makePgArray(array2) {
+  return `{${array2.map((item) => {
+    if (Array.isArray(item)) {
+      return makePgArray(item);
+    }
+    if (typeof item === "string") {
+      return `"${item.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
+    }
+    return `${item}`;
+  }).join(",")}}`;
+}
+
 // ../node_modules/drizzle-orm/pg-core/columns/common.js
+class PgColumnBuilder extends ColumnBuilder {
+  foreignKeyConfigs = [];
+  static [entityKind] = "PgColumnBuilder";
+  array(size) {
+    return new PgArrayBuilder(this.config.name, this, size);
+  }
+  references(ref, actions = {}) {
+    this.foreignKeyConfigs.push({ ref, actions });
+    return this;
+  }
+  unique(name, config2) {
+    this.config.isUnique = true;
+    this.config.uniqueName = name;
+    this.config.uniqueType = config2?.nulls;
+    return this;
+  }
+  generatedAlwaysAs(as) {
+    this.config.generated = {
+      as,
+      type: "always",
+      mode: "stored"
+    };
+    return this;
+  }
+  buildForeignKeys(column, table) {
+    return this.foreignKeyConfigs.map(({ ref, actions }) => {
+      return iife((ref2, actions2) => {
+        const builder = new ForeignKeyBuilder(() => {
+          const foreignColumn = ref2();
+          return { columns: [column], foreignColumns: [foreignColumn] };
+        });
+        if (actions2.onUpdate) {
+          builder.onUpdate(actions2.onUpdate);
+        }
+        if (actions2.onDelete) {
+          builder.onDelete(actions2.onDelete);
+        }
+        return builder.build(table);
+      }, ref, actions);
+    });
+  }
+  buildExtraConfigColumn(table) {
+    return new ExtraConfigColumn(table, this.config);
+  }
+}
+
 class PgColumn extends Column {
   constructor(table, config2) {
     if (!config2.uniqueName) {
@@ -14652,6 +15463,59 @@ class ExtraConfigColumn extends PgColumn {
   op(opClass) {
     this.indexConfig.opClass = opClass;
     return this;
+  }
+}
+
+class IndexedColumn {
+  static [entityKind] = "IndexedColumn";
+  constructor(name, keyAsName, type, indexConfig) {
+    this.name = name;
+    this.keyAsName = keyAsName;
+    this.type = type;
+    this.indexConfig = indexConfig;
+  }
+  name;
+  keyAsName;
+  type;
+  indexConfig;
+}
+
+class PgArrayBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgArrayBuilder";
+  constructor(name, baseBuilder, size) {
+    super(name, "array", "PgArray");
+    this.config.baseBuilder = baseBuilder;
+    this.config.size = size;
+  }
+  build(table) {
+    const baseColumn = this.config.baseBuilder.build(table);
+    return new PgArray(table, this.config, baseColumn);
+  }
+}
+
+class PgArray extends PgColumn {
+  constructor(table, config2, baseColumn, range) {
+    super(table, config2);
+    this.baseColumn = baseColumn;
+    this.range = range;
+    this.size = config2.size;
+  }
+  size;
+  static [entityKind] = "PgArray";
+  getSQLType() {
+    return `${this.baseColumn.getSQLType()}[${typeof this.size === "number" ? this.size : ""}]`;
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "string") {
+      value = parsePgArray(value);
+    }
+    return value.map((v) => this.baseColumn.mapFromDriverValue(v));
+  }
+  mapToDriverValue(value, isNestedArray = false) {
+    const a = value.map((v) => v === null ? null : is(this.baseColumn, PgArray) ? this.baseColumn.mapToDriverValue(v, true) : this.baseColumn.mapToDriverValue(v));
+    if (isNestedArray)
+      return a;
+    return makePgArray(a);
   }
 }
 
@@ -15143,6 +16007,1389 @@ function getColumnNameAndConfig(a, b) {
 }
 var textDecoder = typeof TextDecoder === "undefined" ? null : new TextDecoder;
 
+// ../node_modules/drizzle-orm/pg-core/columns/int.common.js
+class PgIntColumnBaseBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgIntColumnBaseBuilder";
+  generatedAlwaysAsIdentity(sequence) {
+    if (sequence) {
+      const { name, ...options } = sequence;
+      this.config.generatedIdentity = {
+        type: "always",
+        sequenceName: name,
+        sequenceOptions: options
+      };
+    } else {
+      this.config.generatedIdentity = {
+        type: "always"
+      };
+    }
+    this.config.hasDefault = true;
+    this.config.notNull = true;
+    return this;
+  }
+  generatedByDefaultAsIdentity(sequence) {
+    if (sequence) {
+      const { name, ...options } = sequence;
+      this.config.generatedIdentity = {
+        type: "byDefault",
+        sequenceName: name,
+        sequenceOptions: options
+      };
+    } else {
+      this.config.generatedIdentity = {
+        type: "byDefault"
+      };
+    }
+    this.config.hasDefault = true;
+    this.config.notNull = true;
+    return this;
+  }
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/bigint.js
+class PgBigInt53Builder extends PgIntColumnBaseBuilder {
+  static [entityKind] = "PgBigInt53Builder";
+  constructor(name) {
+    super(name, "number", "PgBigInt53");
+  }
+  build(table) {
+    return new PgBigInt53(table, this.config);
+  }
+}
+
+class PgBigInt53 extends PgColumn {
+  static [entityKind] = "PgBigInt53";
+  getSQLType() {
+    return "bigint";
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "number") {
+      return value;
+    }
+    return Number(value);
+  }
+}
+
+class PgBigInt64Builder extends PgIntColumnBaseBuilder {
+  static [entityKind] = "PgBigInt64Builder";
+  constructor(name) {
+    super(name, "bigint", "PgBigInt64");
+  }
+  build(table) {
+    return new PgBigInt64(table, this.config);
+  }
+}
+
+class PgBigInt64 extends PgColumn {
+  static [entityKind] = "PgBigInt64";
+  getSQLType() {
+    return "bigint";
+  }
+  mapFromDriverValue(value) {
+    return BigInt(value);
+  }
+}
+function bigint4(a, b) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  if (config2.mode === "number") {
+    return new PgBigInt53Builder(name);
+  }
+  return new PgBigInt64Builder(name);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/bigserial.js
+class PgBigSerial53Builder extends PgColumnBuilder {
+  static [entityKind] = "PgBigSerial53Builder";
+  constructor(name) {
+    super(name, "number", "PgBigSerial53");
+    this.config.hasDefault = true;
+    this.config.notNull = true;
+  }
+  build(table) {
+    return new PgBigSerial53(table, this.config);
+  }
+}
+
+class PgBigSerial53 extends PgColumn {
+  static [entityKind] = "PgBigSerial53";
+  getSQLType() {
+    return "bigserial";
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "number") {
+      return value;
+    }
+    return Number(value);
+  }
+}
+
+class PgBigSerial64Builder extends PgColumnBuilder {
+  static [entityKind] = "PgBigSerial64Builder";
+  constructor(name) {
+    super(name, "bigint", "PgBigSerial64");
+    this.config.hasDefault = true;
+  }
+  build(table) {
+    return new PgBigSerial64(table, this.config);
+  }
+}
+
+class PgBigSerial64 extends PgColumn {
+  static [entityKind] = "PgBigSerial64";
+  getSQLType() {
+    return "bigserial";
+  }
+  mapFromDriverValue(value) {
+    return BigInt(value);
+  }
+}
+function bigserial(a, b) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  if (config2.mode === "number") {
+    return new PgBigSerial53Builder(name);
+  }
+  return new PgBigSerial64Builder(name);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/boolean.js
+class PgBooleanBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgBooleanBuilder";
+  constructor(name) {
+    super(name, "boolean", "PgBoolean");
+  }
+  build(table) {
+    return new PgBoolean(table, this.config);
+  }
+}
+
+class PgBoolean extends PgColumn {
+  static [entityKind] = "PgBoolean";
+  getSQLType() {
+    return "boolean";
+  }
+}
+function boolean4(name) {
+  return new PgBooleanBuilder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/char.js
+class PgCharBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgCharBuilder";
+  constructor(name, config2) {
+    super(name, "string", "PgChar");
+    this.config.length = config2.length;
+    this.config.enumValues = config2.enum;
+  }
+  build(table) {
+    return new PgChar(table, this.config);
+  }
+}
+
+class PgChar extends PgColumn {
+  static [entityKind] = "PgChar";
+  length = this.config.length;
+  enumValues = this.config.enumValues;
+  getSQLType() {
+    return this.length === undefined ? `char` : `char(${this.length})`;
+  }
+}
+function char(a, b = {}) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  return new PgCharBuilder(name, config2);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/cidr.js
+class PgCidrBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgCidrBuilder";
+  constructor(name) {
+    super(name, "string", "PgCidr");
+  }
+  build(table) {
+    return new PgCidr(table, this.config);
+  }
+}
+
+class PgCidr extends PgColumn {
+  static [entityKind] = "PgCidr";
+  getSQLType() {
+    return "cidr";
+  }
+}
+function cidr(name) {
+  return new PgCidrBuilder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/custom.js
+class PgCustomColumnBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgCustomColumnBuilder";
+  constructor(name, fieldConfig, customTypeParams) {
+    super(name, "custom", "PgCustomColumn");
+    this.config.fieldConfig = fieldConfig;
+    this.config.customTypeParams = customTypeParams;
+  }
+  build(table) {
+    return new PgCustomColumn(table, this.config);
+  }
+}
+
+class PgCustomColumn extends PgColumn {
+  static [entityKind] = "PgCustomColumn";
+  sqlName;
+  mapTo;
+  mapFrom;
+  constructor(table, config2) {
+    super(table, config2);
+    this.sqlName = config2.customTypeParams.dataType(config2.fieldConfig);
+    this.mapTo = config2.customTypeParams.toDriver;
+    this.mapFrom = config2.customTypeParams.fromDriver;
+  }
+  getSQLType() {
+    return this.sqlName;
+  }
+  mapFromDriverValue(value) {
+    return typeof this.mapFrom === "function" ? this.mapFrom(value) : value;
+  }
+  mapToDriverValue(value) {
+    return typeof this.mapTo === "function" ? this.mapTo(value) : value;
+  }
+}
+function customType(customTypeParams) {
+  return (a, b) => {
+    const { name, config: config2 } = getColumnNameAndConfig(a, b);
+    return new PgCustomColumnBuilder(name, config2, customTypeParams);
+  };
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/date.common.js
+class PgDateColumnBaseBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgDateColumnBaseBuilder";
+  defaultNow() {
+    return this.default(sql`now()`);
+  }
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/date.js
+class PgDateBuilder extends PgDateColumnBaseBuilder {
+  static [entityKind] = "PgDateBuilder";
+  constructor(name) {
+    super(name, "date", "PgDate");
+  }
+  build(table) {
+    return new PgDate(table, this.config);
+  }
+}
+
+class PgDate extends PgColumn {
+  static [entityKind] = "PgDate";
+  getSQLType() {
+    return "date";
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "string")
+      return new Date(value);
+    return value;
+  }
+  mapToDriverValue(value) {
+    return value.toISOString();
+  }
+}
+
+class PgDateStringBuilder extends PgDateColumnBaseBuilder {
+  static [entityKind] = "PgDateStringBuilder";
+  constructor(name) {
+    super(name, "string", "PgDateString");
+  }
+  build(table) {
+    return new PgDateString(table, this.config);
+  }
+}
+
+class PgDateString extends PgColumn {
+  static [entityKind] = "PgDateString";
+  getSQLType() {
+    return "date";
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "string")
+      return value;
+    return value.toISOString().slice(0, -14);
+  }
+}
+function date5(a, b) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  if (config2?.mode === "date") {
+    return new PgDateBuilder(name);
+  }
+  return new PgDateStringBuilder(name);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/double-precision.js
+class PgDoublePrecisionBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgDoublePrecisionBuilder";
+  constructor(name) {
+    super(name, "number", "PgDoublePrecision");
+  }
+  build(table) {
+    return new PgDoublePrecision(table, this.config);
+  }
+}
+
+class PgDoublePrecision extends PgColumn {
+  static [entityKind] = "PgDoublePrecision";
+  getSQLType() {
+    return "double precision";
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "string") {
+      return Number.parseFloat(value);
+    }
+    return value;
+  }
+}
+function doublePrecision(name) {
+  return new PgDoublePrecisionBuilder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/inet.js
+class PgInetBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgInetBuilder";
+  constructor(name) {
+    super(name, "string", "PgInet");
+  }
+  build(table) {
+    return new PgInet(table, this.config);
+  }
+}
+
+class PgInet extends PgColumn {
+  static [entityKind] = "PgInet";
+  getSQLType() {
+    return "inet";
+  }
+}
+function inet(name) {
+  return new PgInetBuilder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/integer.js
+class PgIntegerBuilder extends PgIntColumnBaseBuilder {
+  static [entityKind] = "PgIntegerBuilder";
+  constructor(name) {
+    super(name, "number", "PgInteger");
+  }
+  build(table) {
+    return new PgInteger(table, this.config);
+  }
+}
+
+class PgInteger extends PgColumn {
+  static [entityKind] = "PgInteger";
+  getSQLType() {
+    return "integer";
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "string") {
+      return Number.parseInt(value);
+    }
+    return value;
+  }
+}
+function integer2(name) {
+  return new PgIntegerBuilder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/interval.js
+class PgIntervalBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgIntervalBuilder";
+  constructor(name, intervalConfig) {
+    super(name, "string", "PgInterval");
+    this.config.intervalConfig = intervalConfig;
+  }
+  build(table) {
+    return new PgInterval(table, this.config);
+  }
+}
+
+class PgInterval extends PgColumn {
+  static [entityKind] = "PgInterval";
+  fields = this.config.intervalConfig.fields;
+  precision = this.config.intervalConfig.precision;
+  getSQLType() {
+    const fields = this.fields ? ` ${this.fields}` : "";
+    const precision = this.precision ? `(${this.precision})` : "";
+    return `interval${fields}${precision}`;
+  }
+}
+function interval(a, b = {}) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  return new PgIntervalBuilder(name, config2);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/json.js
+class PgJsonBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgJsonBuilder";
+  constructor(name) {
+    super(name, "json", "PgJson");
+  }
+  build(table) {
+    return new PgJson(table, this.config);
+  }
+}
+
+class PgJson extends PgColumn {
+  static [entityKind] = "PgJson";
+  constructor(table, config2) {
+    super(table, config2);
+  }
+  getSQLType() {
+    return "json";
+  }
+  mapToDriverValue(value) {
+    return JSON.stringify(value);
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "string") {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  }
+}
+function json2(name) {
+  return new PgJsonBuilder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/jsonb.js
+class PgJsonbBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgJsonbBuilder";
+  constructor(name) {
+    super(name, "json", "PgJsonb");
+  }
+  build(table) {
+    return new PgJsonb(table, this.config);
+  }
+}
+
+class PgJsonb extends PgColumn {
+  static [entityKind] = "PgJsonb";
+  constructor(table, config2) {
+    super(table, config2);
+  }
+  getSQLType() {
+    return "jsonb";
+  }
+  mapToDriverValue(value) {
+    return JSON.stringify(value);
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "string") {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  }
+}
+function jsonb(name) {
+  return new PgJsonbBuilder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/line.js
+class PgLineBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgLineBuilder";
+  constructor(name) {
+    super(name, "array", "PgLine");
+  }
+  build(table) {
+    return new PgLineTuple(table, this.config);
+  }
+}
+
+class PgLineTuple extends PgColumn {
+  static [entityKind] = "PgLine";
+  getSQLType() {
+    return "line";
+  }
+  mapFromDriverValue(value) {
+    const [a, b, c] = value.slice(1, -1).split(",");
+    return [Number.parseFloat(a), Number.parseFloat(b), Number.parseFloat(c)];
+  }
+  mapToDriverValue(value) {
+    return `{${value[0]},${value[1]},${value[2]}}`;
+  }
+}
+
+class PgLineABCBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgLineABCBuilder";
+  constructor(name) {
+    super(name, "json", "PgLineABC");
+  }
+  build(table) {
+    return new PgLineABC(table, this.config);
+  }
+}
+
+class PgLineABC extends PgColumn {
+  static [entityKind] = "PgLineABC";
+  getSQLType() {
+    return "line";
+  }
+  mapFromDriverValue(value) {
+    const [a, b, c] = value.slice(1, -1).split(",");
+    return { a: Number.parseFloat(a), b: Number.parseFloat(b), c: Number.parseFloat(c) };
+  }
+  mapToDriverValue(value) {
+    return `{${value.a},${value.b},${value.c}}`;
+  }
+}
+function line(a, b) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  if (!config2?.mode || config2.mode === "tuple") {
+    return new PgLineBuilder(name);
+  }
+  return new PgLineABCBuilder(name);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/macaddr.js
+class PgMacaddrBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgMacaddrBuilder";
+  constructor(name) {
+    super(name, "string", "PgMacaddr");
+  }
+  build(table) {
+    return new PgMacaddr(table, this.config);
+  }
+}
+
+class PgMacaddr extends PgColumn {
+  static [entityKind] = "PgMacaddr";
+  getSQLType() {
+    return "macaddr";
+  }
+}
+function macaddr(name) {
+  return new PgMacaddrBuilder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/macaddr8.js
+class PgMacaddr8Builder extends PgColumnBuilder {
+  static [entityKind] = "PgMacaddr8Builder";
+  constructor(name) {
+    super(name, "string", "PgMacaddr8");
+  }
+  build(table) {
+    return new PgMacaddr8(table, this.config);
+  }
+}
+
+class PgMacaddr8 extends PgColumn {
+  static [entityKind] = "PgMacaddr8";
+  getSQLType() {
+    return "macaddr8";
+  }
+}
+function macaddr8(name) {
+  return new PgMacaddr8Builder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/numeric.js
+class PgNumericBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgNumericBuilder";
+  constructor(name, precision, scale) {
+    super(name, "string", "PgNumeric");
+    this.config.precision = precision;
+    this.config.scale = scale;
+  }
+  build(table) {
+    return new PgNumeric(table, this.config);
+  }
+}
+
+class PgNumeric extends PgColumn {
+  static [entityKind] = "PgNumeric";
+  precision;
+  scale;
+  constructor(table, config2) {
+    super(table, config2);
+    this.precision = config2.precision;
+    this.scale = config2.scale;
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "string")
+      return value;
+    return String(value);
+  }
+  getSQLType() {
+    if (this.precision !== undefined && this.scale !== undefined) {
+      return `numeric(${this.precision}, ${this.scale})`;
+    } else if (this.precision === undefined) {
+      return "numeric";
+    } else {
+      return `numeric(${this.precision})`;
+    }
+  }
+}
+
+class PgNumericNumberBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgNumericNumberBuilder";
+  constructor(name, precision, scale) {
+    super(name, "number", "PgNumericNumber");
+    this.config.precision = precision;
+    this.config.scale = scale;
+  }
+  build(table) {
+    return new PgNumericNumber(table, this.config);
+  }
+}
+
+class PgNumericNumber extends PgColumn {
+  static [entityKind] = "PgNumericNumber";
+  precision;
+  scale;
+  constructor(table, config2) {
+    super(table, config2);
+    this.precision = config2.precision;
+    this.scale = config2.scale;
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "number")
+      return value;
+    return Number(value);
+  }
+  mapToDriverValue = String;
+  getSQLType() {
+    if (this.precision !== undefined && this.scale !== undefined) {
+      return `numeric(${this.precision}, ${this.scale})`;
+    } else if (this.precision === undefined) {
+      return "numeric";
+    } else {
+      return `numeric(${this.precision})`;
+    }
+  }
+}
+
+class PgNumericBigIntBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgNumericBigIntBuilder";
+  constructor(name, precision, scale) {
+    super(name, "bigint", "PgNumericBigInt");
+    this.config.precision = precision;
+    this.config.scale = scale;
+  }
+  build(table) {
+    return new PgNumericBigInt(table, this.config);
+  }
+}
+
+class PgNumericBigInt extends PgColumn {
+  static [entityKind] = "PgNumericBigInt";
+  precision;
+  scale;
+  constructor(table, config2) {
+    super(table, config2);
+    this.precision = config2.precision;
+    this.scale = config2.scale;
+  }
+  mapFromDriverValue = BigInt;
+  mapToDriverValue = String;
+  getSQLType() {
+    if (this.precision !== undefined && this.scale !== undefined) {
+      return `numeric(${this.precision}, ${this.scale})`;
+    } else if (this.precision === undefined) {
+      return "numeric";
+    } else {
+      return `numeric(${this.precision})`;
+    }
+  }
+}
+function numeric(a, b) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  const mode = config2?.mode;
+  return mode === "number" ? new PgNumericNumberBuilder(name, config2?.precision, config2?.scale) : mode === "bigint" ? new PgNumericBigIntBuilder(name, config2?.precision, config2?.scale) : new PgNumericBuilder(name, config2?.precision, config2?.scale);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/point.js
+class PgPointTupleBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgPointTupleBuilder";
+  constructor(name) {
+    super(name, "array", "PgPointTuple");
+  }
+  build(table) {
+    return new PgPointTuple(table, this.config);
+  }
+}
+
+class PgPointTuple extends PgColumn {
+  static [entityKind] = "PgPointTuple";
+  getSQLType() {
+    return "point";
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "string") {
+      const [x, y] = value.slice(1, -1).split(",");
+      return [Number.parseFloat(x), Number.parseFloat(y)];
+    }
+    return [value.x, value.y];
+  }
+  mapToDriverValue(value) {
+    return `(${value[0]},${value[1]})`;
+  }
+}
+
+class PgPointObjectBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgPointObjectBuilder";
+  constructor(name) {
+    super(name, "json", "PgPointObject");
+  }
+  build(table) {
+    return new PgPointObject(table, this.config);
+  }
+}
+
+class PgPointObject extends PgColumn {
+  static [entityKind] = "PgPointObject";
+  getSQLType() {
+    return "point";
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "string") {
+      const [x, y] = value.slice(1, -1).split(",");
+      return { x: Number.parseFloat(x), y: Number.parseFloat(y) };
+    }
+    return value;
+  }
+  mapToDriverValue(value) {
+    return `(${value.x},${value.y})`;
+  }
+}
+function point(a, b) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  if (!config2?.mode || config2.mode === "tuple") {
+    return new PgPointTupleBuilder(name);
+  }
+  return new PgPointObjectBuilder(name);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js
+function hexToBytes(hex3) {
+  const bytes = [];
+  for (let c = 0;c < hex3.length; c += 2) {
+    bytes.push(Number.parseInt(hex3.slice(c, c + 2), 16));
+  }
+  return new Uint8Array(bytes);
+}
+function bytesToFloat64(bytes, offset) {
+  const buffer = new ArrayBuffer(8);
+  const view = new DataView(buffer);
+  for (let i = 0;i < 8; i++) {
+    view.setUint8(i, bytes[offset + i]);
+  }
+  return view.getFloat64(0, true);
+}
+function parseEWKB(hex3) {
+  const bytes = hexToBytes(hex3);
+  let offset = 0;
+  const byteOrder = bytes[offset];
+  offset += 1;
+  const view = new DataView(bytes.buffer);
+  const geomType = view.getUint32(offset, byteOrder === 1);
+  offset += 4;
+  let _srid;
+  if (geomType & 536870912) {
+    _srid = view.getUint32(offset, byteOrder === 1);
+    offset += 4;
+  }
+  if ((geomType & 65535) === 1) {
+    const x = bytesToFloat64(bytes, offset);
+    offset += 8;
+    const y = bytesToFloat64(bytes, offset);
+    offset += 8;
+    return [x, y];
+  }
+  throw new Error("Unsupported geometry type");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js
+class PgGeometryBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgGeometryBuilder";
+  constructor(name) {
+    super(name, "array", "PgGeometry");
+  }
+  build(table) {
+    return new PgGeometry(table, this.config);
+  }
+}
+
+class PgGeometry extends PgColumn {
+  static [entityKind] = "PgGeometry";
+  getSQLType() {
+    return "geometry(point)";
+  }
+  mapFromDriverValue(value) {
+    return parseEWKB(value);
+  }
+  mapToDriverValue(value) {
+    return `point(${value[0]} ${value[1]})`;
+  }
+}
+
+class PgGeometryObjectBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgGeometryObjectBuilder";
+  constructor(name) {
+    super(name, "json", "PgGeometryObject");
+  }
+  build(table) {
+    return new PgGeometryObject(table, this.config);
+  }
+}
+
+class PgGeometryObject extends PgColumn {
+  static [entityKind] = "PgGeometryObject";
+  getSQLType() {
+    return "geometry(point)";
+  }
+  mapFromDriverValue(value) {
+    const parsed = parseEWKB(value);
+    return { x: parsed[0], y: parsed[1] };
+  }
+  mapToDriverValue(value) {
+    return `point(${value.x} ${value.y})`;
+  }
+}
+function geometry(a, b) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  if (!config2?.mode || config2.mode === "tuple") {
+    return new PgGeometryBuilder(name);
+  }
+  return new PgGeometryObjectBuilder(name);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/real.js
+class PgRealBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgRealBuilder";
+  constructor(name, length) {
+    super(name, "number", "PgReal");
+    this.config.length = length;
+  }
+  build(table) {
+    return new PgReal(table, this.config);
+  }
+}
+
+class PgReal extends PgColumn {
+  static [entityKind] = "PgReal";
+  constructor(table, config2) {
+    super(table, config2);
+  }
+  getSQLType() {
+    return "real";
+  }
+  mapFromDriverValue = (value) => {
+    if (typeof value === "string") {
+      return Number.parseFloat(value);
+    }
+    return value;
+  };
+}
+function real(name) {
+  return new PgRealBuilder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/serial.js
+class PgSerialBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgSerialBuilder";
+  constructor(name) {
+    super(name, "number", "PgSerial");
+    this.config.hasDefault = true;
+    this.config.notNull = true;
+  }
+  build(table) {
+    return new PgSerial(table, this.config);
+  }
+}
+
+class PgSerial extends PgColumn {
+  static [entityKind] = "PgSerial";
+  getSQLType() {
+    return "serial";
+  }
+}
+function serial(name) {
+  return new PgSerialBuilder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/smallint.js
+class PgSmallIntBuilder extends PgIntColumnBaseBuilder {
+  static [entityKind] = "PgSmallIntBuilder";
+  constructor(name) {
+    super(name, "number", "PgSmallInt");
+  }
+  build(table) {
+    return new PgSmallInt(table, this.config);
+  }
+}
+
+class PgSmallInt extends PgColumn {
+  static [entityKind] = "PgSmallInt";
+  getSQLType() {
+    return "smallint";
+  }
+  mapFromDriverValue = (value) => {
+    if (typeof value === "string") {
+      return Number(value);
+    }
+    return value;
+  };
+}
+function smallint(name) {
+  return new PgSmallIntBuilder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/smallserial.js
+class PgSmallSerialBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgSmallSerialBuilder";
+  constructor(name) {
+    super(name, "number", "PgSmallSerial");
+    this.config.hasDefault = true;
+    this.config.notNull = true;
+  }
+  build(table) {
+    return new PgSmallSerial(table, this.config);
+  }
+}
+
+class PgSmallSerial extends PgColumn {
+  static [entityKind] = "PgSmallSerial";
+  getSQLType() {
+    return "smallserial";
+  }
+}
+function smallserial(name) {
+  return new PgSmallSerialBuilder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/text.js
+class PgTextBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgTextBuilder";
+  constructor(name, config2) {
+    super(name, "string", "PgText");
+    this.config.enumValues = config2.enum;
+  }
+  build(table) {
+    return new PgText(table, this.config);
+  }
+}
+
+class PgText extends PgColumn {
+  static [entityKind] = "PgText";
+  enumValues = this.config.enumValues;
+  getSQLType() {
+    return "text";
+  }
+}
+function text(a, b = {}) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  return new PgTextBuilder(name, config2);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/time.js
+class PgTimeBuilder extends PgDateColumnBaseBuilder {
+  constructor(name, withTimezone, precision) {
+    super(name, "string", "PgTime");
+    this.withTimezone = withTimezone;
+    this.precision = precision;
+    this.config.withTimezone = withTimezone;
+    this.config.precision = precision;
+  }
+  static [entityKind] = "PgTimeBuilder";
+  build(table) {
+    return new PgTime(table, this.config);
+  }
+}
+
+class PgTime extends PgColumn {
+  static [entityKind] = "PgTime";
+  withTimezone;
+  precision;
+  constructor(table, config2) {
+    super(table, config2);
+    this.withTimezone = config2.withTimezone;
+    this.precision = config2.precision;
+  }
+  getSQLType() {
+    const precision = this.precision === undefined ? "" : `(${this.precision})`;
+    return `time${precision}${this.withTimezone ? " with time zone" : ""}`;
+  }
+}
+function time3(a, b = {}) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  return new PgTimeBuilder(name, config2.withTimezone ?? false, config2.precision);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/timestamp.js
+class PgTimestampBuilder extends PgDateColumnBaseBuilder {
+  static [entityKind] = "PgTimestampBuilder";
+  constructor(name, withTimezone, precision) {
+    super(name, "date", "PgTimestamp");
+    this.config.withTimezone = withTimezone;
+    this.config.precision = precision;
+  }
+  build(table) {
+    return new PgTimestamp(table, this.config);
+  }
+}
+
+class PgTimestamp extends PgColumn {
+  static [entityKind] = "PgTimestamp";
+  withTimezone;
+  precision;
+  constructor(table, config2) {
+    super(table, config2);
+    this.withTimezone = config2.withTimezone;
+    this.precision = config2.precision;
+  }
+  getSQLType() {
+    const precision = this.precision === undefined ? "" : ` (${this.precision})`;
+    return `timestamp${precision}${this.withTimezone ? " with time zone" : ""}`;
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "string")
+      return new Date(this.withTimezone ? value : value + "+0000");
+    return value;
+  }
+  mapToDriverValue = (value) => {
+    return value.toISOString();
+  };
+}
+
+class PgTimestampStringBuilder extends PgDateColumnBaseBuilder {
+  static [entityKind] = "PgTimestampStringBuilder";
+  constructor(name, withTimezone, precision) {
+    super(name, "string", "PgTimestampString");
+    this.config.withTimezone = withTimezone;
+    this.config.precision = precision;
+  }
+  build(table) {
+    return new PgTimestampString(table, this.config);
+  }
+}
+
+class PgTimestampString extends PgColumn {
+  static [entityKind] = "PgTimestampString";
+  withTimezone;
+  precision;
+  constructor(table, config2) {
+    super(table, config2);
+    this.withTimezone = config2.withTimezone;
+    this.precision = config2.precision;
+  }
+  getSQLType() {
+    const precision = this.precision === undefined ? "" : `(${this.precision})`;
+    return `timestamp${precision}${this.withTimezone ? " with time zone" : ""}`;
+  }
+  mapFromDriverValue(value) {
+    if (typeof value === "string")
+      return value;
+    const shortened = value.toISOString().slice(0, -1).replace("T", " ");
+    if (this.withTimezone) {
+      const offset = value.getTimezoneOffset();
+      const sign = offset <= 0 ? "+" : "-";
+      return `${shortened}${sign}${Math.floor(Math.abs(offset) / 60).toString().padStart(2, "0")}`;
+    }
+    return shortened;
+  }
+}
+function timestamp(a, b = {}) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  if (config2?.mode === "string") {
+    return new PgTimestampStringBuilder(name, config2.withTimezone ?? false, config2.precision);
+  }
+  return new PgTimestampBuilder(name, config2?.withTimezone ?? false, config2?.precision);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/uuid.js
+class PgUUIDBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgUUIDBuilder";
+  constructor(name) {
+    super(name, "string", "PgUUID");
+  }
+  defaultRandom() {
+    return this.default(sql`gen_random_uuid()`);
+  }
+  build(table) {
+    return new PgUUID(table, this.config);
+  }
+}
+
+class PgUUID extends PgColumn {
+  static [entityKind] = "PgUUID";
+  getSQLType() {
+    return "uuid";
+  }
+}
+function uuid3(name) {
+  return new PgUUIDBuilder(name ?? "");
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/varchar.js
+class PgVarcharBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgVarcharBuilder";
+  constructor(name, config2) {
+    super(name, "string", "PgVarchar");
+    this.config.length = config2.length;
+    this.config.enumValues = config2.enum;
+  }
+  build(table) {
+    return new PgVarchar(table, this.config);
+  }
+}
+
+class PgVarchar extends PgColumn {
+  static [entityKind] = "PgVarchar";
+  length = this.config.length;
+  enumValues = this.config.enumValues;
+  getSQLType() {
+    return this.length === undefined ? `varchar` : `varchar(${this.length})`;
+  }
+}
+function varchar(a, b = {}) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  return new PgVarcharBuilder(name, config2);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js
+class PgBinaryVectorBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgBinaryVectorBuilder";
+  constructor(name, config2) {
+    super(name, "string", "PgBinaryVector");
+    this.config.dimensions = config2.dimensions;
+  }
+  build(table) {
+    return new PgBinaryVector(table, this.config);
+  }
+}
+
+class PgBinaryVector extends PgColumn {
+  static [entityKind] = "PgBinaryVector";
+  dimensions = this.config.dimensions;
+  getSQLType() {
+    return `bit(${this.dimensions})`;
+  }
+}
+function bit(a, b) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  return new PgBinaryVectorBuilder(name, config2);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js
+class PgHalfVectorBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgHalfVectorBuilder";
+  constructor(name, config2) {
+    super(name, "array", "PgHalfVector");
+    this.config.dimensions = config2.dimensions;
+  }
+  build(table) {
+    return new PgHalfVector(table, this.config);
+  }
+}
+
+class PgHalfVector extends PgColumn {
+  static [entityKind] = "PgHalfVector";
+  dimensions = this.config.dimensions;
+  getSQLType() {
+    return `halfvec(${this.dimensions})`;
+  }
+  mapToDriverValue(value) {
+    return JSON.stringify(value);
+  }
+  mapFromDriverValue(value) {
+    return value.slice(1, -1).split(",").map((v) => Number.parseFloat(v));
+  }
+}
+function halfvec(a, b) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  return new PgHalfVectorBuilder(name, config2);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js
+class PgSparseVectorBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgSparseVectorBuilder";
+  constructor(name, config2) {
+    super(name, "string", "PgSparseVector");
+    this.config.dimensions = config2.dimensions;
+  }
+  build(table) {
+    return new PgSparseVector(table, this.config);
+  }
+}
+
+class PgSparseVector extends PgColumn {
+  static [entityKind] = "PgSparseVector";
+  dimensions = this.config.dimensions;
+  getSQLType() {
+    return `sparsevec(${this.dimensions})`;
+  }
+}
+function sparsevec(a, b) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  return new PgSparseVectorBuilder(name, config2);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js
+class PgVectorBuilder extends PgColumnBuilder {
+  static [entityKind] = "PgVectorBuilder";
+  constructor(name, config2) {
+    super(name, "array", "PgVector");
+    this.config.dimensions = config2.dimensions;
+  }
+  build(table) {
+    return new PgVector(table, this.config);
+  }
+}
+
+class PgVector extends PgColumn {
+  static [entityKind] = "PgVector";
+  dimensions = this.config.dimensions;
+  getSQLType() {
+    return `vector(${this.dimensions})`;
+  }
+  mapToDriverValue(value) {
+    return JSON.stringify(value);
+  }
+  mapFromDriverValue(value) {
+    return value.slice(1, -1).split(",").map((v) => Number.parseFloat(v));
+  }
+}
+function vector(a, b) {
+  const { name, config: config2 } = getColumnNameAndConfig(a, b);
+  return new PgVectorBuilder(name, config2);
+}
+
+// ../node_modules/drizzle-orm/pg-core/columns/all.js
+function getPgColumnBuilders() {
+  return {
+    bigint: bigint4,
+    bigserial,
+    boolean: boolean4,
+    char,
+    cidr,
+    customType,
+    date: date5,
+    doublePrecision,
+    inet,
+    integer: integer2,
+    interval,
+    json: json2,
+    jsonb,
+    line,
+    macaddr,
+    macaddr8,
+    numeric,
+    point,
+    geometry,
+    real,
+    serial,
+    smallint,
+    smallserial,
+    text,
+    time: time3,
+    timestamp,
+    uuid: uuid3,
+    varchar,
+    bit,
+    halfvec,
+    sparsevec,
+    vector
+  };
+}
+
+// ../node_modules/drizzle-orm/pg-core/table.js
+var InlineForeignKeys = Symbol.for("drizzle:PgInlineForeignKeys");
+var EnableRLS = Symbol.for("drizzle:EnableRLS");
+
+class PgTable extends Table {
+  static [entityKind] = "PgTable";
+  static Symbol = Object.assign({}, Table.Symbol, {
+    InlineForeignKeys,
+    EnableRLS
+  });
+  [InlineForeignKeys] = [];
+  [EnableRLS] = false;
+  [Table.Symbol.ExtraConfigBuilder] = undefined;
+  [Table.Symbol.ExtraConfigColumns] = {};
+}
+function pgTableWithSchema(name, columns, extraConfig, schema, baseName = name) {
+  const rawTable = new PgTable(name, schema, baseName);
+  const parsedColumns = typeof columns === "function" ? columns(getPgColumnBuilders()) : columns;
+  const builtColumns = Object.fromEntries(Object.entries(parsedColumns).map(([name2, colBuilderBase]) => {
+    const colBuilder = colBuilderBase;
+    colBuilder.setName(name2);
+    const column = colBuilder.build(rawTable);
+    rawTable[InlineForeignKeys].push(...colBuilder.buildForeignKeys(column, rawTable));
+    return [name2, column];
+  }));
+  const builtColumnsForExtraConfig = Object.fromEntries(Object.entries(parsedColumns).map(([name2, colBuilderBase]) => {
+    const colBuilder = colBuilderBase;
+    colBuilder.setName(name2);
+    const column = colBuilder.buildExtraConfigColumn(rawTable);
+    return [name2, column];
+  }));
+  const table = Object.assign(rawTable, builtColumns);
+  table[Table.Symbol.Columns] = builtColumns;
+  table[Table.Symbol.ExtraConfigColumns] = builtColumnsForExtraConfig;
+  if (extraConfig) {
+    table[PgTable.Symbol.ExtraConfigBuilder] = extraConfig;
+  }
+  return Object.assign(table, {
+    enableRLS: () => {
+      table[PgTable.Symbol.EnableRLS] = true;
+      return table;
+    }
+  });
+}
+var pgTable = (name, columns, extraConfig) => {
+  return pgTableWithSchema(name, columns, extraConfig, undefined);
+};
+
+// ../node_modules/drizzle-orm/pg-core/primary-keys.js
+function primaryKey(...config2) {
+  if (config2[0].columns) {
+    return new PrimaryKeyBuilder(config2[0].columns, config2[0].name);
+  }
+  return new PrimaryKeyBuilder(config2);
+}
+
+class PrimaryKeyBuilder {
+  static [entityKind] = "PgPrimaryKeyBuilder";
+  columns;
+  name;
+  constructor(columns, name) {
+    this.columns = columns;
+    this.name = name;
+  }
+  build(table) {
+    return new PrimaryKey(table, this.columns, this.name);
+  }
+}
+
+class PrimaryKey {
+  constructor(table, columns, name) {
+    this.table = table;
+    this.columns = columns;
+    this.name = name;
+  }
+  static [entityKind] = "PgPrimaryKey";
+  columns;
+  name;
+  getName() {
+    return this.name ?? `${this.table[PgTable.Symbol.Name]}_${this.columns.map((column) => column.name).join("_")}_pk`;
+  }
+}
+
 // ../node_modules/drizzle-orm/sql/expressions/conditions.js
 function bindIfParam(value, column) {
   if (isDriverValueEncoder(column) && !isSQLWrapper(value) && !is(value, Param) && !is(value, Placeholder) && !is(value, Column) && !is(value, Table) && !is(value, View)) {
@@ -15202,8 +17449,8 @@ function inArray(column, values) {
 function isNull(value) {
   return sql`${value} is null`;
 }
-function like(column, value) {
-  return sql`${column} like ${value}`;
+function ilike(column, value) {
+  return sql`${column} ilike ${value}`;
 }
 
 // ../node_modules/drizzle-orm/sql/expressions/select.js
@@ -15220,561 +17467,67 @@ function count(expression) {
 import { unlink } from "fs/promises";
 import { join, resolve as resolve3 } from "path";
 
-// ../node_modules/drizzle-orm/sqlite-core/foreign-keys.js
-class ForeignKeyBuilder {
-  static [entityKind] = "SQLiteForeignKeyBuilder";
-  reference;
-  _onUpdate;
-  _onDelete;
-  constructor(config2, actions) {
-    this.reference = () => {
-      const { name, columns, foreignColumns } = config2();
-      return { name, columns, foreignTable: foreignColumns[0].table, foreignColumns };
-    };
-    if (actions) {
-      this._onUpdate = actions.onUpdate;
-      this._onDelete = actions.onDelete;
-    }
-  }
-  onUpdate(action) {
-    this._onUpdate = action;
-    return this;
-  }
-  onDelete(action) {
-    this._onDelete = action;
-    return this;
-  }
-  build(table) {
-    return new ForeignKey(table, this);
-  }
-}
-
-class ForeignKey {
-  constructor(table, builder) {
-    this.table = table;
-    this.reference = builder.reference;
-    this.onUpdate = builder._onUpdate;
-    this.onDelete = builder._onDelete;
-  }
-  static [entityKind] = "SQLiteForeignKey";
-  reference;
-  onUpdate;
-  onDelete;
-  getName() {
-    const { name, columns, foreignColumns } = this.reference();
-    const columnNames = columns.map((column) => column.name);
-    const foreignColumnNames = foreignColumns.map((column) => column.name);
-    const chunks = [
-      this.table[TableName],
-      ...columnNames,
-      foreignColumns[0].table[TableName],
-      ...foreignColumnNames
-    ];
-    return name ?? `${chunks.join("_")}_fk`;
-  }
-}
-
-// ../node_modules/drizzle-orm/sqlite-core/unique-constraint.js
-function uniqueKeyName2(table, columns) {
-  return `${table[TableName]}_${columns.join("_")}_unique`;
-}
-
-// ../node_modules/drizzle-orm/sqlite-core/columns/common.js
-class SQLiteColumnBuilder extends ColumnBuilder {
-  static [entityKind] = "SQLiteColumnBuilder";
-  foreignKeyConfigs = [];
-  references(ref, actions = {}) {
-    this.foreignKeyConfigs.push({ ref, actions });
-    return this;
-  }
-  unique(name) {
-    this.config.isUnique = true;
-    this.config.uniqueName = name;
-    return this;
-  }
-  generatedAlwaysAs(as, config2) {
-    this.config.generated = {
-      as,
-      type: "always",
-      mode: config2?.mode ?? "virtual"
-    };
-    return this;
-  }
-  buildForeignKeys(column, table) {
-    return this.foreignKeyConfigs.map(({ ref, actions }) => {
-      return ((ref2, actions2) => {
-        const builder = new ForeignKeyBuilder(() => {
-          const foreignColumn = ref2();
-          return { columns: [column], foreignColumns: [foreignColumn] };
-        });
-        if (actions2.onUpdate) {
-          builder.onUpdate(actions2.onUpdate);
-        }
-        if (actions2.onDelete) {
-          builder.onDelete(actions2.onDelete);
-        }
-        return builder.build(table);
-      })(ref, actions);
-    });
-  }
-}
-
-class SQLiteColumn extends Column {
-  constructor(table, config2) {
-    if (!config2.uniqueName) {
-      config2.uniqueName = uniqueKeyName2(table, [config2.name]);
-    }
-    super(table, config2);
-    this.table = table;
-  }
-  static [entityKind] = "SQLiteColumn";
-}
-
-// ../node_modules/drizzle-orm/sqlite-core/columns/blob.js
-class SQLiteBigIntBuilder extends SQLiteColumnBuilder {
-  static [entityKind] = "SQLiteBigIntBuilder";
-  constructor(name) {
-    super(name, "bigint", "SQLiteBigInt");
-  }
-  build(table) {
-    return new SQLiteBigInt(table, this.config);
-  }
-}
-
-class SQLiteBigInt extends SQLiteColumn {
-  static [entityKind] = "SQLiteBigInt";
-  getSQLType() {
-    return "blob";
-  }
-  mapFromDriverValue(value) {
-    if (typeof Buffer !== "undefined" && Buffer.from) {
-      const buf = Buffer.isBuffer(value) ? value : value instanceof ArrayBuffer ? Buffer.from(value) : value.buffer ? Buffer.from(value.buffer, value.byteOffset, value.byteLength) : Buffer.from(value);
-      return BigInt(buf.toString("utf8"));
-    }
-    return BigInt(textDecoder.decode(value));
-  }
-  mapToDriverValue(value) {
-    return Buffer.from(value.toString());
-  }
-}
-
-class SQLiteBlobJsonBuilder extends SQLiteColumnBuilder {
-  static [entityKind] = "SQLiteBlobJsonBuilder";
-  constructor(name) {
-    super(name, "json", "SQLiteBlobJson");
-  }
-  build(table) {
-    return new SQLiteBlobJson(table, this.config);
-  }
-}
-
-class SQLiteBlobJson extends SQLiteColumn {
-  static [entityKind] = "SQLiteBlobJson";
-  getSQLType() {
-    return "blob";
-  }
-  mapFromDriverValue(value) {
-    if (typeof Buffer !== "undefined" && Buffer.from) {
-      const buf = Buffer.isBuffer(value) ? value : value instanceof ArrayBuffer ? Buffer.from(value) : value.buffer ? Buffer.from(value.buffer, value.byteOffset, value.byteLength) : Buffer.from(value);
-      return JSON.parse(buf.toString("utf8"));
-    }
-    return JSON.parse(textDecoder.decode(value));
-  }
-  mapToDriverValue(value) {
-    return Buffer.from(JSON.stringify(value));
-  }
-}
-
-class SQLiteBlobBufferBuilder extends SQLiteColumnBuilder {
-  static [entityKind] = "SQLiteBlobBufferBuilder";
-  constructor(name) {
-    super(name, "buffer", "SQLiteBlobBuffer");
-  }
-  build(table) {
-    return new SQLiteBlobBuffer(table, this.config);
-  }
-}
-
-class SQLiteBlobBuffer extends SQLiteColumn {
-  static [entityKind] = "SQLiteBlobBuffer";
-  mapFromDriverValue(value) {
-    if (Buffer.isBuffer(value)) {
-      return value;
-    }
-    return Buffer.from(value);
-  }
-  getSQLType() {
-    return "blob";
-  }
-}
-function blob(a, b) {
-  const { name, config: config2 } = getColumnNameAndConfig(a, b);
-  if (config2?.mode === "json") {
-    return new SQLiteBlobJsonBuilder(name);
-  }
-  if (config2?.mode === "bigint") {
-    return new SQLiteBigIntBuilder(name);
-  }
-  return new SQLiteBlobBufferBuilder(name);
-}
-
-// ../node_modules/drizzle-orm/sqlite-core/columns/custom.js
-class SQLiteCustomColumnBuilder extends SQLiteColumnBuilder {
-  static [entityKind] = "SQLiteCustomColumnBuilder";
-  constructor(name, fieldConfig, customTypeParams) {
-    super(name, "custom", "SQLiteCustomColumn");
-    this.config.fieldConfig = fieldConfig;
-    this.config.customTypeParams = customTypeParams;
-  }
-  build(table) {
-    return new SQLiteCustomColumn(table, this.config);
-  }
-}
-
-class SQLiteCustomColumn extends SQLiteColumn {
-  static [entityKind] = "SQLiteCustomColumn";
-  sqlName;
-  mapTo;
-  mapFrom;
-  constructor(table, config2) {
-    super(table, config2);
-    this.sqlName = config2.customTypeParams.dataType(config2.fieldConfig);
-    this.mapTo = config2.customTypeParams.toDriver;
-    this.mapFrom = config2.customTypeParams.fromDriver;
-  }
-  getSQLType() {
-    return this.sqlName;
-  }
-  mapFromDriverValue(value) {
-    return typeof this.mapFrom === "function" ? this.mapFrom(value) : value;
-  }
-  mapToDriverValue(value) {
-    return typeof this.mapTo === "function" ? this.mapTo(value) : value;
-  }
-}
-function customType(customTypeParams) {
-  return (a, b) => {
-    const { name, config: config2 } = getColumnNameAndConfig(a, b);
-    return new SQLiteCustomColumnBuilder(name, config2, customTypeParams);
-  };
-}
-
-// ../node_modules/drizzle-orm/sqlite-core/columns/integer.js
-class SQLiteBaseIntegerBuilder extends SQLiteColumnBuilder {
-  static [entityKind] = "SQLiteBaseIntegerBuilder";
-  constructor(name, dataType, columnType) {
-    super(name, dataType, columnType);
-    this.config.autoIncrement = false;
-  }
-  primaryKey(config2) {
-    if (config2?.autoIncrement) {
-      this.config.autoIncrement = true;
-    }
-    this.config.hasDefault = true;
-    return super.primaryKey();
-  }
-}
-
-class SQLiteBaseInteger extends SQLiteColumn {
-  static [entityKind] = "SQLiteBaseInteger";
-  autoIncrement = this.config.autoIncrement;
-  getSQLType() {
-    return "integer";
-  }
-}
-
-class SQLiteIntegerBuilder extends SQLiteBaseIntegerBuilder {
-  static [entityKind] = "SQLiteIntegerBuilder";
-  constructor(name) {
-    super(name, "number", "SQLiteInteger");
-  }
-  build(table) {
-    return new SQLiteInteger(table, this.config);
-  }
-}
-
-class SQLiteInteger extends SQLiteBaseInteger {
-  static [entityKind] = "SQLiteInteger";
-}
-
-class SQLiteTimestampBuilder extends SQLiteBaseIntegerBuilder {
-  static [entityKind] = "SQLiteTimestampBuilder";
-  constructor(name, mode) {
-    super(name, "date", "SQLiteTimestamp");
-    this.config.mode = mode;
-  }
-  defaultNow() {
-    return this.default(sql`(cast((julianday('now') - 2440587.5)*86400000 as integer))`);
-  }
-  build(table) {
-    return new SQLiteTimestamp(table, this.config);
-  }
-}
-
-class SQLiteTimestamp extends SQLiteBaseInteger {
-  static [entityKind] = "SQLiteTimestamp";
-  mode = this.config.mode;
-  mapFromDriverValue(value) {
-    if (this.config.mode === "timestamp") {
-      return new Date(value * 1000);
-    }
-    return new Date(value);
-  }
-  mapToDriverValue(value) {
-    const unix = value.getTime();
-    if (this.config.mode === "timestamp") {
-      return Math.floor(unix / 1000);
-    }
-    return unix;
-  }
-}
-
-class SQLiteBooleanBuilder extends SQLiteBaseIntegerBuilder {
-  static [entityKind] = "SQLiteBooleanBuilder";
-  constructor(name, mode) {
-    super(name, "boolean", "SQLiteBoolean");
-    this.config.mode = mode;
-  }
-  build(table) {
-    return new SQLiteBoolean(table, this.config);
-  }
-}
-
-class SQLiteBoolean extends SQLiteBaseInteger {
-  static [entityKind] = "SQLiteBoolean";
-  mode = this.config.mode;
-  mapFromDriverValue(value) {
-    return Number(value) === 1;
-  }
-  mapToDriverValue(value) {
-    return value ? 1 : 0;
-  }
-}
-function integer2(a, b) {
-  const { name, config: config2 } = getColumnNameAndConfig(a, b);
-  if (config2?.mode === "timestamp" || config2?.mode === "timestamp_ms") {
-    return new SQLiteTimestampBuilder(name, config2.mode);
-  }
-  if (config2?.mode === "boolean") {
-    return new SQLiteBooleanBuilder(name, config2.mode);
-  }
-  return new SQLiteIntegerBuilder(name);
-}
-
-// ../node_modules/drizzle-orm/sqlite-core/columns/numeric.js
-class SQLiteNumericBuilder extends SQLiteColumnBuilder {
-  static [entityKind] = "SQLiteNumericBuilder";
-  constructor(name) {
-    super(name, "string", "SQLiteNumeric");
-  }
-  build(table) {
-    return new SQLiteNumeric(table, this.config);
-  }
-}
-
-class SQLiteNumeric extends SQLiteColumn {
-  static [entityKind] = "SQLiteNumeric";
-  mapFromDriverValue(value) {
-    if (typeof value === "string")
-      return value;
-    return String(value);
-  }
-  getSQLType() {
-    return "numeric";
-  }
-}
-
-class SQLiteNumericNumberBuilder extends SQLiteColumnBuilder {
-  static [entityKind] = "SQLiteNumericNumberBuilder";
-  constructor(name) {
-    super(name, "number", "SQLiteNumericNumber");
-  }
-  build(table) {
-    return new SQLiteNumericNumber(table, this.config);
-  }
-}
-
-class SQLiteNumericNumber extends SQLiteColumn {
-  static [entityKind] = "SQLiteNumericNumber";
-  mapFromDriverValue(value) {
-    if (typeof value === "number")
-      return value;
-    return Number(value);
-  }
-  mapToDriverValue = String;
-  getSQLType() {
-    return "numeric";
-  }
-}
-
-class SQLiteNumericBigIntBuilder extends SQLiteColumnBuilder {
-  static [entityKind] = "SQLiteNumericBigIntBuilder";
-  constructor(name) {
-    super(name, "bigint", "SQLiteNumericBigInt");
-  }
-  build(table) {
-    return new SQLiteNumericBigInt(table, this.config);
-  }
-}
-
-class SQLiteNumericBigInt extends SQLiteColumn {
-  static [entityKind] = "SQLiteNumericBigInt";
-  mapFromDriverValue = BigInt;
-  mapToDriverValue = String;
-  getSQLType() {
-    return "numeric";
-  }
-}
-function numeric(a, b) {
-  const { name, config: config2 } = getColumnNameAndConfig(a, b);
-  const mode = config2?.mode;
-  return mode === "number" ? new SQLiteNumericNumberBuilder(name) : mode === "bigint" ? new SQLiteNumericBigIntBuilder(name) : new SQLiteNumericBuilder(name);
-}
-
-// ../node_modules/drizzle-orm/sqlite-core/columns/real.js
-class SQLiteRealBuilder extends SQLiteColumnBuilder {
-  static [entityKind] = "SQLiteRealBuilder";
-  constructor(name) {
-    super(name, "number", "SQLiteReal");
-  }
-  build(table) {
-    return new SQLiteReal(table, this.config);
-  }
-}
-
-class SQLiteReal extends SQLiteColumn {
-  static [entityKind] = "SQLiteReal";
-  getSQLType() {
-    return "real";
-  }
-}
-function real(name) {
-  return new SQLiteRealBuilder(name ?? "");
-}
-
-// ../node_modules/drizzle-orm/sqlite-core/columns/text.js
-class SQLiteTextBuilder extends SQLiteColumnBuilder {
-  static [entityKind] = "SQLiteTextBuilder";
-  constructor(name, config2) {
-    super(name, "string", "SQLiteText");
-    this.config.enumValues = config2.enum;
-    this.config.length = config2.length;
-  }
-  build(table) {
-    return new SQLiteText(table, this.config);
-  }
-}
-
-class SQLiteText extends SQLiteColumn {
-  static [entityKind] = "SQLiteText";
-  enumValues = this.config.enumValues;
-  length = this.config.length;
-  constructor(table, config2) {
-    super(table, config2);
-  }
-  getSQLType() {
-    return `text${this.config.length ? `(${this.config.length})` : ""}`;
-  }
-}
-
-class SQLiteTextJsonBuilder extends SQLiteColumnBuilder {
-  static [entityKind] = "SQLiteTextJsonBuilder";
-  constructor(name) {
-    super(name, "json", "SQLiteTextJson");
-  }
-  build(table) {
-    return new SQLiteTextJson(table, this.config);
-  }
-}
-
-class SQLiteTextJson extends SQLiteColumn {
-  static [entityKind] = "SQLiteTextJson";
-  getSQLType() {
-    return "text";
-  }
-  mapFromDriverValue(value) {
-    return JSON.parse(value);
-  }
-  mapToDriverValue(value) {
-    return JSON.stringify(value);
-  }
-}
-function text(a, b = {}) {
-  const { name, config: config2 } = getColumnNameAndConfig(a, b);
-  if (config2.mode === "json") {
-    return new SQLiteTextJsonBuilder(name);
-  }
-  return new SQLiteTextBuilder(name, config2);
-}
-
-// ../node_modules/drizzle-orm/sqlite-core/columns/all.js
-function getSQLiteColumnBuilders() {
-  return {
-    blob,
-    customType,
-    integer: integer2,
-    numeric,
-    real,
-    text
-  };
-}
-
-// ../node_modules/drizzle-orm/sqlite-core/table.js
-var InlineForeignKeys = Symbol.for("drizzle:SQLiteInlineForeignKeys");
-
-class SQLiteTable extends Table {
-  static [entityKind] = "SQLiteTable";
-  static Symbol = Object.assign({}, Table.Symbol, {
-    InlineForeignKeys
-  });
-  [Table.Symbol.Columns];
-  [InlineForeignKeys] = [];
-  [Table.Symbol.ExtraConfigBuilder] = undefined;
-}
-function sqliteTableBase(name, columns, extraConfig, schema, baseName = name) {
-  const rawTable = new SQLiteTable(name, schema, baseName);
-  const parsedColumns = typeof columns === "function" ? columns(getSQLiteColumnBuilders()) : columns;
-  const builtColumns = Object.fromEntries(Object.entries(parsedColumns).map(([name2, colBuilderBase]) => {
-    const colBuilder = colBuilderBase;
-    colBuilder.setName(name2);
-    const column = colBuilder.build(rawTable);
-    rawTable[InlineForeignKeys].push(...colBuilder.buildForeignKeys(column, rawTable));
-    return [name2, column];
-  }));
-  const table = Object.assign(rawTable, builtColumns);
-  table[Table.Symbol.Columns] = builtColumns;
-  table[Table.Symbol.ExtraConfigColumns] = builtColumns;
-  if (extraConfig) {
-    table[SQLiteTable.Symbol.ExtraConfigBuilder] = extraConfig;
-  }
-  return table;
-}
-var sqliteTable = (name, columns, extraConfig) => {
-  return sqliteTableBase(name, columns, extraConfig);
-};
-
-// ../node_modules/drizzle-orm/sqlite-core/indexes.js
+// ../node_modules/drizzle-orm/pg-core/indexes.js
 class IndexBuilderOn {
-  constructor(name, unique) {
-    this.name = name;
+  constructor(unique, name) {
     this.unique = unique;
+    this.name = name;
   }
-  static [entityKind] = "SQLiteIndexBuilderOn";
+  static [entityKind] = "PgIndexBuilderOn";
   on(...columns) {
-    return new IndexBuilder(this.name, columns, this.unique);
+    return new IndexBuilder(columns.map((it) => {
+      if (is(it, SQL)) {
+        return it;
+      }
+      it = it;
+      const clonedIndexedColumn = new IndexedColumn(it.name, !!it.keyAsName, it.columnType, it.indexConfig);
+      it.indexConfig = JSON.parse(JSON.stringify(it.defaultConfig));
+      return clonedIndexedColumn;
+    }), this.unique, false, this.name);
+  }
+  onOnly(...columns) {
+    return new IndexBuilder(columns.map((it) => {
+      if (is(it, SQL)) {
+        return it;
+      }
+      it = it;
+      const clonedIndexedColumn = new IndexedColumn(it.name, !!it.keyAsName, it.columnType, it.indexConfig);
+      it.indexConfig = it.defaultConfig;
+      return clonedIndexedColumn;
+    }), this.unique, true, this.name);
+  }
+  using(method, ...columns) {
+    return new IndexBuilder(columns.map((it) => {
+      if (is(it, SQL)) {
+        return it;
+      }
+      it = it;
+      const clonedIndexedColumn = new IndexedColumn(it.name, !!it.keyAsName, it.columnType, it.indexConfig);
+      it.indexConfig = JSON.parse(JSON.stringify(it.defaultConfig));
+      return clonedIndexedColumn;
+    }), this.unique, true, this.name, method);
   }
 }
 
 class IndexBuilder {
-  static [entityKind] = "SQLiteIndexBuilder";
+  static [entityKind] = "PgIndexBuilder";
   config;
-  constructor(name, columns, unique) {
+  constructor(columns, unique, only, name, method = "btree") {
     this.config = {
       name,
       columns,
       unique,
-      where: undefined
+      only,
+      method
     };
+  }
+  concurrently() {
+    this.config.concurrently = true;
+    return this;
+  }
+  with(obj) {
+    this.config.with = obj;
+    return this;
   }
   where(condition) {
     this.config.where = condition;
@@ -15786,57 +17539,22 @@ class IndexBuilder {
 }
 
 class Index {
-  static [entityKind] = "SQLiteIndex";
+  static [entityKind] = "PgIndex";
   config;
   constructor(config2, table) {
     this.config = { ...config2, table };
   }
 }
 function index(name) {
-  return new IndexBuilderOn(name, false);
+  return new IndexBuilderOn(false, name);
 }
 function uniqueIndex(name) {
-  return new IndexBuilderOn(name, true);
-}
-
-// ../node_modules/drizzle-orm/sqlite-core/primary-keys.js
-function primaryKey(...config2) {
-  if (config2[0].columns) {
-    return new PrimaryKeyBuilder(config2[0].columns, config2[0].name);
-  }
-  return new PrimaryKeyBuilder(config2);
-}
-
-class PrimaryKeyBuilder {
-  static [entityKind] = "SQLitePrimaryKeyBuilder";
-  columns;
-  name;
-  constructor(columns, name) {
-    this.columns = columns;
-    this.name = name;
-  }
-  build(table) {
-    return new PrimaryKey(table, this.columns, this.name);
-  }
-}
-
-class PrimaryKey {
-  constructor(table, columns, name) {
-    this.table = table;
-    this.columns = columns;
-    this.name = name;
-  }
-  static [entityKind] = "SQLitePrimaryKey";
-  columns;
-  name;
-  getName() {
-    return this.name ?? `${this.table[SQLiteTable.Symbol.Name]}_${this.columns.map((column) => column.name).join("_")}_pk`;
-  }
+  return new IndexBuilderOn(true, name);
 }
 
 // src/schema.ts
-var storeSettings = sqliteTable("store_settings", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var storeSettings = pgTable("store_settings", {
+  id: serial("id").primaryKey(),
   sellerCode: text("seller_code").notNull(),
   storeName: text("store_name").notNull(),
   tagline: text("tagline").notNull(),
@@ -15850,13 +17568,13 @@ var storeSettings = sqliteTable("store_settings", {
   logoUrl: text("logo_url"),
   bannerUrl: text("banner_url"),
   description: text("description").notNull().default(""),
-  vacationMode: integer2("vacation_mode", { mode: "boolean" }).notNull().default(false),
-  emailVerified: integer2("email_verified", { mode: "boolean" }).notNull().default(false),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date),
-  updatedAt: integer2("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  vacationMode: boolean4("vacation_mode").notNull().default(false),
+  emailVerified: boolean4("email_verified").notNull().default(false),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date),
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ sellerCodeIdx: uniqueIndex("store_settings_seller_code_unique").on(table.sellerCode), emailIdx: uniqueIndex("store_settings_email_unique").on(table.email) }));
-var products = sqliteTable("products", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var products = pgTable("products", {
+  id: serial("id").primaryKey(),
   storeId: integer2("store_id").notNull().references(() => storeSettings.id),
   name: text("name").notNull(),
   category: text("category").notNull(),
@@ -15869,19 +17587,24 @@ var products = sqliteTable("products", {
   imageUrl: text("image_url"),
   sku: text("sku"),
   lowStockThreshold: integer2("low_stock_threshold").notNull().default(5),
-  isActive: integer2("is_active", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date),
-  updatedAt: integer2("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
-}, (table) => ({ storeSkuIdx: uniqueIndex("products_store_id_sku_unique").on(table.storeId, table.sku) }));
-var productImages = sqliteTable("product_images", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+  isActive: boolean4("is_active").notNull().default(true),
+  approvalStatus: text("approval_status", { enum: ["approved", "pending", "rejected"] }).notNull().default("approved"),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date),
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
+}, (table) => ({
+  storeSkuIdx: uniqueIndex("products_store_id_sku_unique").on(table.storeId, table.sku),
+  activeCreatedIdx: index("idx_products_active_created").on(table.isActive, table.createdAt),
+  storeIdx: index("idx_products_store_id").on(table.storeId)
+}));
+var productImages = pgTable("product_images", {
+  id: serial("id").primaryKey(),
   productId: integer2("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
   url: text("url").notNull(),
   sortOrder: integer2("sort_order").notNull().default(0),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ productIdx: index("product_images_product_id_idx").on(table.productId) }));
-var orders = sqliteTable("orders", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var orders = pgTable("orders", {
+  id: serial("id").primaryKey(),
   storeId: integer2("store_id").notNull().references(() => storeSettings.id),
   orderCode: text("order_code").notNull(),
   customerName: text("customer_name").notNull(),
@@ -15898,21 +17621,23 @@ var orders = sqliteTable("orders", {
   deliveryMethod: text("delivery_method", { enum: ["standard", "express", "pickup"] }).notNull().default("standard"),
   addressId: integer2("address_id"),
   userId: text("user_id"),
-  groupId: integer2("group_id"),
+  groupId: integer2("group_id").references(() => orderGroups.id),
   trackingNumber: text("tracking_number"),
   carrier: text("carrier"),
-  deliveredAt: integer2("delivered_at", { mode: "timestamp_ms" }),
+  deliveredAt: timestamp("delivered_at", { mode: "date", withTimezone: true }),
   status: text("status", { enum: ["confirmation_needed", "confirmed", "packed", "shipped", "out_for_delivery", "delivery_failed", "delivered", "return_requested", "returned", "refunded", "cancelled"] }).notNull().default("confirmation_needed"),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date),
-  updatedAt: integer2("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date),
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({
   orderCodeIdx: uniqueIndex("orders_order_code_unique").on(table.orderCode),
   userIdx: index("orders_user_id_idx").on(table.userId),
   groupIdx: index("orders_group_id_idx").on(table.groupId),
-  createdIdx: index("orders_created_at_idx").on(table.createdAt)
+  createdIdx: index("orders_created_at_idx").on(table.createdAt),
+  phoneCreatedIdx: index("idx_orders_phone_created").on(table.phone, table.createdAt),
+  storeIdx: index("idx_orders_store_id").on(table.storeId)
 }));
-var orderItems = sqliteTable("order_items", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var orderItems = pgTable("order_items", {
+  id: serial("id").primaryKey(),
   orderId: integer2("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
   productId: integer2("product_id").notNull().references(() => products.id),
   productName: text("product_name").notNull(),
@@ -15921,77 +17646,93 @@ var orderItems = sqliteTable("order_items", {
   variantId: integer2("variant_id"),
   variantLabel: text("variant_label")
 }, (table) => ({ orderIdx: index("order_items_order_id_idx").on(table.orderId) }));
-var reviews = sqliteTable("reviews", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var reviews = pgTable("reviews", {
+  id: serial("id").primaryKey(),
   orderId: integer2("order_id").notNull().references(() => orders.id),
   productId: integer2("product_id").notNull().references(() => products.id),
   reviewerName: text("reviewer_name").notNull(),
   rating: integer2("rating").notNull(),
   body: text("body").notNull(),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
-}, (table) => ({ orderProductIdx: uniqueIndex("reviews_order_product_unique").on(table.orderId, table.productId) }));
-var reviewReports = sqliteTable("review_reports", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
+}, (table) => ({
+  orderProductIdx: uniqueIndex("reviews_order_product_unique").on(table.orderId, table.productId),
+  productCreatedIdx: index("idx_reviews_product_created").on(table.productId, table.createdAt)
+}));
+var reviewReports = pgTable("review_reports", {
+  id: serial("id").primaryKey(),
   reviewId: integer2("review_id").notNull().references(() => reviews.id, { onDelete: "cascade" }),
   reason: text("reason", { enum: ["spam", "abuse", "fake", "other"] }).notNull(),
   detail: text("detail").notNull().default(""),
   reporterName: text("reporter_name").notNull().default(""),
   status: text("status", { enum: ["open", "resolved"] }).notNull().default("open"),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date),
-  updatedAt: integer2("updated_at", { mode: "timestamp_ms" })
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date),
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
 }, (table) => ({ reviewIdx: index("review_reports_review_id_idx").on(table.reviewId) }));
-var buyerIssues = sqliteTable("buyer_issues", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var buyerIssues = pgTable("buyer_issues", {
+  id: serial("id").primaryKey(),
   orderId: integer2("order_id").notNull().references(() => orders.id),
   kind: text("kind").notNull(),
   detail: text("detail").notNull(),
   status: text("status", { enum: ["open", "resolved"] }).notNull().default("open"),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date),
-  updatedAt: integer2("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date),
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ orderIdx: index("buyer_issues_order_id_idx").on(table.orderId) }));
-var users = sqliteTable("users", {
+var users = pgTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
   email: text("email"),
   passwordHash: text("password_hash").notNull(),
   status: text("status", { enum: ["active", "suspended"] }).notNull().default("active"),
-  emailVerified: integer2("email_verified", { mode: "boolean" }).notNull().default(false),
-  notifyOrderEmails: integer2("notify_order_emails", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date),
-  updatedAt: integer2("updated_at", { mode: "timestamp_ms" })
+  emailVerified: boolean4("email_verified").notNull().default(false),
+  avatarUrl: text("avatar_url"),
+  notifyOrderEmails: boolean4("notify_order_emails").notNull().default(true),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date),
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
 }, (table) => ({
   phoneIdx: uniqueIndex("users_phone_unique").on(table.phone),
   emailIdx: uniqueIndex("users_email_unique").on(table.email)
 }));
-var admins = sqliteTable("admins", {
+var admins = pgTable("admins", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull(),
   passwordHash: text("password_hash").notNull(),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ emailIdx: uniqueIndex("admins_email_unique").on(table.email) }));
-var sessions = sqliteTable("sessions", {
+var sessions = pgTable("sessions", {
   token: text("token").primaryKey(),
   userType: text("user_type", { enum: ["buyer", "seller", "admin"] }).notNull(),
   userId: text("user_id").notNull(),
-  expiresAt: integer2("expires_at", { mode: "timestamp_ms" }).notNull()
+  expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }).notNull()
 }, (table) => ({ expiresIdx: index("sessions_expires_at_idx").on(table.expiresAt), userIdx: index("sessions_user_id_idx").on(table.userId) }));
-var carts = sqliteTable("carts", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var smtpSettings = pgTable("smtp_settings", {
+  id: integer2("id").primaryKey(),
+  host: text("host"),
+  port: integer2("port"),
+  username: text("username"),
+  password: text("password"),
+  fromAddress: text("from_address"),
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
+});
+var carts = pgTable("carts", {
+  id: serial("id").primaryKey(),
   userId: text("user_id").notNull(),
-  updatedAt: integer2("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ userIdx: uniqueIndex("carts_user_id_unique").on(table.userId) }));
-var cartItems = sqliteTable("cart_items", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var cartItems = pgTable("cart_items", {
+  id: serial("id").primaryKey(),
   cartId: integer2("cart_id").notNull().references(() => carts.id, { onDelete: "cascade" }),
   productId: integer2("product_id").notNull().references(() => products.id),
   quantity: integer2("quantity").notNull(),
   variantId: integer2("variant_id").notNull().default(0),
   variantLabel: text("variant_label")
-}, (table) => ({ cartProductVariantIdx: uniqueIndex("cart_items_cart_product_variant_unique").on(table.cartId, table.productId, table.variantId) }));
-var addresses = sqliteTable("addresses", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+}, (table) => ({
+  cartProductVariantIdx: uniqueIndex("cart_items_cart_product_variant_unique").on(table.cartId, table.productId, table.variantId),
+  cartProductIdx: uniqueIndex("cart_items_cart_product_unique").on(table.cartId, table.productId)
+}));
+var addresses = pgTable("addresses", {
+  id: serial("id").primaryKey(),
   userId: text("user_id").notNull(),
   label: text("label").notNull().default("Home"),
   fullName: text("full_name").notNull(),
@@ -16002,23 +17743,23 @@ var addresses = sqliteTable("addresses", {
   ward: text("ward"),
   landmark: text("landmark"),
   note: text("note"),
-  isDefault: integer2("is_default", { mode: "boolean" }).notNull().default(false),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  isDefault: boolean4("is_default").notNull().default(false),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ userIdx: index("addresses_user_id_idx").on(table.userId) }));
-var wishlists = sqliteTable("wishlists", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var wishlists = pgTable("wishlists", {
+  id: serial("id").primaryKey(),
   userId: text("user_id").notNull(),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ userIdx: uniqueIndex("wishlists_user_id_unique").on(table.userId) }));
-var wishlistItems = sqliteTable("wishlist_items", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var wishlistItems = pgTable("wishlist_items", {
+  id: serial("id").primaryKey(),
   wishlistId: integer2("wishlist_id").notNull().references(() => wishlists.id, { onDelete: "cascade" }),
   productId: integer2("product_id").notNull().references(() => products.id),
   addedPricePaisa: integer2("added_price_paisa").notNull(),
-  addedAt: integer2("added_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  addedAt: timestamp("added_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ wishlistProductIdx: uniqueIndex("wishlist_items_wishlist_product_unique").on(table.wishlistId, table.productId) }));
-var coupons = sqliteTable("coupons", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var coupons = pgTable("coupons", {
+  id: serial("id").primaryKey(),
   code: text("code").notNull(),
   kind: text("kind", { enum: ["percent", "fixed", "free_shipping"] }).notNull(),
   value: integer2("value").notNull(),
@@ -16026,21 +17767,21 @@ var coupons = sqliteTable("coupons", {
   maxDiscountPaisa: integer2("max_discount_paisa"),
   maxUses: integer2("max_uses"),
   perUserLimit: integer2("per_user_limit").notNull().default(1),
-  expiresAt: integer2("expires_at", { mode: "timestamp_ms" }),
-  isActive: integer2("is_active", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }),
+  isActive: boolean4("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ codeIdx: uniqueIndex("coupons_code_unique").on(table.code) }));
-var couponUsages = sqliteTable("coupon_usages", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var couponUsages = pgTable("coupon_usages", {
+  id: serial("id").primaryKey(),
   couponId: integer2("coupon_id").notNull().references(() => coupons.id),
   userId: text("user_id"),
   guestPhone: text("guest_phone"),
   orderId: integer2("order_id").notNull().references(() => orders.id),
-  groupId: integer2("group_id"),
-  usedAt: integer2("used_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  groupId: integer2("group_id").references(() => orderGroups.id),
+  usedAt: timestamp("used_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ orderIdx: uniqueIndex("coupon_usages_order_id_unique").on(table.orderId) }));
-var payments = sqliteTable("payments", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
   orderId: integer2("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
   groupId: integer2("group_id").references(() => orderGroups.id),
   provider: text("provider", { enum: ["cod", "esewa", "khalti"] }).notNull(),
@@ -16048,29 +17789,29 @@ var payments = sqliteTable("payments", {
   status: text("status", { enum: ["pending", "processing", "paid", "failed", "refunded", "cancelled"] }).notNull().default("pending"),
   transactionId: text("transaction_id"),
   payloadJson: text("payload_json"),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date),
-  updatedAt: integer2("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date),
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ orderIdx: uniqueIndex("payments_order_id_unique").on(table.orderId), groupIdx: index("payments_group_id_idx").on(table.groupId) }));
-var checkoutIdempotency = sqliteTable("checkout_idempotency", {
+var checkoutIdempotency = pgTable("checkout_idempotency", {
   key: text("key").primaryKey(),
   groupId: integer2("group_id").notNull().references(() => orderGroups.id),
   userId: text("user_id"),
   guestPhone: text("guest_phone"),
   payload: text("payload"),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 });
-var notifications = sqliteTable("notifications", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
   userId: text("user_id").notNull(),
   type: text("type").notNull(),
   title: text("title").notNull(),
   body: text("body").notNull(),
   link: text("link"),
-  isRead: integer2("is_read", { mode: "boolean" }).notNull().default(false),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  isRead: boolean4("is_read").notNull().default(false),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ userIdx: index("notifications_user_id_idx").on(table.userId) }));
-var supportTickets = sqliteTable("support_tickets", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var supportTickets = pgTable("support_tickets", {
+  id: serial("id").primaryKey(),
   ticketCode: text("ticket_code").notNull(),
   userId: text("user_id"),
   name: text("name").notNull(),
@@ -16080,86 +17821,122 @@ var supportTickets = sqliteTable("support_tickets", {
   orderCode: text("order_code"),
   status: text("status", { enum: ["open", "answered", "closed"] }).notNull().default("open"),
   adminReply: text("admin_reply"),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date),
-  updatedAt: integer2("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date),
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ codeIdx: uniqueIndex("support_tickets_ticket_code_unique").on(table.ticketCode) }));
-var categories = sqliteTable("categories", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var categories = pgTable("categories", {
+  id: serial("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull(),
-  isActive: integer2("is_active", { mode: "boolean" }).notNull().default(true)
+  isActive: boolean4("is_active").notNull().default(true),
+  seoTitle: text("seo_title"),
+  seoDescription: text("seo_description"),
+  introContent: text("intro_content")
 }, (table) => ({
   nameIdx: uniqueIndex("categories_name_unique").on(table.name),
   slugIdx: uniqueIndex("categories_slug_unique").on(table.slug)
 }));
-var homepageBanners = sqliteTable("homepage_banners", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var invoices = pgTable("invoices", {
+  id: serial("id").primaryKey(),
+  invoiceNo: text("invoice_no").notNull(),
+  orderId: integer2("order_id").references(() => orders.id),
+  groupId: integer2("group_id").references(() => orderGroups.id),
+  issuedAt: timestamp("issued_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
+}, (table) => ({
+  noIdx: uniqueIndex("invoices_invoice_no_unique").on(table.invoiceNo),
+  orderIdx: index("invoices_order_id_idx").on(table.orderId),
+  groupIdx: index("invoices_group_id_idx").on(table.groupId)
+}));
+var invoiceCounters = pgTable("invoice_counters", {
+  key: text("key").primaryKey(),
+  last: integer2("last").notNull().default(0)
+});
+var productQuestions = pgTable("product_questions", {
+  id: serial("id").primaryKey(),
+  productId: integer2("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull(),
+  askerName: text("asker_name").notNull().default(""),
+  question: text("question").notNull(),
+  answer: text("answer"),
+  answeredAt: timestamp("answered_at", { mode: "date", withTimezone: true }),
+  isVisible: boolean4("is_visible").notNull().default(true),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
+}, (table) => ({ productIdx: index("product_questions_product_id_idx").on(table.productId) }));
+var homepageBanners = pgTable("homepage_banners", {
+  id: serial("id").primaryKey(),
   title: text("title").notNull(),
   subtitle: text("subtitle"),
   link: text("link"),
   imageUrl: text("image_url"),
-  isActive: integer2("is_active", { mode: "boolean" }).notNull().default(true),
+  isActive: boolean4("is_active").notNull().default(true),
   sortOrder: integer2("sort_order").notNull().default(0)
 }, (table) => ({ activeSortIdx: index("homepage_banners_active_sort_idx").on(table.isActive, table.sortOrder) }));
-var homepageSections = sqliteTable("homepage_sections", {
+var homepageSections = pgTable("homepage_sections", {
   key: text("key").primaryKey(),
   title: text("title").notNull(),
-  isActive: integer2("is_active", { mode: "boolean" }).notNull().default(true),
+  isActive: boolean4("is_active").notNull().default(true),
   sortOrder: integer2("sort_order").notNull().default(0)
 });
-var productViews = sqliteTable("product_views", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var productViews = pgTable("product_views", {
+  id: serial("id").primaryKey(),
   productId: integer2("product_id").notNull().references(() => products.id),
   userId: text("user_id"),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
-}, (table) => ({ createdIdx: index("product_views_created_at_idx").on(table.createdAt) }));
-var searchEvents = sqliteTable("search_events", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
+}, (table) => ({
+  createdIdx: index("product_views_created_at_idx").on(table.createdAt),
+  productCreatedIdx: index("product_views_product_created_idx").on(table.productId, table.createdAt)
+}));
+var searchEvents = pgTable("search_events", {
+  id: serial("id").primaryKey(),
   query: text("query").notNull(),
   userId: text("user_id"),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
-}, (table) => ({ createdIdx: index("search_events_created_at_idx").on(table.createdAt) }));
-var funnelEvents = sqliteTable("funnel_events", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
+}, (table) => ({
+  createdIdx: index("search_events_created_at_idx").on(table.createdAt),
+  queryIdx: index("search_events_query_idx").on(table.query)
+}));
+var funnelEvents = pgTable("funnel_events", {
+  id: serial("id").primaryKey(),
   event: text("event", { enum: ["add_to_cart", "checkout_start"] }).notNull(),
   productId: integer2("product_id").references(() => products.id),
   userId: text("user_id"),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({
   eventCreatedIdx: index("funnel_events_event_created_idx").on(table.event, table.createdAt)
 }));
-var recentlyViewed = sqliteTable("recently_viewed", {
+var recentlyViewed = pgTable("recently_viewed", {
   userId: text("user_id").notNull(),
   productId: integer2("product_id").notNull().references(() => products.id),
-  viewedAt: integer2("viewed_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  viewedAt: timestamp("viewed_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ pk: primaryKey({ columns: [table.userId, table.productId] }) }));
-var passwordResetTokens = sqliteTable("password_reset_tokens", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
   tokenHash: text("token_hash").notNull(),
   userType: text("user_type", { enum: ["buyer", "seller", "admin"] }).notNull(),
   userId: text("user_id").notNull(),
-  expiresAt: integer2("expires_at", { mode: "timestamp_ms" }).notNull(),
-  usedAt: integer2("used_at", { mode: "timestamp_ms" }),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { mode: "date", withTimezone: true }),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ tokenHashIdx: uniqueIndex("password_reset_tokens_token_hash_unique").on(table.tokenHash) }));
-var sellerEmailVerifications = sqliteTable("seller_email_verifications", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var sellerEmailVerifications = pgTable("seller_email_verifications", {
+  id: serial("id").primaryKey(),
   tokenHash: text("token_hash").notNull().unique(),
   storeId: integer2("store_id").notNull().references(() => storeSettings.id, { onDelete: "cascade" }),
-  expiresAt: integer2("expires_at", { mode: "timestamp_ms" }).notNull(),
-  usedAt: integer2("used_at", { mode: "timestamp_ms" }),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { mode: "date", withTimezone: true }),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 });
-var buyerEmailVerifications = sqliteTable("buyer_email_verifications", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var buyerEmailVerifications = pgTable("buyer_email_verifications", {
+  id: serial("id").primaryKey(),
   tokenHash: text("token_hash").notNull().unique(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  expiresAt: integer2("expires_at", { mode: "timestamp_ms" }).notNull(),
-  usedAt: integer2("used_at", { mode: "timestamp_ms" }),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { mode: "date", withTimezone: true }),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 });
-var orderGroups = sqliteTable("order_groups", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var orderGroups = pgTable("order_groups", {
+  id: serial("id").primaryKey(),
   groupCode: text("group_code").notNull(),
   userId: text("user_id"),
   customerName: text("customer_name").notNull(),
@@ -16173,40 +17950,40 @@ var orderGroups = sqliteTable("order_groups", {
   couponCode: text("coupon_code"),
   deliveryMethod: text("delivery_method", { enum: ["standard", "express", "pickup"] }).notNull().default("standard"),
   note: text("note").notNull().default(""),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ groupCodeIdx: uniqueIndex("order_groups_group_code_unique").on(table.groupCode) }));
-var productVariants = sqliteTable("product_variants", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var productVariants = pgTable("product_variants", {
+  id: serial("id").primaryKey(),
   productId: integer2("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
   label: text("label").notNull(),
   sku: text("sku"),
   pricePaisa: integer2("price_paisa"),
   stock: integer2("stock").notNull().default(0),
   sortOrder: integer2("sort_order").notNull().default(0),
-  isActive: integer2("is_active", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  isActive: boolean4("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ productIdx: index("product_variants_product_id_idx").on(table.productId) }));
-var productSpecifications = sqliteTable("product_specifications", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var productSpecifications = pgTable("product_specifications", {
+  id: serial("id").primaryKey(),
   productId: integer2("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
   label: text("label").notNull(),
   value: text("value").notNull(),
   sortOrder: integer2("sort_order").notNull().default(0),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ productIdx: index("product_specifications_product_id_idx").on(table.productId) }));
-var commissionRules = sqliteTable("commission_rules", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var commissionRules = pgTable("commission_rules", {
+  id: serial("id").primaryKey(),
   scope: text("scope", { enum: ["platform", "category", "seller", "product", "campaign"] }).notNull(),
   scopeId: text("scope_id").notNull().default(""),
   percent: integer2("percent").notNull(),
   label: text("label").notNull().default(""),
-  startsAt: integer2("starts_at", { mode: "timestamp_ms" }),
-  endsAt: integer2("ends_at", { mode: "timestamp_ms" }),
-  isActive: integer2("is_active", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  startsAt: timestamp("starts_at", { mode: "date", withTimezone: true }),
+  endsAt: timestamp("ends_at", { mode: "date", withTimezone: true }),
+  isActive: boolean4("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 });
-var sellerLedger = sqliteTable("seller_ledger", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var sellerLedger = pgTable("seller_ledger", {
+  id: serial("id").primaryKey(),
   storeId: integer2("store_id").notNull().references(() => storeSettings.id),
   orderId: integer2("order_id").references(() => orders.id),
   type: text("type", { enum: ["sale", "commission", "refund", "payout", "adjustment"] }).notNull(),
@@ -16216,22 +17993,22 @@ var sellerLedger = sqliteTable("seller_ledger", {
   payoutId: integer2("payout_id").references(() => sellerPayouts.id),
   ledgerKey: text("ledger_key"),
   note: text("note").notNull().default(""),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({
   storeIdx: index("seller_ledger_store_id_idx").on(table.storeId),
   keyIdx: uniqueIndex("seller_ledger_key_unique").on(table.ledgerKey)
 }));
-var sellerPayoutDetails = sqliteTable("seller_payout_details", {
+var sellerPayoutDetails = pgTable("seller_payout_details", {
   storeId: integer2("store_id").primaryKey().references(() => storeSettings.id),
   bankName: text("bank_name"),
   accountName: text("account_name"),
   accountNumber: text("account_number"),
   esewaId: text("esewa_id"),
   khaltiId: text("khalti_id"),
-  updatedAt: integer2("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 });
-var sellerPayouts = sqliteTable("seller_payouts", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var sellerPayouts = pgTable("seller_payouts", {
+  id: serial("id").primaryKey(),
   storeId: integer2("store_id").notNull().references(() => storeSettings.id),
   amountPaisa: integer2("amount_paisa").notNull(),
   status: text("status", { enum: ["requested", "processing", "completed", "failed", "cancelled"] }).notNull().default("requested"),
@@ -16239,11 +18016,11 @@ var sellerPayouts = sqliteTable("seller_payouts", {
   destination: text("destination").notNull().default(""),
   reference: text("reference"),
   note: text("note").notNull().default(""),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date),
-  updatedAt: integer2("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date),
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ storeIdx: index("seller_payouts_store_id_idx").on(table.storeId) }));
-var stockMovements = sqliteTable("stock_movements", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var stockMovements = pgTable("stock_movements", {
+  id: serial("id").primaryKey(),
   productId: integer2("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
   variantId: integer2("variant_id").notNull().default(0),
   change: integer2("change").notNull(),
@@ -16252,35 +18029,35 @@ var stockMovements = sqliteTable("stock_movements", {
   orderId: integer2("order_id").references(() => orders.id, { onDelete: "set null" }),
   actorType: text("actor_type").notNull().default(""),
   actorId: text("actor_id").notNull().default(""),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ productIdx: index("stock_movements_product_id_idx").on(table.productId) }));
-var auditLogs = sqliteTable("audit_logs", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
   actorType: text("actor_type").notNull(),
   actorId: text("actor_id").notNull(),
   action: text("action").notNull(),
   entityType: text("entity_type").notNull().default(""),
   entityId: text("entity_id").notNull().default(""),
   detail: text("detail").notNull().default(""),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ createdIdx: index("audit_logs_created_at_idx").on(table.createdAt) }));
-var platformSettings = sqliteTable("platform_settings", {
+var platformSettings = pgTable("platform_settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
-  updatedAt: integer2("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 });
-var returnRequests = sqliteTable("return_requests", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var returnRequests = pgTable("return_requests", {
+  id: serial("id").primaryKey(),
   orderId: integer2("order_id").notNull().references(() => orders.id),
   reason: text("reason").notNull(),
   status: text("status", { enum: ["requested", "accepted", "rejected"] }).notNull().default("requested"),
   requestedBy: text("requested_by").notNull().default(""),
   decidedBy: text("decided_by"),
-  decidedAt: integer2("decided_at", { mode: "timestamp_ms" }),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  decidedAt: timestamp("decided_at", { mode: "date", withTimezone: true }),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ orderIdx: uniqueIndex("return_requests_order_id_unique").on(table.orderId) }));
-var refunds = sqliteTable("refunds", {
-  id: integer2("id").primaryKey({ autoIncrement: true }),
+var refunds = pgTable("refunds", {
+  id: serial("id").primaryKey(),
   orderId: integer2("order_id").notNull().references(() => orders.id),
   groupId: integer2("group_id").references(() => orderGroups.id),
   amountPaisa: integer2("amount_paisa").notNull(),
@@ -16290,8 +18067,8 @@ var refunds = sqliteTable("refunds", {
   note: text("note").notNull().default(""),
   requestedBy: text("requested_by").notNull().default(""),
   resolvedBy: text("resolved_by"),
-  createdAt: integer2("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date),
-  updatedAt: integer2("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date)
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date),
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date)
 }, (table) => ({ orderIdx: uniqueIndex("refunds_order_id_unique").on(table.orderId) }));
 
 // src/assistant.ts
@@ -16584,6 +18361,10992 @@ async function recommendForProduct(product, pubs, soldCounts) {
     return { ids: ruleRecommendIds(product, pubs, soldCounts), source: "rules" };
   }
 }
+// ../node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
+var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
+function getTraceContextExtractor() {
+  return globalThis[EXTRACTOR_KEY];
+}
+
+// ../node_modules/tslib/modules/index.js
+var import_tslib = __toESM(require_tslib(), 1);
+var {
+  __extends,
+  __assign,
+  __rest,
+  __decorate,
+  __param,
+  __esDecorate,
+  __runInitializers,
+  __propKey,
+  __setFunctionName,
+  __metadata,
+  __awaiter,
+  __generator,
+  __exportStar,
+  __createBinding,
+  __values,
+  __read,
+  __spread,
+  __spreadArrays,
+  __spreadArray,
+  __await,
+  __asyncGenerator,
+  __asyncDelegator,
+  __asyncValues,
+  __makeTemplateObject,
+  __importStar,
+  __importDefault,
+  __classPrivateFieldGet,
+  __classPrivateFieldSet,
+  __classPrivateFieldIn,
+  __addDisposableResource,
+  __disposeResources,
+  __rewriteRelativeImportExtension
+} = import_tslib.default;
+
+// ../node_modules/@supabase/functions-js/dist/module/helper.js
+var resolveFetch = (customFetch) => {
+  if (customFetch) {
+    return (...args) => customFetch(...args);
+  }
+  return (...args) => fetch(...args);
+};
+
+// ../node_modules/@supabase/functions-js/dist/module/types.js
+class FunctionsError extends Error {
+  constructor(message, name = "FunctionsError", context) {
+    super(message);
+    this.name = name;
+    this.context = context;
+  }
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      context: this.context
+    };
+  }
+}
+
+class FunctionsFetchError extends FunctionsError {
+  constructor(context) {
+    super("Failed to send a request to the Edge Function", "FunctionsFetchError", context);
+  }
+}
+
+class FunctionsRelayError extends FunctionsError {
+  constructor(context) {
+    super("Relay Error invoking the Edge Function", "FunctionsRelayError", context);
+  }
+}
+
+class FunctionsHttpError extends FunctionsError {
+  constructor(context) {
+    super("Edge Function returned a non-2xx status code", "FunctionsHttpError", context);
+  }
+}
+var FunctionRegion;
+(function(FunctionRegion2) {
+  FunctionRegion2["Any"] = "any";
+  FunctionRegion2["ApNortheast1"] = "ap-northeast-1";
+  FunctionRegion2["ApNortheast2"] = "ap-northeast-2";
+  FunctionRegion2["ApSouth1"] = "ap-south-1";
+  FunctionRegion2["ApSoutheast1"] = "ap-southeast-1";
+  FunctionRegion2["ApSoutheast2"] = "ap-southeast-2";
+  FunctionRegion2["CaCentral1"] = "ca-central-1";
+  FunctionRegion2["EuCentral1"] = "eu-central-1";
+  FunctionRegion2["EuWest1"] = "eu-west-1";
+  FunctionRegion2["EuWest2"] = "eu-west-2";
+  FunctionRegion2["EuWest3"] = "eu-west-3";
+  FunctionRegion2["SaEast1"] = "sa-east-1";
+  FunctionRegion2["UsEast1"] = "us-east-1";
+  FunctionRegion2["UsWest1"] = "us-west-1";
+  FunctionRegion2["UsWest2"] = "us-west-2";
+})(FunctionRegion || (FunctionRegion = {}));
+
+// ../node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
+class FunctionsClient {
+  constructor(url2, { headers = {}, customFetch, region = FunctionRegion.Any } = {}) {
+    this.url = url2;
+    this.headers = headers;
+    this.region = region;
+    this.fetch = resolveFetch(customFetch);
+  }
+  setAuth(token) {
+    this.headers.Authorization = `Bearer ${token}`;
+  }
+  invoke(functionName_1) {
+    return __awaiter(this, arguments, undefined, function* (functionName, options = {}) {
+      var _a3, _b;
+      let timeoutId;
+      let timeoutController;
+      let onAbort;
+      try {
+        const { headers, method, body: functionArgs, signal, timeout } = options;
+        let _headers = {};
+        let { region } = options;
+        if (!region) {
+          region = this.region;
+        }
+        const url2 = new URL(`${this.url}/${functionName}`);
+        if (region && region !== "any") {
+          _headers["x-region"] = region;
+          url2.searchParams.set("forceFunctionRegion", region);
+        }
+        let body;
+        const hasContentTypeHeader = !!headers && Object.keys(headers).some((key) => key.toLowerCase() === "content-type");
+        if (functionArgs && !hasContentTypeHeader) {
+          if (typeof Blob !== "undefined" && functionArgs instanceof Blob || functionArgs instanceof ArrayBuffer) {
+            _headers["Content-Type"] = "application/octet-stream";
+            body = functionArgs;
+          } else if (typeof functionArgs === "string") {
+            _headers["Content-Type"] = "text/plain";
+            body = functionArgs;
+          } else if (typeof FormData !== "undefined" && functionArgs instanceof FormData) {
+            body = functionArgs;
+          } else {
+            _headers["Content-Type"] = "application/json";
+            body = JSON.stringify(functionArgs);
+          }
+        } else {
+          if (functionArgs && typeof functionArgs !== "string" && !(typeof Blob !== "undefined" && functionArgs instanceof Blob) && !(functionArgs instanceof ArrayBuffer) && !(typeof FormData !== "undefined" && functionArgs instanceof FormData)) {
+            body = JSON.stringify(functionArgs);
+          } else {
+            body = functionArgs;
+          }
+        }
+        let effectiveSignal = signal;
+        if (timeout) {
+          timeoutController = new AbortController;
+          timeoutId = setTimeout(() => timeoutController.abort(), timeout);
+          if (signal) {
+            effectiveSignal = timeoutController.signal;
+            onAbort = () => timeoutController.abort();
+            signal.addEventListener("abort", onAbort);
+          } else {
+            effectiveSignal = timeoutController.signal;
+          }
+        }
+        const response = yield this.fetch(url2.toString(), {
+          method: method || "POST",
+          headers: Object.assign(Object.assign(Object.assign({}, _headers), this.headers), headers),
+          body,
+          signal: effectiveSignal
+        }).catch((fetchError) => {
+          throw new FunctionsFetchError(fetchError);
+        });
+        const isRelayError = response.headers.get("x-relay-error");
+        if (isRelayError && isRelayError === "true") {
+          throw new FunctionsRelayError(response);
+        }
+        if (!response.ok) {
+          throw new FunctionsHttpError(response);
+        }
+        let responseType = ((_a3 = response.headers.get("Content-Type")) !== null && _a3 !== undefined ? _a3 : "text/plain").split(";")[0].trim().toLowerCase();
+        let data;
+        if (responseType === "application/json") {
+          data = yield response.json();
+        } else if (responseType === "application/octet-stream" || responseType === "application/pdf") {
+          data = yield response.blob();
+        } else if (responseType === "text/event-stream") {
+          data = response;
+        } else if (responseType === "multipart/form-data") {
+          data = yield response.formData();
+        } else {
+          data = yield response.text();
+        }
+        return { data, error: null, response };
+      } catch (error51) {
+        return {
+          data: null,
+          error: error51,
+          response: error51 instanceof FunctionsHttpError || error51 instanceof FunctionsRelayError ? error51.context : undefined
+        };
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        if (onAbort) {
+          (_b = options.signal) === null || _b === undefined || _b.removeEventListener("abort", onAbort);
+        }
+      }
+    });
+  }
+}
+// ../node_modules/@supabase/postgrest-js/dist/index.mjs
+var PostgrestError = class extends Error {
+  constructor(context) {
+    super(context.message);
+    this.name = "PostgrestError";
+    this.details = context.details;
+    this.hint = context.hint;
+    this.code = context.code;
+  }
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      details: this.details,
+      hint: this.hint,
+      code: this.code
+    };
+  }
+};
+var DEFAULT_MAX_RETRIES = 3;
+var getRetryDelay = (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000);
+var RETRYABLE_STATUS_CODES = [520, 503];
+var RETRYABLE_METHODS = [
+  "GET",
+  "HEAD",
+  "OPTIONS"
+];
+function _typeof(o) {
+  "@babel/helpers - typeof";
+  return _typeof = typeof Symbol == "function" && typeof Symbol.iterator == "symbol" ? function(o$1) {
+    return typeof o$1;
+  } : function(o$1) {
+    return o$1 && typeof Symbol == "function" && o$1.constructor === Symbol && o$1 !== Symbol.prototype ? "symbol" : typeof o$1;
+  }, _typeof(o);
+}
+function toPrimitive(t, r) {
+  if (_typeof(t) != "object" || !t)
+    return t;
+  var e = t[Symbol.toPrimitive];
+  if (e !== undefined) {
+    var i = e.call(t, r || "default");
+    if (_typeof(i) != "object")
+      return i;
+    throw new TypeError("@@toPrimitive must return a primitive value.");
+  }
+  return (r === "string" ? String : Number)(t);
+}
+function toPropertyKey(t) {
+  var i = toPrimitive(t, "string");
+  return _typeof(i) == "symbol" ? i : i + "";
+}
+function _defineProperty(e, r, t) {
+  return (r = toPropertyKey(r)) in e ? Object.defineProperty(e, r, {
+    value: t,
+    enumerable: true,
+    configurable: true,
+    writable: true
+  }) : e[r] = t, e;
+}
+function ownKeys(e, r) {
+  var t = Object.keys(e);
+  if (Object.getOwnPropertySymbols) {
+    var o = Object.getOwnPropertySymbols(e);
+    r && (o = o.filter(function(r$1) {
+      return Object.getOwnPropertyDescriptor(e, r$1).enumerable;
+    })), t.push.apply(t, o);
+  }
+  return t;
+}
+function _objectSpread2(e) {
+  for (var r = 1;r < arguments.length; r++) {
+    var t = arguments[r] != null ? arguments[r] : {};
+    r % 2 ? ownKeys(Object(t), true).forEach(function(r$1) {
+      _defineProperty(e, r$1, t[r$1]);
+    }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function(r$1) {
+      Object.defineProperty(e, r$1, Object.getOwnPropertyDescriptor(t, r$1));
+    });
+  }
+  return e;
+}
+function sleep(ms, signal) {
+  return new Promise((resolve) => {
+    if (signal === null || signal === undefined ? undefined : signal.aborted) {
+      resolve();
+      return;
+    }
+    const id = setTimeout(() => {
+      signal === null || signal === undefined || signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    function onAbort() {
+      clearTimeout(id);
+      resolve();
+    }
+    signal === null || signal === undefined || signal.addEventListener("abort", onAbort);
+  });
+}
+function shouldRetry(method, status, attemptCount, retryEnabled) {
+  if (!retryEnabled || attemptCount >= DEFAULT_MAX_RETRIES)
+    return false;
+  if (!RETRYABLE_METHODS.includes(method))
+    return false;
+  if (!RETRYABLE_STATUS_CODES.includes(status))
+    return false;
+  return true;
+}
+async function fetchWithRetry(fetchImpl, url2, request, retryEnabled) {
+  let attemptCount = 0;
+  while (true) {
+    const headers = _objectSpread2({}, request.headers);
+    if (attemptCount > 0)
+      headers["X-Retry-Count"] = String(attemptCount);
+    let res;
+    try {
+      res = await fetchImpl(url2, {
+        method: request.method,
+        headers,
+        body: request.body,
+        signal: request.signal
+      });
+    } catch (fetchError) {
+      if ((fetchError === null || fetchError === undefined ? undefined : fetchError.name) === "AbortError" || (fetchError === null || fetchError === undefined ? undefined : fetchError.code) === "ABORT_ERR")
+        throw fetchError;
+      if (!RETRYABLE_METHODS.includes(request.method))
+        throw fetchError;
+      if (retryEnabled && attemptCount < DEFAULT_MAX_RETRIES) {
+        const delay = getRetryDelay(attemptCount);
+        attemptCount++;
+        await sleep(delay, request.signal);
+        continue;
+      }
+      throw fetchError;
+    }
+    if (shouldRetry(request.method, res.status, attemptCount, retryEnabled)) {
+      var _res$headers$get, _res$headers;
+      const retryAfterHeader = (_res$headers$get = (_res$headers = res.headers) === null || _res$headers === undefined ? undefined : _res$headers.get("Retry-After")) !== null && _res$headers$get !== undefined ? _res$headers$get : null;
+      const delay = retryAfterHeader !== null ? Math.max(0, parseInt(retryAfterHeader, 10) || 0) * 1000 : getRetryDelay(attemptCount);
+      await res.text();
+      attemptCount++;
+      await sleep(delay, request.signal);
+      continue;
+    }
+    return res;
+  }
+}
+var PostgrestBuilder = class {
+  constructor(builder) {
+    var _builder$shouldThrowO, _builder$isMaybeSingl, _builder$shouldStripN, _builder$urlLengthLim, _builder$retry;
+    this.shouldThrowOnError = false;
+    this.retryEnabled = true;
+    this.method = builder.method;
+    this.url = builder.url;
+    this.headers = new Headers(builder.headers);
+    this.schema = builder.schema;
+    this.body = builder.body;
+    this.shouldThrowOnError = (_builder$shouldThrowO = builder.shouldThrowOnError) !== null && _builder$shouldThrowO !== undefined ? _builder$shouldThrowO : false;
+    this.signal = builder.signal;
+    this.isMaybeSingle = (_builder$isMaybeSingl = builder.isMaybeSingle) !== null && _builder$isMaybeSingl !== undefined ? _builder$isMaybeSingl : false;
+    this.shouldStripNulls = (_builder$shouldStripN = builder.shouldStripNulls) !== null && _builder$shouldStripN !== undefined ? _builder$shouldStripN : false;
+    this.urlLengthLimit = (_builder$urlLengthLim = builder.urlLengthLimit) !== null && _builder$urlLengthLim !== undefined ? _builder$urlLengthLim : 8000;
+    this.retryEnabled = (_builder$retry = builder.retry) !== null && _builder$retry !== undefined ? _builder$retry : true;
+    if (builder.fetch)
+      this.fetch = builder.fetch;
+    else
+      this.fetch = fetch;
+  }
+  throwOnError() {
+    this.shouldThrowOnError = true;
+    return this;
+  }
+  stripNulls() {
+    if (this.headers.get("Accept") === "text/csv")
+      throw new Error("stripNulls() cannot be used with csv()");
+    this.shouldStripNulls = true;
+    return this;
+  }
+  setHeader(name, value) {
+    this.headers = new Headers(this.headers);
+    this.headers.set(name, value);
+    return this;
+  }
+  retry(enabled) {
+    this.retryEnabled = enabled;
+    return this;
+  }
+  then(onfulfilled, onrejected) {
+    var _this = this;
+    if (this.schema === undefined) {} else if (["GET", "HEAD"].includes(this.method))
+      this.headers.set("Accept-Profile", this.schema);
+    else
+      this.headers.set("Content-Profile", this.schema);
+    if (this.method !== "GET" && this.method !== "HEAD")
+      this.headers.set("Content-Type", "application/json");
+    if (this.shouldStripNulls) {
+      const currentAccept = this.headers.get("Accept");
+      if (currentAccept === "application/vnd.pgrst.object+json")
+        this.headers.set("Accept", "application/vnd.pgrst.object+json;nulls=stripped");
+      else if (!currentAccept || currentAccept === "application/json")
+        this.headers.set("Accept", "application/vnd.pgrst.array+json;nulls=stripped");
+    }
+    const _fetch = this.fetch;
+    const executeWithRetry = async () => {
+      const headers = {};
+      _this.headers.forEach((value, key) => {
+        headers[key] = value;
+      });
+      const res$1 = await fetchWithRetry(_fetch, _this.url.toString(), {
+        method: _this.method,
+        headers,
+        body: JSON.stringify(_this.body, (_, value) => typeof value === "bigint" ? value.toString() : value),
+        signal: _this.signal
+      }, _this.retryEnabled);
+      return await _this.processResponse(res$1);
+    };
+    let res = executeWithRetry();
+    if (!this.shouldThrowOnError)
+      res = res.catch((fetchError) => {
+        var _fetchError$name2;
+        let errorDetails = "";
+        let hint = "";
+        let code = "";
+        const cause = fetchError === null || fetchError === undefined ? undefined : fetchError.cause;
+        if (cause) {
+          var _cause$message, _cause$code, _fetchError$name, _cause$name;
+          const causeMessage = (_cause$message = cause === null || cause === undefined ? undefined : cause.message) !== null && _cause$message !== undefined ? _cause$message : "";
+          const causeCode = (_cause$code = cause === null || cause === undefined ? undefined : cause.code) !== null && _cause$code !== undefined ? _cause$code : "";
+          errorDetails = `${(_fetchError$name = fetchError === null || fetchError === undefined ? undefined : fetchError.name) !== null && _fetchError$name !== undefined ? _fetchError$name : "FetchError"}: ${fetchError === null || fetchError === undefined ? undefined : fetchError.message}`;
+          errorDetails += `
+
+Caused by: ${(_cause$name = cause === null || cause === undefined ? undefined : cause.name) !== null && _cause$name !== undefined ? _cause$name : "Error"}: ${causeMessage}`;
+          if (causeCode)
+            errorDetails += ` (${causeCode})`;
+          if (cause === null || cause === undefined ? undefined : cause.stack)
+            errorDetails += `
+${cause.stack}`;
+        } else {
+          var _fetchError$stack;
+          errorDetails = (_fetchError$stack = fetchError === null || fetchError === undefined ? undefined : fetchError.stack) !== null && _fetchError$stack !== undefined ? _fetchError$stack : "";
+        }
+        const urlLength = this.url.toString().length;
+        if ((fetchError === null || fetchError === undefined ? undefined : fetchError.name) === "AbortError" || (fetchError === null || fetchError === undefined ? undefined : fetchError.code) === "ABORT_ERR") {
+          code = "";
+          hint = "Request was aborted (timeout or manual cancellation)";
+          if (urlLength > this.urlLengthLimit)
+            hint += `. Note: Your request URL is ${urlLength} characters, which may exceed server limits. If selecting many fields, consider using views. If filtering with large arrays (e.g., .in('id', [many IDs])), consider using an RPC function to pass values server-side.`;
+        } else if ((cause === null || cause === undefined ? undefined : cause.name) === "HeadersOverflowError" || (cause === null || cause === undefined ? undefined : cause.code) === "UND_ERR_HEADERS_OVERFLOW") {
+          code = "";
+          hint = "HTTP headers exceeded server limits (typically 16KB)";
+          if (urlLength > this.urlLengthLimit)
+            hint += `. Your request URL is ${urlLength} characters. If selecting many fields, consider using views. If filtering with large arrays (e.g., .in('id', [200+ IDs])), consider using an RPC function instead.`;
+        }
+        return {
+          success: false,
+          error: {
+            message: `${(_fetchError$name2 = fetchError === null || fetchError === undefined ? undefined : fetchError.name) !== null && _fetchError$name2 !== undefined ? _fetchError$name2 : "FetchError"}: ${fetchError === null || fetchError === undefined ? undefined : fetchError.message}`,
+            details: errorDetails,
+            hint,
+            code
+          },
+          data: null,
+          count: null,
+          status: 0,
+          statusText: ""
+        };
+      });
+    return res.then(onfulfilled, onrejected);
+  }
+  async processResponse(res) {
+    var _this2 = this;
+    let error51 = null;
+    let data = null;
+    let count2 = null;
+    let status = res.status;
+    let statusText = res.statusText;
+    if (res.ok) {
+      var _this$headers$get2, _res$headers$get;
+      if (_this2.method !== "HEAD") {
+        var _this$headers$get;
+        const body = await res.text();
+        if (body === "") {} else if (_this2.headers.get("Accept") === "text/csv")
+          data = body;
+        else if (_this2.headers.get("Accept") && ((_this$headers$get = _this2.headers.get("Accept")) === null || _this$headers$get === undefined ? undefined : _this$headers$get.includes("application/vnd.pgrst.plan+text")))
+          data = body;
+        else
+          try {
+            data = JSON.parse(body);
+          } catch (_unused) {
+            error51 = { message: body };
+            data = null;
+            if (_this2.shouldThrowOnError)
+              throw new PostgrestError({
+                message: body,
+                details: "",
+                hint: "",
+                code: ""
+              });
+          }
+      }
+      const countHeader = (_this$headers$get2 = _this2.headers.get("Prefer")) === null || _this$headers$get2 === undefined ? undefined : _this$headers$get2.match(/count=(exact|planned|estimated)/);
+      const contentRange = (_res$headers$get = res.headers.get("content-range")) === null || _res$headers$get === undefined ? undefined : _res$headers$get.split("/");
+      if (countHeader && contentRange && contentRange.length > 1)
+        count2 = parseInt(contentRange[1]);
+      if (_this2.isMaybeSingle && Array.isArray(data))
+        if (data.length > 1) {
+          error51 = {
+            code: "PGRST116",
+            details: `Results contain ${data.length} rows, application/vnd.pgrst.object+json requires 1 row`,
+            hint: null,
+            message: "JSON object requested, multiple (or no) rows returned"
+          };
+          data = null;
+          count2 = null;
+          status = 406;
+          statusText = "Not Acceptable";
+          if (_this2.shouldThrowOnError) {
+            var _error$hint;
+            throw new PostgrestError(_objectSpread2(_objectSpread2({}, error51), {}, { hint: (_error$hint = error51.hint) !== null && _error$hint !== undefined ? _error$hint : "" }));
+          }
+        } else if (data.length === 1)
+          data = data[0];
+        else
+          data = null;
+    } else {
+      const body = await res.text();
+      try {
+        error51 = JSON.parse(body);
+        if (Array.isArray(error51) && res.status === 404) {
+          data = [];
+          error51 = null;
+          status = 200;
+          statusText = "OK";
+        }
+      } catch (_unused2) {
+        if (res.status === 404 && body === "") {
+          status = 204;
+          statusText = "No Content";
+        } else
+          error51 = { message: body };
+      }
+      if (error51 && _this2.shouldThrowOnError)
+        throw new PostgrestError(error51);
+    }
+    return {
+      success: error51 === null,
+      error: error51,
+      data,
+      count: count2,
+      status,
+      statusText
+    };
+  }
+  returns() {
+    return this;
+  }
+  overrideTypes() {
+    return this;
+  }
+};
+var PostgrestTransformBuilder = class extends PostgrestBuilder {
+  throwOnError() {
+    return super.throwOnError();
+  }
+  select(columns) {
+    let quoted = false;
+    const cleanedColumns = (columns !== null && columns !== undefined ? columns : "*").split("").map((c) => {
+      if (/\s/.test(c) && !quoted)
+        return "";
+      if (c === '"')
+        quoted = !quoted;
+      return c;
+    }).join("");
+    this.url.searchParams.set("select", cleanedColumns);
+    this.headers.append("Prefer", "return=representation");
+    return this;
+  }
+  order(column, { ascending = true, nullsFirst, foreignTable, referencedTable = foreignTable } = {}) {
+    const key = referencedTable ? `${referencedTable}.order` : "order";
+    const existingOrder = this.url.searchParams.get(key);
+    this.url.searchParams.set(key, `${existingOrder ? `${existingOrder},` : ""}${column}.${ascending ? "asc" : "desc"}${nullsFirst === undefined ? "" : nullsFirst ? ".nullsfirst" : ".nullslast"}`);
+    return this;
+  }
+  limit(rows, { foreignTable, referencedTable = foreignTable } = {}) {
+    const key = typeof referencedTable === "undefined" ? "limit" : `${referencedTable}.limit`;
+    this.url.searchParams.set(key, `${rows}`);
+    return this;
+  }
+  range(from, to, { foreignTable, referencedTable = foreignTable } = {}) {
+    const keyOffset = typeof referencedTable === "undefined" ? "offset" : `${referencedTable}.offset`;
+    const keyLimit = typeof referencedTable === "undefined" ? "limit" : `${referencedTable}.limit`;
+    this.url.searchParams.set(keyOffset, `${from}`);
+    this.url.searchParams.set(keyLimit, `${to - from + 1}`);
+    return this;
+  }
+  abortSignal(signal) {
+    this.signal = signal;
+    return this;
+  }
+  single() {
+    this.headers.set("Accept", "application/vnd.pgrst.object+json");
+    return this;
+  }
+  maybeSingle() {
+    this.isMaybeSingle = true;
+    return this;
+  }
+  csv() {
+    this.headers.set("Accept", "text/csv");
+    return this;
+  }
+  geojson() {
+    this.headers.set("Accept", "application/geo+json");
+    return this;
+  }
+  explain({ analyze = false, verbose = false, settings = false, buffers = false, wal = false, format = "text" } = {}) {
+    var _this$headers$get;
+    const options = [
+      analyze ? "analyze" : null,
+      verbose ? "verbose" : null,
+      settings ? "settings" : null,
+      buffers ? "buffers" : null,
+      wal ? "wal" : null
+    ].filter(Boolean).join("|");
+    const forMediatype = (_this$headers$get = this.headers.get("Accept")) !== null && _this$headers$get !== undefined ? _this$headers$get : "application/json";
+    this.headers.set("Accept", `application/vnd.pgrst.plan+${format}; for="${forMediatype}"; options=${options};`);
+    if (format === "json")
+      return this;
+    else
+      return this;
+  }
+  rollback() {
+    this.headers.append("Prefer", "tx=rollback");
+    return this;
+  }
+  returns() {
+    return this;
+  }
+  maxAffected(rows) {
+    this.headers.append("Prefer", "handling=strict");
+    this.headers.append("Prefer", `max-affected=${rows}`);
+    return this;
+  }
+};
+var PostgrestReservedCharsRegexp = /* @__PURE__ */ new RegExp("[,()]");
+var PostgrestFilterBuilder = class extends PostgrestTransformBuilder {
+  throwOnError() {
+    return super.throwOnError();
+  }
+  eq(column, value) {
+    this.url.searchParams.append(column, `eq.${value}`);
+    return this;
+  }
+  neq(column, value) {
+    this.url.searchParams.append(column, `neq.${value}`);
+    return this;
+  }
+  gt(column, value) {
+    this.url.searchParams.append(column, `gt.${value}`);
+    return this;
+  }
+  gte(column, value) {
+    this.url.searchParams.append(column, `gte.${value}`);
+    return this;
+  }
+  lt(column, value) {
+    this.url.searchParams.append(column, `lt.${value}`);
+    return this;
+  }
+  lte(column, value) {
+    this.url.searchParams.append(column, `lte.${value}`);
+    return this;
+  }
+  like(column, pattern) {
+    this.url.searchParams.append(column, `like.${pattern}`);
+    return this;
+  }
+  likeAllOf(column, patterns) {
+    this.url.searchParams.append(column, `like(all).{${patterns.join(",")}}`);
+    return this;
+  }
+  likeAnyOf(column, patterns) {
+    this.url.searchParams.append(column, `like(any).{${patterns.join(",")}}`);
+    return this;
+  }
+  ilike(column, pattern) {
+    this.url.searchParams.append(column, `ilike.${pattern}`);
+    return this;
+  }
+  ilikeAllOf(column, patterns) {
+    this.url.searchParams.append(column, `ilike(all).{${patterns.join(",")}}`);
+    return this;
+  }
+  ilikeAnyOf(column, patterns) {
+    this.url.searchParams.append(column, `ilike(any).{${patterns.join(",")}}`);
+    return this;
+  }
+  regexMatch(column, pattern) {
+    this.url.searchParams.append(column, `match.${pattern}`);
+    return this;
+  }
+  regexIMatch(column, pattern) {
+    this.url.searchParams.append(column, `imatch.${pattern}`);
+    return this;
+  }
+  is(column, value) {
+    this.url.searchParams.append(column, `is.${value}`);
+    return this;
+  }
+  isDistinct(column, value) {
+    this.url.searchParams.append(column, `isdistinct.${value}`);
+    return this;
+  }
+  in(column, values) {
+    const cleanedValues = Array.from(new Set(values)).map((s) => {
+      if (typeof s === "string" && PostgrestReservedCharsRegexp.test(s))
+        return `"${s}"`;
+      else
+        return `${s}`;
+    }).join(",");
+    this.url.searchParams.append(column, `in.(${cleanedValues})`);
+    return this;
+  }
+  notIn(column, values) {
+    const cleanedValues = Array.from(new Set(values)).map((s) => {
+      if (typeof s === "string" && PostgrestReservedCharsRegexp.test(s))
+        return `"${s}"`;
+      else
+        return `${s}`;
+    }).join(",");
+    this.url.searchParams.append(column, `not.in.(${cleanedValues})`);
+    return this;
+  }
+  contains(column, value) {
+    if (typeof value === "string")
+      this.url.searchParams.append(column, `cs.${value}`);
+    else if (Array.isArray(value))
+      this.url.searchParams.append(column, `cs.{${value.join(",")}}`);
+    else
+      this.url.searchParams.append(column, `cs.${JSON.stringify(value)}`);
+    return this;
+  }
+  containedBy(column, value) {
+    if (typeof value === "string")
+      this.url.searchParams.append(column, `cd.${value}`);
+    else if (Array.isArray(value))
+      this.url.searchParams.append(column, `cd.{${value.join(",")}}`);
+    else
+      this.url.searchParams.append(column, `cd.${JSON.stringify(value)}`);
+    return this;
+  }
+  rangeGt(column, range) {
+    this.url.searchParams.append(column, `sr.${range}`);
+    return this;
+  }
+  rangeGte(column, range) {
+    this.url.searchParams.append(column, `nxl.${range}`);
+    return this;
+  }
+  rangeLt(column, range) {
+    this.url.searchParams.append(column, `sl.${range}`);
+    return this;
+  }
+  rangeLte(column, range) {
+    this.url.searchParams.append(column, `nxr.${range}`);
+    return this;
+  }
+  rangeAdjacent(column, range) {
+    this.url.searchParams.append(column, `adj.${range}`);
+    return this;
+  }
+  overlaps(column, value) {
+    if (typeof value === "string")
+      this.url.searchParams.append(column, `ov.${value}`);
+    else
+      this.url.searchParams.append(column, `ov.{${value.join(",")}}`);
+    return this;
+  }
+  textSearch(column, query, { config: config2, type } = {}) {
+    let typePart = "";
+    if (type === "plain")
+      typePart = "pl";
+    else if (type === "phrase")
+      typePart = "ph";
+    else if (type === "websearch")
+      typePart = "w";
+    const configPart = config2 === undefined ? "" : `(${config2})`;
+    this.url.searchParams.append(column, `${typePart}fts${configPart}.${query}`);
+    return this;
+  }
+  match(query) {
+    Object.entries(query).filter(([_, value]) => value !== undefined).forEach(([column, value]) => {
+      this.url.searchParams.append(column, `eq.${value}`);
+    });
+    return this;
+  }
+  not(column, operator, value) {
+    this.url.searchParams.append(column, `not.${operator}.${value}`);
+    return this;
+  }
+  or(filters, { foreignTable, referencedTable = foreignTable } = {}) {
+    const key = referencedTable ? `${referencedTable}.or` : "or";
+    this.url.searchParams.append(key, `(${filters})`);
+    return this;
+  }
+  filter(column, operator, value) {
+    this.url.searchParams.append(column, `${operator}.${value}`);
+    return this;
+  }
+};
+var PostgrestQueryBuilder = class {
+  constructor(url2, { headers = {}, schema, fetch: fetch$1, urlLengthLimit = 8000, retry }) {
+    this.url = url2;
+    this.headers = new Headers(headers);
+    this.schema = schema;
+    this.fetch = fetch$1;
+    this.urlLengthLimit = urlLengthLimit;
+    this.retry = retry;
+  }
+  cloneRequestState() {
+    return {
+      url: new URL(this.url.toString()),
+      headers: new Headers(this.headers)
+    };
+  }
+  select(columns, options) {
+    const { head = false, count: count2 } = options !== null && options !== undefined ? options : {};
+    const method = head ? "HEAD" : "GET";
+    let quoted = false;
+    const cleanedColumns = (columns !== null && columns !== undefined ? columns : "*").split("").map((c) => {
+      if (/\s/.test(c) && !quoted)
+        return "";
+      if (c === '"')
+        quoted = !quoted;
+      return c;
+    }).join("");
+    const { url: url2, headers } = this.cloneRequestState();
+    url2.searchParams.set("select", cleanedColumns);
+    if (count2)
+      headers.append("Prefer", `count=${count2}`);
+    return new PostgrestFilterBuilder({
+      method,
+      url: url2,
+      headers,
+      schema: this.schema,
+      fetch: this.fetch,
+      urlLengthLimit: this.urlLengthLimit,
+      retry: this.retry
+    });
+  }
+  insert(values, { count: count2, defaultToNull = true } = {}) {
+    var _this$fetch;
+    const method = "POST";
+    const { url: url2, headers } = this.cloneRequestState();
+    if (count2)
+      headers.append("Prefer", `count=${count2}`);
+    if (!defaultToNull)
+      headers.append("Prefer", `missing=default`);
+    if (Array.isArray(values)) {
+      const columns = values.reduce((acc, x) => acc.concat(Object.keys(x)), []);
+      if (columns.length > 0) {
+        const uniqueColumns = [...new Set(columns)].map((column) => `"${column}"`);
+        url2.searchParams.set("columns", uniqueColumns.join(","));
+      }
+    }
+    return new PostgrestFilterBuilder({
+      method,
+      url: url2,
+      headers,
+      schema: this.schema,
+      body: values,
+      fetch: (_this$fetch = this.fetch) !== null && _this$fetch !== undefined ? _this$fetch : fetch,
+      urlLengthLimit: this.urlLengthLimit,
+      retry: this.retry
+    });
+  }
+  upsert(values, { onConflict, ignoreDuplicates = false, count: count2, defaultToNull = true } = {}) {
+    var _this$fetch2;
+    const method = "POST";
+    const { url: url2, headers } = this.cloneRequestState();
+    headers.append("Prefer", `resolution=${ignoreDuplicates ? "ignore" : "merge"}-duplicates`);
+    if (onConflict !== undefined)
+      url2.searchParams.set("on_conflict", onConflict);
+    if (count2)
+      headers.append("Prefer", `count=${count2}`);
+    if (!defaultToNull)
+      headers.append("Prefer", "missing=default");
+    if (Array.isArray(values)) {
+      const columns = values.reduce((acc, x) => acc.concat(Object.keys(x)), []);
+      if (columns.length > 0) {
+        const uniqueColumns = [...new Set(columns)].map((column) => `"${column}"`);
+        url2.searchParams.set("columns", uniqueColumns.join(","));
+      }
+    }
+    return new PostgrestFilterBuilder({
+      method,
+      url: url2,
+      headers,
+      schema: this.schema,
+      body: values,
+      fetch: (_this$fetch2 = this.fetch) !== null && _this$fetch2 !== undefined ? _this$fetch2 : fetch,
+      urlLengthLimit: this.urlLengthLimit,
+      retry: this.retry
+    });
+  }
+  update(values, { count: count2 } = {}) {
+    var _this$fetch3;
+    const method = "PATCH";
+    const { url: url2, headers } = this.cloneRequestState();
+    if (count2)
+      headers.append("Prefer", `count=${count2}`);
+    return new PostgrestFilterBuilder({
+      method,
+      url: url2,
+      headers,
+      schema: this.schema,
+      body: values,
+      fetch: (_this$fetch3 = this.fetch) !== null && _this$fetch3 !== undefined ? _this$fetch3 : fetch,
+      urlLengthLimit: this.urlLengthLimit,
+      retry: this.retry
+    });
+  }
+  delete({ count: count2 } = {}) {
+    var _this$fetch4;
+    const method = "DELETE";
+    const { url: url2, headers } = this.cloneRequestState();
+    if (count2)
+      headers.append("Prefer", `count=${count2}`);
+    return new PostgrestFilterBuilder({
+      method,
+      url: url2,
+      headers,
+      schema: this.schema,
+      fetch: (_this$fetch4 = this.fetch) !== null && _this$fetch4 !== undefined ? _this$fetch4 : fetch,
+      urlLengthLimit: this.urlLengthLimit,
+      retry: this.retry
+    });
+  }
+};
+function toOpenApiError(body, statusText) {
+  try {
+    const parsed = JSON.parse(body);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      var _parsed$message, _parsed$details, _parsed$hint, _parsed$code;
+      return new PostgrestError({
+        message: String((_parsed$message = parsed.message) !== null && _parsed$message !== undefined ? _parsed$message : body),
+        details: (_parsed$details = parsed.details) !== null && _parsed$details !== undefined ? _parsed$details : "",
+        hint: (_parsed$hint = parsed.hint) !== null && _parsed$hint !== undefined ? _parsed$hint : "",
+        code: (_parsed$code = parsed.code) !== null && _parsed$code !== undefined ? _parsed$code : ""
+      });
+    }
+  } catch (_unused) {}
+  return new PostgrestError({
+    message: body || statusText,
+    details: "",
+    hint: "",
+    code: ""
+  });
+}
+function toTransportFailure(cause, status, statusText) {
+  var _err$name;
+  const err = cause;
+  return {
+    success: false,
+    error: new PostgrestError({
+      message: `${(_err$name = err === null || err === undefined ? undefined : err.name) !== null && _err$name !== undefined ? _err$name : "FetchError"}: ${err === null || err === undefined ? undefined : err.message}`,
+      details: "",
+      hint: "",
+      code: ""
+    }),
+    data: null,
+    count: null,
+    status,
+    statusText
+  };
+}
+var PostgrestClient = class PostgrestClient2 {
+  constructor(url2, { headers = {}, schema, fetch: fetch$1, timeout, urlLengthLimit = 8000, retry } = {}) {
+    this.url = url2;
+    this.headers = new Headers(headers);
+    this.schemaName = schema;
+    this.urlLengthLimit = urlLengthLimit;
+    const originalFetch = fetch$1 !== null && fetch$1 !== undefined ? fetch$1 : globalThis.fetch;
+    if (timeout !== undefined && timeout > 0)
+      this.fetch = (input, init) => {
+        const controller = new AbortController;
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        const existingSignal = init === null || init === undefined ? undefined : init.signal;
+        if (existingSignal) {
+          if (existingSignal.aborted) {
+            clearTimeout(timeoutId);
+            return originalFetch(input, init);
+          }
+          const abortHandler = () => {
+            clearTimeout(timeoutId);
+            controller.abort();
+          };
+          existingSignal.addEventListener("abort", abortHandler, { once: true });
+          return originalFetch(input, _objectSpread2(_objectSpread2({}, init), {}, { signal: controller.signal })).finally(() => {
+            clearTimeout(timeoutId);
+            existingSignal.removeEventListener("abort", abortHandler);
+          });
+        }
+        return originalFetch(input, _objectSpread2(_objectSpread2({}, init), {}, { signal: controller.signal })).finally(() => clearTimeout(timeoutId));
+      };
+    else
+      this.fetch = originalFetch;
+    this.retry = retry;
+  }
+  from(relation) {
+    if (!relation || typeof relation !== "string" || relation.trim() === "")
+      throw new Error("Invalid relation name: relation must be a non-empty string.");
+    return new PostgrestQueryBuilder(new URL(`${this.url}/${relation}`), {
+      headers: new Headers(this.headers),
+      schema: this.schemaName,
+      fetch: this.fetch,
+      urlLengthLimit: this.urlLengthLimit,
+      retry: this.retry
+    });
+  }
+  schema(schema) {
+    return new PostgrestClient2(this.url, {
+      headers: this.headers,
+      schema,
+      fetch: this.fetch,
+      urlLengthLimit: this.urlLengthLimit,
+      retry: this.retry
+    });
+  }
+  async getOpenApiSpec() {
+    var _this = this;
+    var _this$fetch;
+    const headers = new Headers(_this.headers);
+    headers.set("Accept", "application/openapi+json");
+    if (_this.schemaName)
+      headers.set("Accept-Profile", _this.schemaName);
+    const requestHeaders = {};
+    headers.forEach((value, key) => {
+      requestHeaders[key] = value;
+    });
+    const fetchImpl = (_this$fetch = _this.fetch) !== null && _this$fetch !== undefined ? _this$fetch : globalThis.fetch;
+    let res;
+    try {
+      var _this$retry;
+      res = await fetchWithRetry(fetchImpl, `${_this.url}/`, {
+        method: "GET",
+        headers: requestHeaders
+      }, (_this$retry = _this.retry) !== null && _this$retry !== undefined ? _this$retry : true);
+    } catch (fetchError) {
+      return toTransportFailure(fetchError, 0, "");
+    }
+    let body;
+    try {
+      body = await res.text();
+    } catch (readError) {
+      return toTransportFailure(readError, res.status, res.statusText);
+    }
+    if (res.ok)
+      try {
+        return {
+          success: true,
+          error: null,
+          data: JSON.parse(body),
+          count: null,
+          status: res.status,
+          statusText: res.statusText
+        };
+      } catch (_unused2) {}
+    return {
+      success: false,
+      error: toOpenApiError(body, res.statusText),
+      data: null,
+      count: null,
+      status: res.status,
+      statusText: res.statusText
+    };
+  }
+  rpc(fn, args = {}, { head = false, get = false, count: count2 } = {}) {
+    var _this$fetch2;
+    let method;
+    const url2 = new URL(`${this.url}/rpc/${fn}`);
+    let body;
+    const _isObject = (v) => v !== null && typeof v === "object" && (!Array.isArray(v) || v.some(_isObject));
+    const _hasObjectArg = head && Object.values(args).some(_isObject);
+    if (_hasObjectArg) {
+      method = "POST";
+      body = args;
+    } else if (head || get) {
+      method = head ? "HEAD" : "GET";
+      Object.entries(args).filter(([_, value]) => value !== undefined).map(([name, value]) => [name, Array.isArray(value) ? `{${value.join(",")}}` : `${value}`]).forEach(([name, value]) => {
+        url2.searchParams.append(name, value);
+      });
+    } else {
+      method = "POST";
+      body = args;
+    }
+    const headers = new Headers(this.headers);
+    if (_hasObjectArg)
+      headers.set("Prefer", count2 ? `count=${count2},return=minimal` : "return=minimal");
+    else if (count2)
+      headers.set("Prefer", `count=${count2}`);
+    return new PostgrestFilterBuilder({
+      method,
+      url: url2,
+      headers,
+      schema: this.schemaName,
+      body,
+      fetch: (_this$fetch2 = this.fetch) !== null && _this$fetch2 !== undefined ? _this$fetch2 : fetch,
+      urlLengthLimit: this.urlLengthLimit,
+      retry: this.retry
+    });
+  }
+};
+
+// ../node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+class WebSocketFactory {
+  constructor() {}
+  static detectEnvironment() {
+    var _a3;
+    if (typeof WebSocket !== "undefined") {
+      return { type: "native", wsConstructor: WebSocket };
+    }
+    const gt = globalThis;
+    if (typeof globalThis !== "undefined" && typeof gt.WebSocket !== "undefined") {
+      return { type: "native", wsConstructor: gt.WebSocket };
+    }
+    const gl = typeof global !== "undefined" ? global : undefined;
+    if (gl && typeof gl.WebSocket !== "undefined") {
+      return { type: "native", wsConstructor: gl.WebSocket };
+    }
+    if (typeof globalThis !== "undefined" && typeof gt.WebSocketPair !== "undefined" && typeof globalThis.WebSocket === "undefined") {
+      return {
+        type: "cloudflare",
+        error: "Cloudflare Workers detected. WebSocket clients are not supported in Cloudflare Workers.",
+        workaround: "Use Cloudflare Workers WebSocket API for server-side WebSocket handling, or deploy to a different runtime."
+      };
+    }
+    if (typeof globalThis !== "undefined" && gt.EdgeRuntime || typeof navigator !== "undefined" && ((_a3 = navigator.userAgent) === null || _a3 === undefined ? undefined : _a3.includes("Vercel-Edge"))) {
+      return {
+        type: "unsupported",
+        error: "Edge runtime detected (Vercel Edge/Netlify Edge). WebSockets are not supported in edge functions.",
+        workaround: "Use serverless functions or a different deployment target for WebSocket functionality."
+      };
+    }
+    const _process = globalThis["process"];
+    if (_process) {
+      const processVersions = _process["versions"];
+      if (processVersions && processVersions["node"]) {
+        return {
+          type: "unsupported",
+          error: "Node.js detected but native WebSocket not found.",
+          workaround: "Ensure you are running Node.js 22+ or provide a WebSocket implementation via the transport option."
+        };
+      }
+    }
+    return {
+      type: "unsupported",
+      error: "Unknown JavaScript runtime without WebSocket support.",
+      workaround: "Ensure you're running in a supported environment (browser, Node.js, Deno) or provide a custom WebSocket implementation."
+    };
+  }
+  static getWebSocketConstructor() {
+    const env = this.detectEnvironment();
+    if (env.wsConstructor) {
+      return env.wsConstructor;
+    }
+    let errorMessage = env.error || "WebSocket not supported in this environment.";
+    if (env.workaround) {
+      errorMessage += `
+
+Suggested solution: ${env.workaround}`;
+    }
+    throw new Error(errorMessage);
+  }
+  static isWebSocketSupported() {
+    try {
+      const env = this.detectEnvironment();
+      return env.type === "native";
+    } catch (_a3) {
+      return false;
+    }
+  }
+}
+var websocket_factory_default = WebSocketFactory;
+
+// ../node_modules/@supabase/realtime-js/dist/module/lib/version.js
+var version3 = "2.116.0";
+
+// ../node_modules/@supabase/realtime-js/dist/module/lib/constants.js
+var DEFAULT_VERSION = `realtime-js/${version3}`;
+var VSN_1_0_0 = "1.0.0";
+var VSN_2_0_0 = "2.0.0";
+var DEFAULT_VSN = VSN_2_0_0;
+var DEFAULT_TIMEOUT = 1e4;
+var DEFAULT_POSTGRES_CHANGES_WAIT_TIMEOUT = 15000;
+var POSTGRES_CHANGES_WAIT_ERROR_GRACE = 1e4;
+var MAX_PUSH_BUFFER_SIZE = 100;
+var CHANNEL_STATES = {
+  closed: "closed",
+  errored: "errored",
+  joined: "joined",
+  joining: "joining",
+  leaving: "leaving"
+};
+var CHANNEL_EVENTS = {
+  close: "phx_close",
+  error: "phx_error",
+  join: "phx_join",
+  reply: "phx_reply",
+  leave: "phx_leave",
+  access_token: "access_token"
+};
+var CONNECTION_STATE = {
+  connecting: "connecting",
+  open: "open",
+  closing: "closing",
+  closed: "closed"
+};
+
+// ../node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
+class Serializer {
+  constructor(allowedMetadataKeys) {
+    this.HEADER_LENGTH = 1;
+    this.USER_BROADCAST_PUSH_META_LENGTH = 6;
+    this.KINDS = { userBroadcastPush: 3, userBroadcast: 4 };
+    this.BINARY_ENCODING = 0;
+    this.JSON_ENCODING = 1;
+    this.BROADCAST_EVENT = "broadcast";
+    this.allowedMetadataKeys = [];
+    this.allowedMetadataKeys = allowedMetadataKeys !== null && allowedMetadataKeys !== undefined ? allowedMetadataKeys : [];
+  }
+  encode(msg, callback) {
+    if (msg.event === this.BROADCAST_EVENT && !(msg.payload instanceof ArrayBuffer) && typeof msg.payload.event === "string") {
+      return callback(this._binaryEncodeUserBroadcastPush(msg));
+    }
+    let payload = [msg.join_ref, msg.ref, msg.topic, msg.event, msg.payload];
+    return callback(JSON.stringify(payload));
+  }
+  _binaryEncodeUserBroadcastPush(message) {
+    var _a3;
+    if (this._isArrayBuffer((_a3 = message.payload) === null || _a3 === undefined ? undefined : _a3.payload)) {
+      return this._encodeBinaryUserBroadcastPush(message);
+    } else {
+      return this._encodeJsonUserBroadcastPush(message);
+    }
+  }
+  _encodeBinaryUserBroadcastPush(message) {
+    var _a3, _b;
+    const userPayload = (_b = (_a3 = message.payload) === null || _a3 === undefined ? undefined : _a3.payload) !== null && _b !== undefined ? _b : new ArrayBuffer(0);
+    return this._encodeUserBroadcastPush(message, this.BINARY_ENCODING, userPayload);
+  }
+  _encodeJsonUserBroadcastPush(message) {
+    var _a3, _b;
+    const userPayload = (_b = (_a3 = message.payload) === null || _a3 === undefined ? undefined : _a3.payload) !== null && _b !== undefined ? _b : {};
+    const encoder = new TextEncoder;
+    const encodedUserPayload = encoder.encode(JSON.stringify(userPayload)).buffer;
+    return this._encodeUserBroadcastPush(message, this.JSON_ENCODING, encodedUserPayload);
+  }
+  _encodeUserBroadcastPush(message, encodingType, encodedPayload) {
+    var _a3, _b;
+    const encoder = new TextEncoder;
+    const topic = encoder.encode(message.topic);
+    const ref = encoder.encode((_a3 = message.ref) !== null && _a3 !== undefined ? _a3 : "");
+    const joinRef = encoder.encode((_b = message.join_ref) !== null && _b !== undefined ? _b : "");
+    const userEvent = encoder.encode(message.payload.event);
+    const rest = this.allowedMetadataKeys ? this._pick(message.payload, this.allowedMetadataKeys) : {};
+    const metadata = encoder.encode(Object.keys(rest).length === 0 ? "" : JSON.stringify(rest));
+    if (joinRef.length > 255) {
+      throw new Error(`joinRef length ${joinRef.length} exceeds maximum of 255`);
+    }
+    if (ref.length > 255) {
+      throw new Error(`ref length ${ref.length} exceeds maximum of 255`);
+    }
+    if (topic.length > 255) {
+      throw new Error(`topic length ${topic.length} exceeds maximum of 255`);
+    }
+    if (userEvent.length > 255) {
+      throw new Error(`userEvent length ${userEvent.length} exceeds maximum of 255`);
+    }
+    if (metadata.length > 255) {
+      throw new Error(`metadata length ${metadata.length} exceeds maximum of 255`);
+    }
+    const metaLength = this.USER_BROADCAST_PUSH_META_LENGTH + joinRef.length + ref.length + topic.length + userEvent.length + metadata.length;
+    const header = new ArrayBuffer(this.HEADER_LENGTH + metaLength);
+    const view = new DataView(header);
+    const bytes = new Uint8Array(header);
+    let offset = 0;
+    view.setUint8(offset++, this.KINDS.userBroadcastPush);
+    view.setUint8(offset++, joinRef.length);
+    view.setUint8(offset++, ref.length);
+    view.setUint8(offset++, topic.length);
+    view.setUint8(offset++, userEvent.length);
+    view.setUint8(offset++, metadata.length);
+    view.setUint8(offset++, encodingType);
+    bytes.set(joinRef, offset);
+    offset += joinRef.length;
+    bytes.set(ref, offset);
+    offset += ref.length;
+    bytes.set(topic, offset);
+    offset += topic.length;
+    bytes.set(userEvent, offset);
+    offset += userEvent.length;
+    bytes.set(metadata, offset);
+    offset += metadata.length;
+    var combined = new Uint8Array(header.byteLength + encodedPayload.byteLength);
+    combined.set(new Uint8Array(header), 0);
+    combined.set(new Uint8Array(encodedPayload), header.byteLength);
+    return combined.buffer;
+  }
+  decode(rawPayload, callback) {
+    if (this._isArrayBuffer(rawPayload)) {
+      let result = this._binaryDecode(rawPayload);
+      return callback(result);
+    }
+    if (typeof rawPayload === "string") {
+      const jsonPayload = JSON.parse(rawPayload);
+      const [join_ref, ref, topic, event, payload] = jsonPayload;
+      return callback({ join_ref, ref, topic, event, payload });
+    }
+    return callback({});
+  }
+  _binaryDecode(buffer) {
+    const view = new DataView(buffer);
+    const kind = view.getUint8(0);
+    const decoder = new TextDecoder;
+    switch (kind) {
+      case this.KINDS.userBroadcast:
+        return this._decodeUserBroadcast(buffer, view, decoder);
+    }
+  }
+  _decodeUserBroadcast(buffer, view, decoder) {
+    const topicSize = view.getUint8(1);
+    const userEventSize = view.getUint8(2);
+    const metadataSize = view.getUint8(3);
+    const payloadEncoding = view.getUint8(4);
+    let offset = this.HEADER_LENGTH + 4;
+    const topic = decoder.decode(buffer.slice(offset, offset + topicSize));
+    offset = offset + topicSize;
+    const userEvent = decoder.decode(buffer.slice(offset, offset + userEventSize));
+    offset = offset + userEventSize;
+    const metadata = decoder.decode(buffer.slice(offset, offset + metadataSize));
+    offset = offset + metadataSize;
+    const payload = buffer.slice(offset, buffer.byteLength);
+    const parsedPayload = payloadEncoding === this.JSON_ENCODING ? JSON.parse(decoder.decode(payload)) : payload;
+    const data = {
+      type: this.BROADCAST_EVENT,
+      event: userEvent,
+      payload: parsedPayload
+    };
+    if (metadataSize > 0) {
+      data["meta"] = JSON.parse(metadata);
+    }
+    return { join_ref: null, ref: null, topic, event: this.BROADCAST_EVENT, payload: data };
+  }
+  _isArrayBuffer(buffer) {
+    var _a3;
+    return buffer instanceof ArrayBuffer || ((_a3 = buffer === null || buffer === undefined ? undefined : buffer.constructor) === null || _a3 === undefined ? undefined : _a3.name) === "ArrayBuffer";
+  }
+  _pick(obj, keys) {
+    if (!obj || typeof obj !== "object") {
+      return {};
+    }
+    return Object.fromEntries(Object.entries(obj).filter(([key]) => keys.includes(key)));
+  }
+}
+
+// ../node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
+var PostgresTypes;
+(function(PostgresTypes2) {
+  PostgresTypes2["abstime"] = "abstime";
+  PostgresTypes2["bool"] = "bool";
+  PostgresTypes2["date"] = "date";
+  PostgresTypes2["daterange"] = "daterange";
+  PostgresTypes2["float4"] = "float4";
+  PostgresTypes2["float8"] = "float8";
+  PostgresTypes2["int2"] = "int2";
+  PostgresTypes2["int4"] = "int4";
+  PostgresTypes2["int4range"] = "int4range";
+  PostgresTypes2["int8"] = "int8";
+  PostgresTypes2["int8range"] = "int8range";
+  PostgresTypes2["json"] = "json";
+  PostgresTypes2["jsonb"] = "jsonb";
+  PostgresTypes2["money"] = "money";
+  PostgresTypes2["numeric"] = "numeric";
+  PostgresTypes2["oid"] = "oid";
+  PostgresTypes2["reltime"] = "reltime";
+  PostgresTypes2["text"] = "text";
+  PostgresTypes2["time"] = "time";
+  PostgresTypes2["timestamp"] = "timestamp";
+  PostgresTypes2["timestamptz"] = "timestamptz";
+  PostgresTypes2["timetz"] = "timetz";
+  PostgresTypes2["tsrange"] = "tsrange";
+  PostgresTypes2["tstzrange"] = "tstzrange";
+})(PostgresTypes || (PostgresTypes = {}));
+var convertChangeData = (columns, record2, options = {}) => {
+  var _a3;
+  const skipTypes = (_a3 = options.skipTypes) !== null && _a3 !== undefined ? _a3 : [];
+  if (!record2) {
+    return {};
+  }
+  return Object.keys(record2).reduce((acc, rec_key) => {
+    acc[rec_key] = convertColumn(rec_key, columns, record2, skipTypes);
+    return acc;
+  }, {});
+};
+var convertColumn = (columnName, columns, record2, skipTypes) => {
+  const column = columns.find((x) => x.name === columnName);
+  const colType = column === null || column === undefined ? undefined : column.type;
+  const value = record2[columnName];
+  if (colType && !skipTypes.includes(colType)) {
+    return convertCell(colType, value);
+  }
+  return noop(value);
+};
+var convertCell = (type, value) => {
+  if (type.charAt(0) === "_") {
+    const dataType = type.slice(1, type.length);
+    return toArray(value, dataType);
+  }
+  switch (type) {
+    case PostgresTypes.bool:
+      return toBoolean(value);
+    case PostgresTypes.float4:
+    case PostgresTypes.float8:
+    case PostgresTypes.int2:
+    case PostgresTypes.int4:
+    case PostgresTypes.int8:
+    case PostgresTypes.numeric:
+    case PostgresTypes.oid:
+      return toNumber(value);
+    case PostgresTypes.json:
+    case PostgresTypes.jsonb:
+      return toJson(value);
+    case PostgresTypes.timestamp:
+      return toTimestampString(value);
+    case PostgresTypes.abstime:
+    case PostgresTypes.date:
+    case PostgresTypes.daterange:
+    case PostgresTypes.int4range:
+    case PostgresTypes.int8range:
+    case PostgresTypes.money:
+    case PostgresTypes.reltime:
+    case PostgresTypes.text:
+    case PostgresTypes.time:
+    case PostgresTypes.timestamptz:
+    case PostgresTypes.timetz:
+    case PostgresTypes.tsrange:
+    case PostgresTypes.tstzrange:
+      return noop(value);
+    default:
+      return noop(value);
+  }
+};
+var noop = (value) => {
+  return value;
+};
+var toBoolean = (value) => {
+  switch (value) {
+    case "t":
+      return true;
+    case "f":
+      return false;
+    default:
+      return value;
+  }
+};
+var toNumber = (value) => {
+  if (typeof value === "string") {
+    const parsedValue = parseFloat(value);
+    if (!Number.isNaN(parsedValue)) {
+      return parsedValue;
+    }
+  }
+  return value;
+};
+var toJson = (value) => {
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch (_a3) {
+      return value;
+    }
+  }
+  return value;
+};
+var toArray = (value, type) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const lastIdx = value.length - 1;
+  const closeBrace = value[lastIdx];
+  const openBrace = value[0];
+  if (openBrace === "{" && closeBrace === "}") {
+    let arr;
+    const valTrim = value.slice(1, lastIdx);
+    try {
+      arr = JSON.parse("[" + valTrim + "]");
+    } catch (_) {
+      arr = valTrim ? valTrim.split(",") : [];
+    }
+    return arr.map((val) => convertCell(type, val));
+  }
+  return value;
+};
+var toTimestampString = (value) => {
+  if (typeof value === "string") {
+    return value.replace(" ", "T");
+  }
+  return value;
+};
+var httpEndpointURL = (socketUrl) => {
+  const wsUrl = new URL(socketUrl);
+  wsUrl.protocol = wsUrl.protocol.replace(/^ws/i, "http");
+  wsUrl.pathname = wsUrl.pathname.replace(/\/+$/, "").replace(/\/socket\/websocket$/i, "").replace(/\/socket$/i, "").replace(/\/websocket$/i, "");
+  if (wsUrl.pathname === "" || wsUrl.pathname === "/") {
+    wsUrl.pathname = "/api/broadcast";
+  } else {
+    wsUrl.pathname = wsUrl.pathname + "/api/broadcast";
+  }
+  return wsUrl.href;
+};
+
+// ../node_modules/@supabase/phoenix/priv/static/phoenix.mjs
+var closure = (value) => {
+  if (typeof value === "function") {
+    return value;
+  } else {
+    let closure2 = function() {
+      return value;
+    };
+    return closure2;
+  }
+};
+var globalSelf = typeof self !== "undefined" ? self : null;
+var phxWindow = typeof window !== "undefined" ? window : null;
+var global2 = globalSelf || phxWindow || globalThis;
+var DEFAULT_VSN2 = "2.0.0";
+var DEFAULT_TIMEOUT2 = 1e4;
+var WS_CLOSE_NORMAL = 1000;
+var MAX_LONGPOLL_BATCH_SIZE = 100;
+var SOCKET_STATES = { connecting: 0, open: 1, closing: 2, closed: 3 };
+var CHANNEL_STATES2 = {
+  closed: "closed",
+  errored: "errored",
+  joined: "joined",
+  joining: "joining",
+  leaving: "leaving"
+};
+var CHANNEL_EVENTS2 = {
+  close: "phx_close",
+  error: "phx_error",
+  join: "phx_join",
+  reply: "phx_reply",
+  leave: "phx_leave"
+};
+var TRANSPORTS = {
+  longpoll: "longpoll",
+  websocket: "websocket"
+};
+var XHR_STATES = {
+  complete: 4
+};
+var AUTH_TOKEN_PREFIX = "base64url.bearer.phx.";
+var Push = class {
+  constructor(channel, event, payload, timeout) {
+    this.channel = channel;
+    this.event = event;
+    this.payload = payload || function() {
+      return {};
+    };
+    this.receivedResp = null;
+    this.timeout = timeout;
+    this.timeoutTimer = null;
+    this.recHooks = [];
+    this.sent = false;
+    this.ref = undefined;
+  }
+  resend(timeout) {
+    this.timeout = timeout;
+    this.reset();
+    this.send();
+  }
+  send() {
+    if (this.hasReceived("timeout")) {
+      return;
+    }
+    this.startTimeout();
+    this.sent = true;
+    this.channel.socket.push({
+      topic: this.channel.topic,
+      event: this.event,
+      payload: this.payload(),
+      ref: this.ref,
+      join_ref: this.channel.joinRef()
+    });
+  }
+  receive(status, callback) {
+    if (this.hasReceived(status)) {
+      callback(this.receivedResp.response);
+    }
+    this.recHooks.push({ status, callback });
+    return this;
+  }
+  reset() {
+    this.cancelRefEvent();
+    this.ref = null;
+    this.refEvent = null;
+    this.receivedResp = null;
+    this.sent = false;
+  }
+  destroy() {
+    this.cancelRefEvent();
+    this.cancelTimeout();
+  }
+  matchReceive({ status, response, _ref }) {
+    this.recHooks.filter((h) => h.status === status).forEach((h) => h.callback(response));
+  }
+  cancelRefEvent() {
+    if (!this.refEvent) {
+      return;
+    }
+    this.channel.off(this.refEvent);
+  }
+  cancelTimeout() {
+    clearTimeout(this.timeoutTimer);
+    this.timeoutTimer = null;
+  }
+  startTimeout() {
+    if (this.timeoutTimer) {
+      this.cancelTimeout();
+    }
+    this.ref = this.channel.socket.makeRef();
+    this.refEvent = this.channel.replyEventName(this.ref);
+    this.channel.on(this.refEvent, (payload) => {
+      this.cancelRefEvent();
+      this.cancelTimeout();
+      this.receivedResp = payload;
+      this.matchReceive(payload);
+    });
+    this.timeoutTimer = setTimeout(() => {
+      this.trigger("timeout", {});
+    }, this.timeout);
+  }
+  hasReceived(status) {
+    return this.receivedResp && this.receivedResp.status === status;
+  }
+  trigger(status, response) {
+    this.channel.trigger(this.refEvent, { status, response });
+  }
+};
+var Timer = class {
+  constructor(callback, timerCalc) {
+    this.callback = callback;
+    this.timerCalc = timerCalc;
+    this.timer = undefined;
+    this.tries = 0;
+  }
+  reset() {
+    this.tries = 0;
+    clearTimeout(this.timer);
+  }
+  scheduleTimeout() {
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      this.tries = this.tries + 1;
+      this.callback();
+    }, this.timerCalc(this.tries + 1));
+  }
+};
+var Channel = class {
+  constructor(topic, params, socket) {
+    this.state = CHANNEL_STATES2.closed;
+    this.topic = topic;
+    this.params = closure(params || {});
+    this.socket = socket;
+    this.bindings = [];
+    this.bindingRef = 0;
+    this.timeout = this.socket.timeout;
+    this.joinedOnce = false;
+    this.joinPush = new Push(this, CHANNEL_EVENTS2.join, this.params, this.timeout);
+    this.pushBuffer = [];
+    this.stateChangeRefs = [];
+    this.rejoinTimer = new Timer(() => {
+      if (this.socket.isConnected()) {
+        this.rejoin();
+      }
+    }, this.socket.rejoinAfterMs);
+    this.stateChangeRefs.push(this.socket.onError(() => this.rejoinTimer.reset()));
+    this.stateChangeRefs.push(this.socket.onOpen(() => {
+      this.rejoinTimer.reset();
+      if (this.isErrored()) {
+        this.rejoin();
+      }
+    }));
+    this.joinPush.receive("ok", () => {
+      this.state = CHANNEL_STATES2.joined;
+      this.rejoinTimer.reset();
+      this.pushBuffer.forEach((pushEvent) => pushEvent.send());
+      this.pushBuffer = [];
+    });
+    this.joinPush.receive("error", (reason) => {
+      this.state = CHANNEL_STATES2.errored;
+      if (this.socket.hasLogger())
+        this.socket.log("channel", `error ${this.topic}`, reason);
+      if (this.socket.isConnected()) {
+        this.rejoinTimer.scheduleTimeout();
+      }
+    });
+    this.onClose(() => {
+      this.rejoinTimer.reset();
+      if (this.socket.hasLogger())
+        this.socket.log("channel", `close ${this.topic}`);
+      this.state = CHANNEL_STATES2.closed;
+      this.socket.remove(this);
+    });
+    this.onError((reason) => {
+      if (this.socket.hasLogger())
+        this.socket.log("channel", `error ${this.topic}`, reason);
+      if (this.isJoining()) {
+        this.joinPush.reset();
+      }
+      this.state = CHANNEL_STATES2.errored;
+      if (this.socket.isConnected()) {
+        this.rejoinTimer.scheduleTimeout();
+      }
+    });
+    this.joinPush.receive("timeout", () => {
+      if (this.socket.hasLogger())
+        this.socket.log("channel", `timeout ${this.topic}`, this.joinPush.timeout);
+      let leavePush = new Push(this, CHANNEL_EVENTS2.leave, closure({}), this.timeout);
+      leavePush.send();
+      this.state = CHANNEL_STATES2.errored;
+      this.joinPush.reset();
+      if (this.socket.isConnected()) {
+        this.rejoinTimer.scheduleTimeout();
+      }
+    });
+    this.on(CHANNEL_EVENTS2.reply, (payload, ref) => {
+      this.trigger(this.replyEventName(ref), payload);
+    });
+  }
+  join(timeout = this.timeout) {
+    if (this.joinedOnce) {
+      throw new Error("tried to join multiple times. 'join' can only be called a single time per channel instance");
+    } else {
+      this.timeout = timeout;
+      this.joinedOnce = true;
+      this.rejoin();
+      return this.joinPush;
+    }
+  }
+  teardown() {
+    this.pushBuffer.forEach((push) => push.destroy());
+    this.pushBuffer = [];
+    this.rejoinTimer.reset();
+    this.joinPush.destroy();
+    this.state = CHANNEL_STATES2.closed;
+    this.bindings = [];
+  }
+  onClose(callback) {
+    this.on(CHANNEL_EVENTS2.close, callback);
+  }
+  onError(callback) {
+    return this.on(CHANNEL_EVENTS2.error, (reason) => callback(reason));
+  }
+  on(event, callback) {
+    let ref = this.bindingRef++;
+    this.bindings.push({ event, ref, callback });
+    return ref;
+  }
+  off(event, ref) {
+    this.bindings = this.bindings.filter((bind) => {
+      return !(bind.event === event && (typeof ref === "undefined" || ref === bind.ref));
+    });
+  }
+  canPush() {
+    return this.socket.isConnected() && this.isJoined();
+  }
+  push(event, payload, timeout = this.timeout) {
+    payload = payload || {};
+    if (!this.joinedOnce) {
+      throw new Error(`tried to push '${event}' to '${this.topic}' before joining. Use channel.join() before pushing events`);
+    }
+    let pushEvent = new Push(this, event, function() {
+      return payload;
+    }, timeout);
+    if (this.canPush()) {
+      pushEvent.send();
+    } else {
+      pushEvent.startTimeout();
+      this.pushBuffer.push(pushEvent);
+    }
+    return pushEvent;
+  }
+  leave(timeout = this.timeout) {
+    this.rejoinTimer.reset();
+    this.joinPush.cancelTimeout();
+    this.state = CHANNEL_STATES2.leaving;
+    let onClose = () => {
+      if (this.socket.hasLogger())
+        this.socket.log("channel", `leave ${this.topic}`);
+      this.trigger(CHANNEL_EVENTS2.close, "leave");
+    };
+    let leavePush = new Push(this, CHANNEL_EVENTS2.leave, closure({}), timeout);
+    leavePush.receive("ok", () => onClose()).receive("timeout", () => onClose());
+    leavePush.send();
+    if (!this.canPush()) {
+      leavePush.trigger("ok", {});
+    }
+    return leavePush;
+  }
+  onMessage(_event, payload, _ref) {
+    return payload;
+  }
+  filterBindings(_binding, _payload, _ref) {
+    return true;
+  }
+  isMember(topic, event, payload, joinRef) {
+    if (this.topic !== topic) {
+      return false;
+    }
+    if (joinRef && joinRef !== this.joinRef()) {
+      if (this.socket.hasLogger())
+        this.socket.log("channel", "dropping outdated message", { topic, event, payload, joinRef });
+      return false;
+    } else {
+      return true;
+    }
+  }
+  joinRef() {
+    return this.joinPush.ref;
+  }
+  rejoin(timeout = this.timeout) {
+    if (this.isLeaving()) {
+      return;
+    }
+    this.socket.leaveOpenTopic(this.topic);
+    this.state = CHANNEL_STATES2.joining;
+    this.joinPush.resend(timeout);
+  }
+  trigger(event, payload, ref, joinRef) {
+    let handledPayload = this.onMessage(event, payload, ref, joinRef);
+    if (payload && !handledPayload) {
+      throw new Error("channel onMessage callbacks must return the payload, modified or unmodified");
+    }
+    let eventBindings = this.bindings.filter((bind) => bind.event === event && this.filterBindings(bind, payload, ref));
+    for (let i = 0;i < eventBindings.length; i++) {
+      let bind = eventBindings[i];
+      bind.callback(handledPayload, ref, joinRef || this.joinRef());
+    }
+  }
+  replyEventName(ref) {
+    return `chan_reply_${ref}`;
+  }
+  isClosed() {
+    return this.state === CHANNEL_STATES2.closed;
+  }
+  isErrored() {
+    return this.state === CHANNEL_STATES2.errored;
+  }
+  isJoined() {
+    return this.state === CHANNEL_STATES2.joined;
+  }
+  isJoining() {
+    return this.state === CHANNEL_STATES2.joining;
+  }
+  isLeaving() {
+    return this.state === CHANNEL_STATES2.leaving;
+  }
+};
+var Ajax = class {
+  static request(method, endPoint, headers, body, timeout, ontimeout, callback) {
+    if (global2.XDomainRequest) {
+      let req = new global2.XDomainRequest;
+      return this.xdomainRequest(req, method, endPoint, body, timeout, ontimeout, callback);
+    } else if (global2.XMLHttpRequest) {
+      let req = new global2.XMLHttpRequest;
+      return this.xhrRequest(req, method, endPoint, headers, body, timeout, ontimeout, callback);
+    } else if (global2.fetch && global2.AbortController) {
+      return this.fetchRequest(method, endPoint, headers, body, timeout, ontimeout, callback);
+    } else {
+      throw new Error("No suitable XMLHttpRequest implementation found");
+    }
+  }
+  static fetchRequest(method, endPoint, headers, body, timeout, ontimeout, callback) {
+    let options = {
+      method,
+      headers,
+      body
+    };
+    let controller = null;
+    if (timeout) {
+      controller = new AbortController;
+      const _timeoutId = setTimeout(() => controller.abort(), timeout);
+      options.signal = controller.signal;
+    }
+    global2.fetch(endPoint, options).then((response) => response.text()).then((data) => this.parseJSON(data)).then((data) => callback && callback(data)).catch((err) => {
+      if (err.name === "AbortError" && ontimeout) {
+        ontimeout();
+      } else {
+        callback && callback(null);
+      }
+    });
+    return controller;
+  }
+  static xdomainRequest(req, method, endPoint, body, timeout, ontimeout, callback) {
+    req.timeout = timeout;
+    req.open(method, endPoint);
+    req.onload = () => {
+      let response = this.parseJSON(req.responseText);
+      callback && callback(response);
+    };
+    if (ontimeout) {
+      req.ontimeout = ontimeout;
+    }
+    req.onprogress = () => {};
+    req.send(body);
+    return req;
+  }
+  static xhrRequest(req, method, endPoint, headers, body, timeout, ontimeout, callback) {
+    req.open(method, endPoint, true);
+    req.timeout = timeout;
+    for (let [key, value] of Object.entries(headers)) {
+      req.setRequestHeader(key, value);
+    }
+    req.onerror = () => callback && callback(null);
+    req.onreadystatechange = () => {
+      if (req.readyState === XHR_STATES.complete && callback) {
+        let response = this.parseJSON(req.responseText);
+        callback(response);
+      }
+    };
+    if (ontimeout) {
+      req.ontimeout = ontimeout;
+    }
+    req.send(body);
+    return req;
+  }
+  static parseJSON(resp) {
+    if (!resp || resp === "") {
+      return null;
+    }
+    try {
+      return JSON.parse(resp);
+    } catch {
+      console && console.log("failed to parse JSON response", resp);
+      return null;
+    }
+  }
+  static serialize(obj, parentKey) {
+    let queryStr = [];
+    for (var key in obj) {
+      if (!Object.prototype.hasOwnProperty.call(obj, key)) {
+        continue;
+      }
+      let paramKey = parentKey ? `${parentKey}[${key}]` : key;
+      let paramVal = obj[key];
+      if (typeof paramVal === "object") {
+        queryStr.push(this.serialize(paramVal, paramKey));
+      } else {
+        queryStr.push(encodeURIComponent(paramKey) + "=" + encodeURIComponent(paramVal));
+      }
+    }
+    return queryStr.join("&");
+  }
+  static appendParams(url2, params) {
+    if (Object.keys(params).length === 0) {
+      return url2;
+    }
+    let prefix = url2.match(/\?/) ? "&" : "?";
+    return `${url2}${prefix}${this.serialize(params)}`;
+  }
+};
+var arrayBufferToBase64 = (buffer) => {
+  let binary = "";
+  let bytes = new Uint8Array(buffer);
+  let len = bytes.byteLength;
+  for (let i = 0;i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+};
+var LongPoll = class {
+  constructor(endPoint, protocols) {
+    if (protocols && protocols.length === 2 && protocols[1].startsWith(AUTH_TOKEN_PREFIX)) {
+      this.authToken = atob(protocols[1].slice(AUTH_TOKEN_PREFIX.length));
+    }
+    this.endPoint = null;
+    this.token = null;
+    this.skipHeartbeat = true;
+    this.reqs = /* @__PURE__ */ new Set;
+    this.awaitingBatchAck = false;
+    this.currentBatch = null;
+    this.currentBatchTimer = null;
+    this.batchBuffer = [];
+    this.onopen = function() {};
+    this.onerror = function() {};
+    this.onmessage = function() {};
+    this.onclose = function() {};
+    this.pollEndpoint = this.normalizeEndpoint(endPoint);
+    this.readyState = SOCKET_STATES.connecting;
+    setTimeout(() => this.poll(), 0);
+  }
+  normalizeEndpoint(endPoint) {
+    return endPoint.replace("ws://", "http://").replace("wss://", "https://").replace(new RegExp("(.*)/" + TRANSPORTS.websocket), "$1/" + TRANSPORTS.longpoll);
+  }
+  endpointURL() {
+    return Ajax.appendParams(this.pollEndpoint, { token: this.token });
+  }
+  closeAndRetry(code, reason, wasClean) {
+    this.close(code, reason, wasClean);
+    this.readyState = SOCKET_STATES.connecting;
+  }
+  ontimeout() {
+    this.onerror("timeout");
+    this.closeAndRetry(1005, "timeout", false);
+  }
+  isActive() {
+    return this.readyState === SOCKET_STATES.open || this.readyState === SOCKET_STATES.connecting;
+  }
+  poll() {
+    const headers = { Accept: "application/json" };
+    if (this.authToken) {
+      headers["X-Phoenix-AuthToken"] = this.authToken;
+    }
+    this.ajax("GET", headers, null, () => this.ontimeout(), (resp) => {
+      if (resp) {
+        var { status, token, messages } = resp;
+        if (status === 410 && this.token !== null) {
+          this.onerror(410);
+          this.closeAndRetry(3410, "session_gone", false);
+          return;
+        }
+        this.token = token;
+      } else {
+        status = 0;
+      }
+      switch (status) {
+        case 200:
+          messages.forEach((msg) => {
+            setTimeout(() => this.onmessage({ data: msg }), 0);
+          });
+          this.poll();
+          break;
+        case 204:
+          this.poll();
+          break;
+        case 410:
+          this.readyState = SOCKET_STATES.open;
+          this.onopen({});
+          this.poll();
+          break;
+        case 403:
+          this.onerror(403);
+          this.close(1008, "forbidden", false);
+          break;
+        case 0:
+        case 500:
+          this.onerror(500);
+          this.closeAndRetry(1011, "internal server error", 500);
+          break;
+        default:
+          throw new Error(`unhandled poll status ${status}`);
+      }
+    });
+  }
+  send(body) {
+    if (typeof body !== "string") {
+      body = arrayBufferToBase64(body);
+    }
+    if (this.currentBatch) {
+      this.currentBatch.push(body);
+    } else if (this.awaitingBatchAck) {
+      this.batchBuffer.push(body);
+    } else {
+      this.currentBatch = [body];
+      this.currentBatchTimer = setTimeout(() => {
+        this.batchSend(this.currentBatch);
+        this.currentBatch = null;
+      }, 0);
+    }
+  }
+  batchSend(messages, offset = 0) {
+    this.awaitingBatchAck = true;
+    const next = offset + MAX_LONGPOLL_BATCH_SIZE;
+    const batch = messages.slice(offset, next);
+    this.ajax("POST", { "Content-Type": "application/x-ndjson" }, batch.join(`
+`), () => this.onerror("timeout"), (resp) => {
+      if (!resp || resp.status !== 200) {
+        this.awaitingBatchAck = false;
+        this.onerror(resp && resp.status);
+        this.closeAndRetry(1011, "internal server error", false);
+      } else if (next < messages.length) {
+        this.batchSend(messages, next);
+      } else if (this.batchBuffer.length > 0) {
+        this.batchSend(this.batchBuffer);
+        this.batchBuffer = [];
+      } else {
+        this.awaitingBatchAck = false;
+      }
+    });
+  }
+  close(code, reason, wasClean) {
+    for (let req of this.reqs) {
+      req.abort();
+    }
+    this.readyState = SOCKET_STATES.closed;
+    let opts = Object.assign({ code: 1000, reason: undefined, wasClean: true }, { code, reason, wasClean });
+    this.batchBuffer = [];
+    clearTimeout(this.currentBatchTimer);
+    this.currentBatchTimer = null;
+    if (typeof CloseEvent !== "undefined") {
+      this.onclose(new CloseEvent("close", opts));
+    } else {
+      this.onclose(opts);
+    }
+  }
+  ajax(method, headers, body, onCallerTimeout, callback) {
+    let req;
+    let ontimeout = () => {
+      this.reqs.delete(req);
+      onCallerTimeout();
+    };
+    req = Ajax.request(method, this.endpointURL(), headers, body, this.timeout, ontimeout, (resp) => {
+      this.reqs.delete(req);
+      if (this.isActive()) {
+        callback(resp);
+      }
+    });
+    this.reqs.add(req);
+  }
+};
+var Presence = class _Presence {
+  constructor(channel, opts = {}) {
+    let events = opts.events || { state: "presence_state", diff: "presence_diff" };
+    this.state = /* @__PURE__ */ Object.create(null);
+    this.pendingDiffs = [];
+    this.channel = channel;
+    this.joinRef = null;
+    this.caller = {
+      onJoin: function() {},
+      onLeave: function() {},
+      onSync: function() {}
+    };
+    this.channel.on(events.state, (newState) => {
+      let { onJoin, onLeave, onSync } = this.caller;
+      this.joinRef = this.channel.joinRef();
+      this.state = _Presence.syncState(this.state, newState, onJoin, onLeave);
+      this.pendingDiffs.forEach((diff) => {
+        this.state = _Presence.syncDiff(this.state, diff, onJoin, onLeave);
+      });
+      this.pendingDiffs = [];
+      onSync();
+    });
+    this.channel.on(events.diff, (diff) => {
+      let { onJoin, onLeave, onSync } = this.caller;
+      if (this.inPendingSyncState()) {
+        this.pendingDiffs.push(diff);
+      } else {
+        this.state = _Presence.syncDiff(this.state, diff, onJoin, onLeave);
+        onSync();
+      }
+    });
+  }
+  onJoin(callback) {
+    this.caller.onJoin = callback;
+  }
+  onLeave(callback) {
+    this.caller.onLeave = callback;
+  }
+  onSync(callback) {
+    this.caller.onSync = callback;
+  }
+  list(by) {
+    return _Presence.list(this.state, by);
+  }
+  inPendingSyncState() {
+    return !this.joinRef || this.joinRef !== this.channel.joinRef();
+  }
+  static syncState(currentState, newState, onJoin, onLeave) {
+    let state = this.toNullProtoObj(this.clone(currentState));
+    newState = this.toNullProtoObj(newState);
+    let joins = /* @__PURE__ */ Object.create(null);
+    let leaves = /* @__PURE__ */ Object.create(null);
+    this.map(state, (key, presence) => {
+      if (!newState[key]) {
+        leaves[key] = presence;
+      }
+    });
+    this.map(newState, (key, newPresence) => {
+      let currentPresence = state[key];
+      if (currentPresence) {
+        let newRefs = newPresence.metas.map((m) => m.phx_ref);
+        let curRefs = currentPresence.metas.map((m) => m.phx_ref);
+        let joinedMetas = newPresence.metas.filter((m) => curRefs.indexOf(m.phx_ref) < 0);
+        let leftMetas = currentPresence.metas.filter((m) => newRefs.indexOf(m.phx_ref) < 0);
+        if (joinedMetas.length > 0) {
+          joins[key] = newPresence;
+          joins[key].metas = joinedMetas;
+        }
+        if (leftMetas.length > 0) {
+          leaves[key] = this.clone(currentPresence);
+          leaves[key].metas = leftMetas;
+        }
+      } else {
+        joins[key] = newPresence;
+      }
+    });
+    return this.syncDiff(state, { joins, leaves }, onJoin, onLeave);
+  }
+  static syncDiff(state, diff, onJoin, onLeave) {
+    state = this.toNullProtoObj(state);
+    let { joins, leaves } = this.clone(diff);
+    if (!onJoin) {
+      onJoin = function() {};
+    }
+    if (!onLeave) {
+      onLeave = function() {};
+    }
+    this.map(joins, (key, newPresence) => {
+      let currentPresence = state[key];
+      state[key] = this.clone(newPresence);
+      if (currentPresence) {
+        let joinedRefs = state[key].metas.map((m) => m.phx_ref);
+        let curMetas = currentPresence.metas.filter((m) => joinedRefs.indexOf(m.phx_ref) < 0);
+        state[key].metas.unshift(...curMetas);
+      }
+      onJoin(key, currentPresence, newPresence);
+    });
+    this.map(leaves, (key, leftPresence) => {
+      let currentPresence = state[key];
+      if (!currentPresence) {
+        return;
+      }
+      let refsToRemove = leftPresence.metas.map((m) => m.phx_ref);
+      currentPresence.metas = currentPresence.metas.filter((p) => {
+        return refsToRemove.indexOf(p.phx_ref) < 0;
+      });
+      onLeave(key, currentPresence, leftPresence);
+      if (currentPresence.metas.length === 0) {
+        delete state[key];
+      }
+    });
+    return state;
+  }
+  static list(presences, chooser) {
+    if (!chooser) {
+      chooser = function(key, pres) {
+        return pres;
+      };
+    }
+    return this.map(presences, (key, presence) => {
+      return chooser(key, presence);
+    });
+  }
+  static map(obj, func) {
+    return Object.getOwnPropertyNames(obj).map((key) => func(key, obj[key]));
+  }
+  static toNullProtoObj(obj) {
+    if (Object.getPrototypeOf(obj) === null) {
+      return obj;
+    }
+    let cleaned = /* @__PURE__ */ Object.create(null);
+    Object.getOwnPropertyNames(obj).forEach((key) => {
+      cleaned[key] = obj[key];
+    });
+    return cleaned;
+  }
+  static clone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+  }
+};
+var serializer_default = {
+  HEADER_LENGTH: 1,
+  META_LENGTH: 4,
+  KINDS: { push: 0, reply: 1, broadcast: 2 },
+  encode(msg, callback) {
+    if (msg.payload.constructor === ArrayBuffer) {
+      return callback(this.binaryEncode(msg));
+    } else {
+      let payload = [msg.join_ref, msg.ref, msg.topic, msg.event, msg.payload];
+      return callback(JSON.stringify(payload));
+    }
+  },
+  decode(rawPayload, callback) {
+    if (rawPayload.constructor === ArrayBuffer) {
+      return callback(this.binaryDecode(rawPayload));
+    } else {
+      let [join_ref, ref, topic, event, payload] = JSON.parse(rawPayload);
+      return callback({ join_ref, ref, topic, event, payload });
+    }
+  },
+  binaryEncode(message) {
+    let { join_ref, ref, event, topic, payload } = message;
+    let encoder = new TextEncoder;
+    let joinRefBytes = encoder.encode(join_ref);
+    let refBytes = encoder.encode(ref);
+    let topicBytes = encoder.encode(topic);
+    let eventBytes = encoder.encode(event);
+    this.assertFieldSize(joinRefBytes.byteLength, "join_ref");
+    this.assertFieldSize(refBytes.byteLength, "ref");
+    this.assertFieldSize(topicBytes.byteLength, "topic");
+    this.assertFieldSize(eventBytes.byteLength, "event");
+    let metaLength = this.META_LENGTH + joinRefBytes.byteLength + refBytes.byteLength + topicBytes.byteLength + eventBytes.byteLength;
+    let header = new ArrayBuffer(this.HEADER_LENGTH + metaLength);
+    let headerBytes = new Uint8Array(header);
+    let view = new DataView(header);
+    let offset = 0;
+    view.setUint8(offset++, this.KINDS.push);
+    view.setUint8(offset++, joinRefBytes.byteLength);
+    view.setUint8(offset++, refBytes.byteLength);
+    view.setUint8(offset++, topicBytes.byteLength);
+    view.setUint8(offset++, eventBytes.byteLength);
+    headerBytes.set(joinRefBytes, offset);
+    offset += joinRefBytes.byteLength;
+    headerBytes.set(refBytes, offset);
+    offset += refBytes.byteLength;
+    headerBytes.set(topicBytes, offset);
+    offset += topicBytes.byteLength;
+    headerBytes.set(eventBytes, offset);
+    offset += eventBytes.byteLength;
+    var combined = new Uint8Array(header.byteLength + payload.byteLength);
+    combined.set(headerBytes, 0);
+    combined.set(new Uint8Array(payload), header.byteLength);
+    return combined.buffer;
+  },
+  assertFieldSize(size, name) {
+    if (size > 255) {
+      throw new Error(`unable to convert ${name} to binary: must be less than or equal to 255 bytes, but is ${size} bytes`);
+    }
+  },
+  binaryDecode(buffer) {
+    let view = new DataView(buffer);
+    let kind = view.getUint8(0);
+    let decoder = new TextDecoder;
+    switch (kind) {
+      case this.KINDS.push:
+        return this.decodePush(buffer, view, decoder);
+      case this.KINDS.reply:
+        return this.decodeReply(buffer, view, decoder);
+      case this.KINDS.broadcast:
+        return this.decodeBroadcast(buffer, view, decoder);
+    }
+  },
+  decodePush(buffer, view, decoder) {
+    let joinRefSize = view.getUint8(1);
+    let topicSize = view.getUint8(2);
+    let eventSize = view.getUint8(3);
+    let offset = this.HEADER_LENGTH + this.META_LENGTH - 1;
+    let joinRef = decoder.decode(buffer.slice(offset, offset + joinRefSize));
+    offset = offset + joinRefSize;
+    let topic = decoder.decode(buffer.slice(offset, offset + topicSize));
+    offset = offset + topicSize;
+    let event = decoder.decode(buffer.slice(offset, offset + eventSize));
+    offset = offset + eventSize;
+    let data = buffer.slice(offset, buffer.byteLength);
+    return { join_ref: joinRef, ref: null, topic, event, payload: data };
+  },
+  decodeReply(buffer, view, decoder) {
+    let joinRefSize = view.getUint8(1);
+    let refSize = view.getUint8(2);
+    let topicSize = view.getUint8(3);
+    let eventSize = view.getUint8(4);
+    let offset = this.HEADER_LENGTH + this.META_LENGTH;
+    let joinRef = decoder.decode(buffer.slice(offset, offset + joinRefSize));
+    offset = offset + joinRefSize;
+    let ref = decoder.decode(buffer.slice(offset, offset + refSize));
+    offset = offset + refSize;
+    let topic = decoder.decode(buffer.slice(offset, offset + topicSize));
+    offset = offset + topicSize;
+    let event = decoder.decode(buffer.slice(offset, offset + eventSize));
+    offset = offset + eventSize;
+    let data = buffer.slice(offset, buffer.byteLength);
+    let payload = { status: event, response: data };
+    return { join_ref: joinRef, ref, topic, event: CHANNEL_EVENTS2.reply, payload };
+  },
+  decodeBroadcast(buffer, view, decoder) {
+    let topicSize = view.getUint8(1);
+    let eventSize = view.getUint8(2);
+    let offset = this.HEADER_LENGTH + 2;
+    let topic = decoder.decode(buffer.slice(offset, offset + topicSize));
+    offset = offset + topicSize;
+    let event = decoder.decode(buffer.slice(offset, offset + eventSize));
+    offset = offset + eventSize;
+    let data = buffer.slice(offset, buffer.byteLength);
+    return { join_ref: null, ref: null, topic, event, payload: data };
+  }
+};
+var Socket = class {
+  constructor(endPoint, opts = {}) {
+    this.stateChangeCallbacks = { open: [], close: [], error: [], message: [] };
+    this.channels = [];
+    this.sendBuffer = [];
+    this.ref = 0;
+    this.fallbackRef = null;
+    this.timeout = opts.timeout || DEFAULT_TIMEOUT2;
+    this.transport = opts.transport || global2.WebSocket || LongPoll;
+    this.conn = undefined;
+    this.primaryPassedHealthCheck = false;
+    this.longPollFallbackMs = opts.longPollFallbackMs;
+    this.fallbackTimer = null;
+    let envSessionStorage = null;
+    try {
+      envSessionStorage = global2 && global2.sessionStorage;
+    } catch {}
+    this.sessionStore = opts.sessionStorage || envSessionStorage;
+    this.establishedConnections = 0;
+    this.defaultEncoder = serializer_default.encode.bind(serializer_default);
+    this.defaultDecoder = serializer_default.decode.bind(serializer_default);
+    this.closeWasClean = true;
+    this.disconnecting = false;
+    this.binaryType = opts.binaryType || "arraybuffer";
+    this.connectClock = 1;
+    this.pageHidden = false;
+    this.encode = undefined;
+    this.decode = undefined;
+    if (this.transport !== LongPoll) {
+      this.encode = opts.encode || this.defaultEncoder;
+      this.decode = opts.decode || this.defaultDecoder;
+    } else {
+      this.encode = this.defaultEncoder;
+      this.decode = this.defaultDecoder;
+    }
+    let awaitingConnectionOnPageShow = null;
+    if (phxWindow && phxWindow.addEventListener) {
+      phxWindow.addEventListener("pagehide", (_e) => {
+        if (this.conn) {
+          this.disconnect();
+          awaitingConnectionOnPageShow = this.connectClock;
+        }
+      });
+      phxWindow.addEventListener("pageshow", (_e) => {
+        if (awaitingConnectionOnPageShow === this.connectClock) {
+          awaitingConnectionOnPageShow = null;
+          this.connect();
+        }
+      });
+      phxWindow.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+          this.pageHidden = true;
+        } else {
+          this.pageHidden = false;
+          if (!this.isConnected() && !this.closeWasClean) {
+            this.teardown(() => this.connect());
+          }
+        }
+      });
+    }
+    this.heartbeatIntervalMs = opts.heartbeatIntervalMs || 30000;
+    this.autoSendHeartbeat = opts.autoSendHeartbeat ?? true;
+    this.heartbeatCallback = opts.heartbeatCallback ?? (() => {});
+    this.rejoinAfterMs = (tries) => {
+      if (opts.rejoinAfterMs) {
+        return opts.rejoinAfterMs(tries);
+      } else {
+        return [1000, 2000, 5000][tries - 1] || 1e4;
+      }
+    };
+    this.reconnectAfterMs = (tries) => {
+      if (opts.reconnectAfterMs) {
+        return opts.reconnectAfterMs(tries);
+      } else {
+        return [10, 50, 100, 150, 200, 250, 500, 1000, 2000][tries - 1] || 5000;
+      }
+    };
+    this.logger = opts.logger || null;
+    if (!this.logger && opts.debug) {
+      this.logger = (kind, msg, data) => {
+        console.log(`${kind}: ${msg}`, data);
+      };
+    }
+    this.longpollerTimeout = opts.longpollerTimeout || 20000;
+    this.params = closure(opts.params || {});
+    this.endPoint = `${endPoint}/${TRANSPORTS.websocket}`;
+    this.vsn = opts.vsn || DEFAULT_VSN2;
+    this.heartbeatTimeoutTimer = null;
+    this.heartbeatTimer = null;
+    this.heartbeatSentAt = null;
+    this.pendingHeartbeatRef = null;
+    this.reconnectTimer = new Timer(() => {
+      if (this.pageHidden) {
+        this.log("Not reconnecting as page is hidden!");
+        this.teardown();
+        return;
+      }
+      this.teardown(async () => {
+        if (opts.beforeReconnect)
+          await opts.beforeReconnect();
+        this.connect();
+      });
+    }, this.reconnectAfterMs);
+    this.authToken = opts.authToken && closure(opts.authToken);
+  }
+  getLongPollTransport() {
+    return LongPoll;
+  }
+  replaceTransport(newTransport) {
+    this.connectClock++;
+    this.closeWasClean = true;
+    clearTimeout(this.fallbackTimer);
+    this.reconnectTimer.reset();
+    if (this.conn) {
+      this.conn.close();
+      this.conn = null;
+    }
+    this.transport = newTransport;
+  }
+  protocol() {
+    return location.protocol.match(/^https/) ? "wss" : "ws";
+  }
+  endPointURL() {
+    let uri = Ajax.appendParams(Ajax.appendParams(this.endPoint, this.params()), { vsn: this.vsn });
+    if (uri.charAt(0) !== "/") {
+      return uri;
+    }
+    if (uri.charAt(1) === "/") {
+      return `${this.protocol()}:${uri}`;
+    }
+    return `${this.protocol()}://${location.host}${uri}`;
+  }
+  disconnect(callback, code, reason) {
+    this.connectClock++;
+    this.disconnecting = true;
+    this.closeWasClean = true;
+    clearTimeout(this.fallbackTimer);
+    this.reconnectTimer.reset();
+    this.teardown(() => {
+      this.disconnecting = false;
+      callback && callback();
+    }, code, reason);
+  }
+  connect(params) {
+    if (params) {
+      console && console.log("passing params to connect is deprecated. Instead pass :params to the Socket constructor");
+      this.params = closure(params);
+    }
+    if (this.conn && !this.disconnecting) {
+      return;
+    }
+    if (this.longPollFallbackMs && this.transport !== LongPoll) {
+      this.connectWithFallback(LongPoll, this.longPollFallbackMs);
+    } else {
+      this.transportConnect();
+    }
+  }
+  log(kind, msg, data) {
+    this.logger && this.logger(kind, msg, data);
+  }
+  hasLogger() {
+    return this.logger !== null;
+  }
+  onOpen(callback) {
+    let ref = this.makeRef();
+    this.stateChangeCallbacks.open.push([ref, callback]);
+    return ref;
+  }
+  onClose(callback) {
+    let ref = this.makeRef();
+    this.stateChangeCallbacks.close.push([ref, callback]);
+    return ref;
+  }
+  onError(callback) {
+    let ref = this.makeRef();
+    this.stateChangeCallbacks.error.push([ref, callback]);
+    return ref;
+  }
+  onMessage(callback) {
+    let ref = this.makeRef();
+    this.stateChangeCallbacks.message.push([ref, callback]);
+    return ref;
+  }
+  onHeartbeat(callback) {
+    this.heartbeatCallback = callback;
+  }
+  ping(callback) {
+    if (!this.isConnected()) {
+      return false;
+    }
+    let ref = this.makeRef();
+    let startTime = Date.now();
+    this.push({ topic: "phoenix", event: "heartbeat", payload: {}, ref });
+    let onMsgRef = this.onMessage((msg) => {
+      if (msg.ref === ref) {
+        this.off([onMsgRef]);
+        callback(Date.now() - startTime);
+      }
+    });
+    return true;
+  }
+  transportName(transport) {
+    switch (transport) {
+      case LongPoll:
+        return "LongPoll";
+      default:
+        return transport.name;
+    }
+  }
+  transportConnect() {
+    this.connectClock++;
+    this.closeWasClean = false;
+    let protocols = undefined;
+    if (this.authToken) {
+      protocols = ["phoenix", `${AUTH_TOKEN_PREFIX}${btoa(this.authToken()).replace(/=/g, "")}`];
+    }
+    this.conn = new this.transport(this.endPointURL(), protocols);
+    this.conn.binaryType = this.binaryType;
+    this.conn.timeout = this.longpollerTimeout;
+    this.conn.onopen = () => this.onConnOpen();
+    this.conn.onerror = (error51) => this.onConnError(error51);
+    this.conn.onmessage = (event) => this.onConnMessage(event);
+    this.conn.onclose = (event) => this.onConnClose(event);
+  }
+  getSession(key) {
+    return this.sessionStore && this.sessionStore.getItem(key);
+  }
+  storeSession(key, val) {
+    this.sessionStore && this.sessionStore.setItem(key, val);
+  }
+  connectWithFallback(fallbackTransport, fallbackThreshold = 2500) {
+    clearTimeout(this.fallbackTimer);
+    let established = false;
+    let primaryTransport = true;
+    let openRef, errorRef;
+    let fallbackTransportName = this.transportName(fallbackTransport);
+    let fallback = (reason) => {
+      this.log("transport", `falling back to ${fallbackTransportName}...`, reason);
+      this.off([openRef, errorRef]);
+      primaryTransport = false;
+      this.replaceTransport(fallbackTransport);
+      this.transportConnect();
+    };
+    if (this.getSession(`phx:fallback:${fallbackTransportName}`)) {
+      return fallback("memorized");
+    }
+    this.fallbackTimer = setTimeout(fallback, fallbackThreshold);
+    errorRef = this.onError((reason) => {
+      this.log("transport", "error", reason);
+      if (primaryTransport && !established) {
+        clearTimeout(this.fallbackTimer);
+        fallback(reason);
+      }
+    });
+    if (this.fallbackRef) {
+      this.off([this.fallbackRef]);
+    }
+    this.fallbackRef = this.onOpen(() => {
+      established = true;
+      if (!primaryTransport) {
+        let fallbackTransportName2 = this.transportName(fallbackTransport);
+        if (!this.primaryPassedHealthCheck) {
+          this.storeSession(`phx:fallback:${fallbackTransportName2}`, "true");
+        }
+        return this.log("transport", `established ${fallbackTransportName2} fallback`);
+      }
+      clearTimeout(this.fallbackTimer);
+      this.fallbackTimer = setTimeout(fallback, fallbackThreshold);
+      this.ping((rtt) => {
+        this.log("transport", "connected to primary after", rtt);
+        this.primaryPassedHealthCheck = true;
+        clearTimeout(this.fallbackTimer);
+      });
+    });
+    this.transportConnect();
+  }
+  clearHeartbeats() {
+    clearTimeout(this.heartbeatTimer);
+    clearTimeout(this.heartbeatTimeoutTimer);
+  }
+  onConnOpen() {
+    if (this.hasLogger())
+      this.log("transport", `connected to ${this.endPointURL()}`);
+    this.closeWasClean = false;
+    this.disconnecting = false;
+    this.establishedConnections++;
+    this.flushSendBuffer();
+    this.reconnectTimer.reset();
+    if (this.autoSendHeartbeat) {
+      this.resetHeartbeat();
+    }
+    this.triggerStateCallbacks("open");
+  }
+  heartbeatTimeout() {
+    if (this.pendingHeartbeatRef) {
+      this.pendingHeartbeatRef = null;
+      this.heartbeatSentAt = null;
+      if (this.hasLogger()) {
+        this.log("transport", "heartbeat timeout. Attempting to re-establish connection");
+      }
+      try {
+        this.heartbeatCallback("timeout");
+      } catch (e) {
+        this.log("error", "error in heartbeat callback", e);
+      }
+      this.triggerChanError(new Error("heartbeat timeout"));
+      this.closeWasClean = false;
+      this.teardown(() => this.reconnectTimer.scheduleTimeout(), WS_CLOSE_NORMAL, "heartbeat timeout");
+    }
+  }
+  resetHeartbeat() {
+    if (this.conn && this.conn.skipHeartbeat) {
+      return;
+    }
+    this.pendingHeartbeatRef = null;
+    this.clearHeartbeats();
+    this.heartbeatTimer = setTimeout(() => this.sendHeartbeat(), this.heartbeatIntervalMs);
+  }
+  teardown(callback, code, reason) {
+    if (!this.conn) {
+      return callback && callback();
+    }
+    const connToClose = this.conn;
+    this.waitForBufferDone(connToClose, () => {
+      if (code) {
+        connToClose.close(code, reason || "");
+      } else {
+        connToClose.close();
+      }
+      this.waitForSocketClosed(connToClose, () => {
+        if (this.conn === connToClose) {
+          this.conn.onopen = function() {};
+          this.conn.onerror = function() {};
+          this.conn.onmessage = function() {};
+          this.conn.onclose = function() {};
+          this.conn = null;
+        }
+        callback && callback();
+      });
+    });
+  }
+  waitForBufferDone(conn, callback, tries = 1) {
+    if (tries === 5 || !conn.bufferedAmount) {
+      callback();
+      return;
+    }
+    setTimeout(() => {
+      this.waitForBufferDone(conn, callback, tries + 1);
+    }, 150 * tries);
+  }
+  waitForSocketClosed(conn, callback, tries = 1) {
+    if (tries === 5 || conn.readyState === SOCKET_STATES.closed) {
+      callback();
+      return;
+    }
+    setTimeout(() => {
+      this.waitForSocketClosed(conn, callback, tries + 1);
+    }, 150 * tries);
+  }
+  onConnClose(event) {
+    if (this.conn)
+      this.conn.onclose = () => {};
+    if (this.hasLogger())
+      this.log("transport", "close", event);
+    this.triggerChanError(event);
+    this.clearHeartbeats();
+    if (!this.closeWasClean) {
+      this.reconnectTimer.scheduleTimeout();
+    }
+    this.triggerStateCallbacks("close", event);
+  }
+  onConnError(error51) {
+    if (this.hasLogger())
+      this.log("transport", "error", error51);
+    let transportBefore = this.transport;
+    let establishedBefore = this.establishedConnections;
+    this.triggerStateCallbacks("error", error51, transportBefore, establishedBefore);
+    if (transportBefore === this.transport || establishedBefore > 0) {
+      this.triggerChanError(error51);
+    }
+  }
+  triggerChanError(reason) {
+    this.channels.forEach((channel) => {
+      if (!(channel.isErrored() || channel.isLeaving() || channel.isClosed())) {
+        channel.trigger(CHANNEL_EVENTS2.error, reason);
+      }
+    });
+  }
+  connectionState() {
+    switch (this.conn && this.conn.readyState) {
+      case SOCKET_STATES.connecting:
+        return "connecting";
+      case SOCKET_STATES.open:
+        return "open";
+      case SOCKET_STATES.closing:
+        return "closing";
+      default:
+        return "closed";
+    }
+  }
+  isConnected() {
+    return this.connectionState() === "open";
+  }
+  remove(channel) {
+    this.off(channel.stateChangeRefs);
+    this.channels = this.channels.filter((c) => c !== channel);
+  }
+  off(refs) {
+    for (let key in this.stateChangeCallbacks) {
+      this.stateChangeCallbacks[key] = this.stateChangeCallbacks[key].filter(([ref]) => {
+        return refs.indexOf(ref) === -1;
+      });
+    }
+  }
+  channel(topic, chanParams = {}) {
+    let chan = new Channel(topic, chanParams, this);
+    this.channels.push(chan);
+    return chan;
+  }
+  push(data) {
+    if (this.hasLogger()) {
+      let { topic, event, payload, ref, join_ref } = data;
+      this.log("push", `${topic} ${event} (${join_ref}, ${ref})`, payload);
+    }
+    if (this.isConnected()) {
+      this.encode(data, (result) => this.conn.send(result));
+    } else {
+      this.sendBuffer.push(() => this.encode(data, (result) => this.conn.send(result)));
+    }
+  }
+  makeRef() {
+    let newRef = this.ref + 1;
+    if (newRef === this.ref) {
+      this.ref = 0;
+    } else {
+      this.ref = newRef;
+    }
+    return this.ref.toString();
+  }
+  sendHeartbeat() {
+    if (!this.isConnected()) {
+      try {
+        this.heartbeatCallback("disconnected");
+      } catch (e) {
+        this.log("error", "error in heartbeat callback", e);
+      }
+      return;
+    }
+    if (this.pendingHeartbeatRef) {
+      this.heartbeatTimeout();
+      return;
+    }
+    this.pendingHeartbeatRef = this.makeRef();
+    this.heartbeatSentAt = Date.now();
+    this.push({ topic: "phoenix", event: "heartbeat", payload: {}, ref: this.pendingHeartbeatRef });
+    try {
+      this.heartbeatCallback("sent");
+    } catch (e) {
+      this.log("error", "error in heartbeat callback", e);
+    }
+    this.heartbeatTimeoutTimer = setTimeout(() => this.heartbeatTimeout(), this.heartbeatIntervalMs);
+  }
+  flushSendBuffer() {
+    if (this.isConnected() && this.sendBuffer.length > 0) {
+      this.sendBuffer.forEach((callback) => callback());
+      this.sendBuffer = [];
+    }
+  }
+  onConnMessage(rawMessage) {
+    this.decode(rawMessage.data, (msg) => {
+      let { topic, event, payload, ref, join_ref } = msg;
+      if (ref && ref === this.pendingHeartbeatRef) {
+        const latency = this.heartbeatSentAt ? Date.now() - this.heartbeatSentAt : undefined;
+        this.clearHeartbeats();
+        try {
+          this.heartbeatCallback(payload.status === "ok" ? "ok" : "error", latency);
+        } catch (e) {
+          this.log("error", "error in heartbeat callback", e);
+        }
+        this.pendingHeartbeatRef = null;
+        this.heartbeatSentAt = null;
+        if (this.autoSendHeartbeat) {
+          this.heartbeatTimer = setTimeout(() => this.sendHeartbeat(), this.heartbeatIntervalMs);
+        }
+      }
+      if (this.hasLogger())
+        this.log("receive", `${payload.status || ""} ${topic} ${event} ${ref && "(" + ref + ")" || ""}`.trim(), payload);
+      for (let i = 0;i < this.channels.length; i++) {
+        const channel = this.channels[i];
+        if (!channel.isMember(topic, event, payload, join_ref)) {
+          continue;
+        }
+        channel.trigger(event, payload, ref, join_ref);
+      }
+      this.triggerStateCallbacks("message", msg);
+    });
+  }
+  triggerStateCallbacks(event, ...args) {
+    try {
+      this.stateChangeCallbacks[event].forEach(([_, callback]) => {
+        try {
+          callback(...args);
+        } catch (e) {
+          this.log("error", `error in ${event} callback`, e);
+        }
+      });
+    } catch (e) {
+      this.log("error", `error triggering ${event} callbacks`, e);
+    }
+  }
+  leaveOpenTopic(topic) {
+    let dupChannel = this.channels.find((c) => c.topic === topic && (c.isJoined() || c.isJoining()));
+    if (dupChannel) {
+      if (this.hasLogger())
+        this.log("transport", `leaving duplicate topic "${topic}"`);
+      dupChannel.leave();
+    }
+  }
+};
+
+// ../node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
+class PresenceAdapter {
+  constructor(channel, opts) {
+    const phoenixOptions = phoenixPresenceOptions(opts);
+    this.presence = new Presence(channel.getChannel(), phoenixOptions);
+    this.presence.onJoin((key, currentPresence, newPresence) => {
+      const onJoinPayload = PresenceAdapter.onJoinPayload(key, currentPresence, newPresence);
+      channel.getChannel().trigger("presence", onJoinPayload);
+    });
+    this.presence.onLeave((key, currentPresence, leftPresence) => {
+      const onLeavePayload = PresenceAdapter.onLeavePayload(key, currentPresence, leftPresence);
+      channel.getChannel().trigger("presence", onLeavePayload);
+    });
+    this.presence.onSync(() => {
+      channel.getChannel().trigger("presence", { event: "sync" });
+    });
+  }
+  get state() {
+    return PresenceAdapter.transformState(this.presence.state);
+  }
+  static transformState(state) {
+    state = cloneState(state);
+    return Object.getOwnPropertyNames(state).reduce((newState, key) => {
+      const presences = state[key];
+      newState[key] = transformState(presences);
+      return newState;
+    }, {});
+  }
+  static onJoinPayload(key, currentPresence, newPresence) {
+    const currentPresences = parseCurrentPresences(currentPresence);
+    const newPresences = transformState(newPresence);
+    return {
+      event: "join",
+      key,
+      currentPresences,
+      newPresences
+    };
+  }
+  static onLeavePayload(key, currentPresence, leftPresence) {
+    const currentPresences = parseCurrentPresences(currentPresence);
+    const leftPresences = transformState(leftPresence);
+    return {
+      event: "leave",
+      key,
+      currentPresences,
+      leftPresences
+    };
+  }
+}
+function transformState(presences) {
+  return presences.metas.map((presence) => {
+    const descriptors = Object.getOwnPropertyDescriptors(presence);
+    const transformedPresence = Object.defineProperties({}, descriptors);
+    transformedPresence["presence_ref"] = transformedPresence["phx_ref"];
+    delete transformedPresence["phx_ref"];
+    delete transformedPresence["phx_ref_prev"];
+    return transformedPresence;
+  });
+}
+function cloneState(state) {
+  return JSON.parse(JSON.stringify(state));
+}
+function phoenixPresenceOptions(opts) {
+  return (opts === null || opts === undefined ? undefined : opts.events) && { events: opts.events };
+}
+function parseCurrentPresences(currentPresences) {
+  return (currentPresences === null || currentPresences === undefined ? undefined : currentPresences.metas) ? transformState(currentPresences) : [];
+}
+
+// ../node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
+var REALTIME_PRESENCE_LISTEN_EVENTS;
+(function(REALTIME_PRESENCE_LISTEN_EVENTS2) {
+  REALTIME_PRESENCE_LISTEN_EVENTS2["SYNC"] = "sync";
+  REALTIME_PRESENCE_LISTEN_EVENTS2["JOIN"] = "join";
+  REALTIME_PRESENCE_LISTEN_EVENTS2["LEAVE"] = "leave";
+})(REALTIME_PRESENCE_LISTEN_EVENTS || (REALTIME_PRESENCE_LISTEN_EVENTS = {}));
+
+class RealtimePresence {
+  get state() {
+    return this.presenceAdapter.state;
+  }
+  constructor(channel, opts) {
+    this.channel = channel;
+    this.presenceAdapter = new PresenceAdapter(this.channel.channelAdapter, opts);
+  }
+}
+
+// ../node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
+function normalizeChannelError(reason) {
+  if (reason instanceof Error) {
+    return reason;
+  }
+  if (typeof reason === "string") {
+    return new Error(reason);
+  }
+  if (reason && typeof reason === "object") {
+    const obj = reason;
+    if (typeof obj.code === "number") {
+      const detail = typeof obj.reason === "string" && obj.reason ? ` (${obj.reason})` : "";
+      return new Error(`socket closed: ${obj.code}${detail}`, { cause: reason });
+    }
+    return new Error("channel error: transport failure", { cause: reason });
+  }
+  return new Error("channel error: connection lost");
+}
+
+// ../node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
+class ChannelAdapter {
+  constructor(socket, topic, params) {
+    const phoenixParams = phoenixChannelParams(params);
+    this.channel = socket.getSocket().channel(topic, phoenixParams);
+    this.socket = socket;
+  }
+  get state() {
+    return this.channel.state;
+  }
+  set state(state) {
+    this.channel.state = state;
+  }
+  get joinedOnce() {
+    return this.channel.joinedOnce;
+  }
+  get joinPush() {
+    return this.channel.joinPush;
+  }
+  get rejoinTimer() {
+    return this.channel.rejoinTimer;
+  }
+  on(event, callback) {
+    return this.channel.on(event, callback);
+  }
+  off(event, refNumber) {
+    this.channel.off(event, refNumber);
+  }
+  subscribe(timeout) {
+    return this.channel.join(timeout);
+  }
+  unsubscribe(timeout) {
+    return this.channel.leave(timeout);
+  }
+  teardown() {
+    this.channel.teardown();
+  }
+  onClose(callback) {
+    this.channel.onClose(callback);
+  }
+  onError(callback) {
+    return this.channel.onError(callback);
+  }
+  push(event, payload, timeout) {
+    let push;
+    try {
+      push = this.channel.push(event, payload, timeout);
+    } catch (error51) {
+      throw new Error(`tried to push '${event}' to '${this.channel.topic}' before joining. Use channel.subscribe() before pushing events`);
+    }
+    if (this.channel.pushBuffer.length > MAX_PUSH_BUFFER_SIZE) {
+      const removedPush = this.channel.pushBuffer.shift();
+      removedPush.cancelTimeout();
+      this.socket.log("channel", `discarded push due to buffer overflow: ${removedPush.event}`, removedPush.payload());
+    }
+    return push;
+  }
+  updateJoinPayload(payload) {
+    const oldPayload = this.channel.joinPush.payload();
+    this.channel.joinPush.payload = () => Object.assign(Object.assign({}, oldPayload), payload);
+  }
+  canPush() {
+    return this.socket.isConnected() && this.state === CHANNEL_STATES.joined;
+  }
+  isJoined() {
+    return this.state === CHANNEL_STATES.joined;
+  }
+  isJoining() {
+    return this.state === CHANNEL_STATES.joining;
+  }
+  isClosed() {
+    return this.state === CHANNEL_STATES.closed;
+  }
+  isLeaving() {
+    return this.state === CHANNEL_STATES.leaving;
+  }
+  updateFilterBindings(filterBindings) {
+    this.channel.filterBindings = filterBindings;
+  }
+  updatePayloadTransform(callback) {
+    this.channel.onMessage = callback;
+  }
+  getChannel() {
+    return this.channel;
+  }
+}
+function phoenixChannelParams(options) {
+  return {
+    config: Object.assign({
+      broadcast: { ack: false, self: false },
+      presence: { key: "", enabled: false },
+      private: false
+    }, options.config)
+  };
+}
+
+// ../node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
+var PostgrestReservedCharsRegexp2 = /[,()"\\]/;
+var needsQuoting = (value) => PostgrestReservedCharsRegexp2.test(value) || value !== value.trim();
+var quote = (value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
+var serializeScalar = (value) => {
+  const serialized = value === null ? "null" : String(value);
+  return needsQuoting(serialized) ? quote(serialized) : serialized;
+};
+var serializeIsValue = (value) => value === null ? "null" : String(value);
+var serialize = (operator, value) => {
+  if (operator === "in") {
+    const values = Array.isArray(value) ? value : [value];
+    if (values.length === 0) {
+      throw new Error("Realtime `in` filter requires at least one value.");
+    }
+    const items = Array.from(new Set(values)).map((v) => serializeScalar(v)).join(",");
+    return `in.(${items})`;
+  }
+  if (operator === "is") {
+    return `is.${serializeIsValue(value)}`;
+  }
+  return `${operator}.${serializeScalar(value)}`;
+};
+
+class RealtimePostgresFilterBuilder {
+  constructor() {
+    this.filters = [];
+  }
+  add(column, operator, value, negate = false) {
+    const prefix = negate ? "not." : "";
+    this.filters.push(`${column}=${prefix}${serialize(operator, value)}`);
+    return this;
+  }
+  eq(column, value) {
+    return this.add(column, "eq", value);
+  }
+  neq(column, value) {
+    return this.add(column, "neq", value);
+  }
+  gt(column, value) {
+    return this.add(column, "gt", value);
+  }
+  gte(column, value) {
+    return this.add(column, "gte", value);
+  }
+  lt(column, value) {
+    return this.add(column, "lt", value);
+  }
+  lte(column, value) {
+    return this.add(column, "lte", value);
+  }
+  in(column, values) {
+    return this.add(column, "in", values);
+  }
+  like(column, pattern) {
+    return this.add(column, "like", pattern);
+  }
+  ilike(column, pattern) {
+    return this.add(column, "ilike", pattern);
+  }
+  match(column, pattern) {
+    return this.add(column, "match", pattern);
+  }
+  imatch(column, pattern) {
+    return this.add(column, "imatch", pattern);
+  }
+  is(column, value) {
+    return this.add(column, "is", value);
+  }
+  isDistinct(column, value) {
+    return this.add(column, "isdistinct", value);
+  }
+  not(column, operator, value) {
+    return this.add(column, operator, value, true);
+  }
+  build() {
+    return this.filters.join(",");
+  }
+  toString() {
+    return this.build();
+  }
+}
+
+// ../node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
+var REALTIME_POSTGRES_CHANGES_LISTEN_EVENT;
+(function(REALTIME_POSTGRES_CHANGES_LISTEN_EVENT2) {
+  REALTIME_POSTGRES_CHANGES_LISTEN_EVENT2["ALL"] = "*";
+  REALTIME_POSTGRES_CHANGES_LISTEN_EVENT2["INSERT"] = "INSERT";
+  REALTIME_POSTGRES_CHANGES_LISTEN_EVENT2["UPDATE"] = "UPDATE";
+  REALTIME_POSTGRES_CHANGES_LISTEN_EVENT2["DELETE"] = "DELETE";
+})(REALTIME_POSTGRES_CHANGES_LISTEN_EVENT || (REALTIME_POSTGRES_CHANGES_LISTEN_EVENT = {}));
+var REALTIME_LISTEN_TYPES;
+(function(REALTIME_LISTEN_TYPES2) {
+  REALTIME_LISTEN_TYPES2["BROADCAST"] = "broadcast";
+  REALTIME_LISTEN_TYPES2["PRESENCE"] = "presence";
+  REALTIME_LISTEN_TYPES2["POSTGRES_CHANGES"] = "postgres_changes";
+  REALTIME_LISTEN_TYPES2["SYSTEM"] = "system";
+})(REALTIME_LISTEN_TYPES || (REALTIME_LISTEN_TYPES = {}));
+var REALTIME_SUBSCRIBE_STATES;
+(function(REALTIME_SUBSCRIBE_STATES2) {
+  REALTIME_SUBSCRIBE_STATES2["SUBSCRIBED"] = "SUBSCRIBED";
+  REALTIME_SUBSCRIBE_STATES2["TIMED_OUT"] = "TIMED_OUT";
+  REALTIME_SUBSCRIBE_STATES2["CLOSED"] = "CLOSED";
+  REALTIME_SUBSCRIBE_STATES2["CHANNEL_ERROR"] = "CHANNEL_ERROR";
+})(REALTIME_SUBSCRIBE_STATES || (REALTIME_SUBSCRIBE_STATES = {}));
+class RealtimeChannel {
+  get state() {
+    return this.channelAdapter.state;
+  }
+  set state(state) {
+    this.channelAdapter.state = state;
+  }
+  get joinedOnce() {
+    return this.channelAdapter.joinedOnce;
+  }
+  get timeout() {
+    return this.socket.timeout;
+  }
+  get joinPush() {
+    return this.channelAdapter.joinPush;
+  }
+  get rejoinTimer() {
+    return this.channelAdapter.rejoinTimer;
+  }
+  constructor(topic, params = { config: {} }, socket) {
+    var _a3, _b;
+    this.topic = topic;
+    this.params = params;
+    this.socket = socket;
+    this.bindings = {};
+    this.subTopic = topic.replace(/^realtime:/i, "");
+    this.params.config = Object.assign({
+      broadcast: { ack: false, self: false },
+      presence: { key: "", enabled: false },
+      private: false
+    }, params.config);
+    this.channelAdapter = new ChannelAdapter(this.socket.socketAdapter, topic, this.params);
+    this.presence = new RealtimePresence(this);
+    this._onClose(() => {
+      this.socket._remove(this);
+    });
+    this._updateFilterTransform();
+    this.broadcastEndpointURL = httpEndpointURL(this.socket.socketAdapter.endPointURL());
+    this.private = this.params.config.private || false;
+    if (!this.private && ((_b = (_a3 = this.params.config) === null || _a3 === undefined ? undefined : _a3.broadcast) === null || _b === undefined ? undefined : _b.replay)) {
+      throw new Error(`tried to use replay on public channel '${this.topic}'. It must be a private channel.`);
+    }
+  }
+  subscribe(callback, timeout = this.timeout) {
+    var _a3, _b, _c, _d;
+    if (!this.socket.isConnected()) {
+      this.socket.connect();
+    }
+    if (this.channelAdapter.isClosed()) {
+      const { config: { broadcast, presence, private: isPrivate, postgres_changes_options } } = this.params;
+      const postgres_changes = (_b = (_a3 = this.bindings.postgres_changes) === null || _a3 === undefined ? undefined : _a3.map((r) => r.filter)) !== null && _b !== undefined ? _b : [];
+      const presence_enabled = !!this.bindings[REALTIME_LISTEN_TYPES.PRESENCE] && this.bindings[REALTIME_LISTEN_TYPES.PRESENCE].length > 0 || ((_c = this.params.config.presence) === null || _c === undefined ? undefined : _c.enabled) === true;
+      const accessTokenPayload = {};
+      const config2 = Object.assign({ broadcast, presence: Object.assign(Object.assign({}, presence), { enabled: presence_enabled }), postgres_changes, private: isPrivate }, postgres_changes_options ? { postgres_changes_options } : {});
+      if (this.socket.accessTokenValue) {
+        accessTokenPayload.access_token = this.socket.accessTokenValue;
+      }
+      this._onError((reason) => {
+        callback === null || callback === undefined || callback(REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR, normalizeChannelError(reason));
+      });
+      this._onClose(() => callback === null || callback === undefined ? undefined : callback(REALTIME_SUBSCRIBE_STATES.CLOSED));
+      this.updateJoinPayload(Object.assign({ config: config2 }, accessTokenPayload));
+      this._updateFilterMessage();
+      const joinTimeout = (postgres_changes_options === null || postgres_changes_options === undefined ? undefined : postgres_changes_options.wait) && postgres_changes.length > 0 ? Math.max(timeout, ((_d = postgres_changes_options.timeout) !== null && _d !== undefined ? _d : DEFAULT_POSTGRES_CHANGES_WAIT_TIMEOUT) + POSTGRES_CHANGES_WAIT_ERROR_GRACE) : timeout;
+      this.channelAdapter.subscribe(joinTimeout).receive("ok", async ({ postgres_changes: postgres_changes2 }) => {
+        if (!this.socket._isManualToken()) {
+          this.socket.setAuth();
+        }
+        if (postgres_changes2 === undefined) {
+          callback === null || callback === undefined || callback(REALTIME_SUBSCRIBE_STATES.SUBSCRIBED);
+          return;
+        }
+        this._updatePostgresBindings(postgres_changes2, callback);
+      }).receive("error", (error51) => {
+        this.state = CHANNEL_STATES.errored;
+        const message = Object.values(error51).join(", ") || "error";
+        callback === null || callback === undefined || callback(REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR, new Error(message, { cause: error51 }));
+      }).receive("timeout", () => {
+        callback === null || callback === undefined || callback(REALTIME_SUBSCRIBE_STATES.TIMED_OUT);
+      });
+    }
+    return this;
+  }
+  _updatePostgresBindings(postgres_changes, callback) {
+    var _a3;
+    const clientPostgresBindings = this.bindings.postgres_changes;
+    const bindingsLen = (_a3 = clientPostgresBindings === null || clientPostgresBindings === undefined ? undefined : clientPostgresBindings.length) !== null && _a3 !== undefined ? _a3 : 0;
+    const newPostgresBindings = [];
+    for (let i = 0;i < bindingsLen; i++) {
+      const clientPostgresBinding = clientPostgresBindings[i];
+      const { filter: { event, schema, table, filter } } = clientPostgresBinding;
+      const serverPostgresFilter = postgres_changes && postgres_changes[i];
+      if (serverPostgresFilter && serverPostgresFilter.event === event && RealtimeChannel.isFilterValueEqual(serverPostgresFilter.schema, schema) && RealtimeChannel.isFilterValueEqual(serverPostgresFilter.table, table) && RealtimeChannel.isFilterValueEqual(serverPostgresFilter.filter, filter)) {
+        newPostgresBindings.push(Object.assign(Object.assign({}, clientPostgresBinding), { id: serverPostgresFilter.id }));
+      } else {
+        this.unsubscribe();
+        this.state = CHANNEL_STATES.errored;
+        callback === null || callback === undefined || callback(REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR, new Error("mismatch between server and client bindings for postgres changes"));
+        return;
+      }
+    }
+    this.bindings.postgres_changes = newPostgresBindings;
+    if (this.state != CHANNEL_STATES.errored && callback) {
+      callback(REALTIME_SUBSCRIBE_STATES.SUBSCRIBED);
+    }
+  }
+  presenceState() {
+    return this.presence.state;
+  }
+  async track(payload, opts = {}) {
+    return await this.send({
+      type: "presence",
+      event: "track",
+      payload
+    }, opts);
+  }
+  async untrack(opts = {}) {
+    return await this.send({
+      type: "presence",
+      event: "untrack"
+    }, opts);
+  }
+  on(type, filter, callback) {
+    const stateCheck = this.channelAdapter.isJoined() || this.channelAdapter.isJoining();
+    const typeCheck = type === REALTIME_LISTEN_TYPES.PRESENCE || type === REALTIME_LISTEN_TYPES.POSTGRES_CHANGES;
+    if (stateCheck && typeCheck) {
+      this.socket.log("channel", `cannot add \`${type}\` callbacks for ${this.topic} after \`subscribe()\`.`);
+      throw new Error(`cannot add \`${type}\` callbacks for ${this.topic} after \`subscribe()\`.`);
+    }
+    return this._on(type, filter, callback);
+  }
+  async httpSend(event, payload, opts = {}) {
+    var _a3;
+    if (payload === undefined || payload === null) {
+      return Promise.reject(new Error("Payload is required for httpSend()"));
+    }
+    const isBinary = payload instanceof ArrayBuffer || ArrayBuffer.isView(payload);
+    const headers = {
+      apikey: this.socket.apiKey ? this.socket.apiKey : "",
+      "Content-Type": isBinary ? "application/octet-stream" : "application/json"
+    };
+    if (this.socket.accessTokenValue) {
+      headers["Authorization"] = `Bearer ${this.socket.accessTokenValue}`;
+    }
+    const url2 = new URL(this.broadcastEndpointURL);
+    url2.pathname += `/${encodeURIComponent(this.subTopic)}/events/${encodeURIComponent(event)}`;
+    if (this.private) {
+      url2.searchParams.set("private", "true");
+    }
+    const options = {
+      method: "POST",
+      headers,
+      body: isBinary ? payload : JSON.stringify(payload)
+    };
+    const response = await this._fetchWithTimeout(url2.toString(), options, (_a3 = opts.timeout) !== null && _a3 !== undefined ? _a3 : this.timeout);
+    if (response.status === 202) {
+      return { success: true };
+    }
+    if (response.status === 404) {
+      return Promise.reject(new Error("httpSend() requires Realtime server v2.97.0 or newer; the endpoint returned 404. " + "Update your Supabase CLI to a recent version, or upgrade the Realtime server in your self-hosted setup. " + "See https://github.com/supabase/supabase-js/blob/master/packages/core/realtime-js/migrations/httpsend-server-version.md"));
+    }
+    let errorMessage = response.statusText;
+    try {
+      const errorBody = await response.json();
+      errorMessage = errorBody.error || errorBody.message || errorMessage;
+    } catch (_b) {}
+    return Promise.reject(new Error(errorMessage));
+  }
+  async send(args, opts = {}) {
+    var _a3, _b;
+    if (!this.channelAdapter.canPush() && args.type === "broadcast") {
+      const fallbackWarning = "Realtime send() is automatically falling back to REST API. " + "This behavior will be deprecated in the future. " + "Please use httpSend() explicitly for REST delivery.";
+      if (this.socket.hasLogger()) {
+        this.socket.log("channel", fallbackWarning);
+      } else {
+        console.warn(fallbackWarning);
+      }
+      const { event, payload: endpoint_payload } = args;
+      const headers = {
+        apikey: this.socket.apiKey ? this.socket.apiKey : "",
+        "Content-Type": "application/json"
+      };
+      if (this.socket.accessTokenValue) {
+        headers["Authorization"] = `Bearer ${this.socket.accessTokenValue}`;
+      }
+      const options = {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          messages: [
+            {
+              topic: this.subTopic,
+              event,
+              payload: endpoint_payload,
+              private: this.private
+            }
+          ]
+        })
+      };
+      try {
+        const response = await this._fetchWithTimeout(this.broadcastEndpointURL, options, (_a3 = opts.timeout) !== null && _a3 !== undefined ? _a3 : this.timeout);
+        await ((_b = response.body) === null || _b === undefined ? undefined : _b.cancel());
+        return response.ok ? "ok" : "error";
+      } catch (error51) {
+        if (error51 instanceof Error && error51.name === "AbortError") {
+          return "timed out";
+        } else {
+          return "error";
+        }
+      }
+    } else {
+      return new Promise((resolve) => {
+        var _a4, _b2, _c;
+        const push = this.channelAdapter.push(args.type, args, opts.timeout || this.timeout);
+        if (args.type === "broadcast" && !((_c = (_b2 = (_a4 = this.params) === null || _a4 === undefined ? undefined : _a4.config) === null || _b2 === undefined ? undefined : _b2.broadcast) === null || _c === undefined ? undefined : _c.ack)) {
+          resolve("ok");
+        }
+        push.receive("ok", () => resolve("ok"));
+        push.receive("error", () => resolve("error"));
+        push.receive("timeout", () => resolve("timed out"));
+      });
+    }
+  }
+  updateJoinPayload(payload) {
+    this.channelAdapter.updateJoinPayload(payload);
+  }
+  async unsubscribe(timeout = this.timeout) {
+    return new Promise((resolve) => {
+      this.channelAdapter.unsubscribe(timeout).receive("ok", () => resolve("ok")).receive("timeout", () => resolve("timed out")).receive("error", () => resolve("error"));
+    });
+  }
+  teardown() {
+    this.channelAdapter.teardown();
+  }
+  async _fetchWithTimeout(url2, options, timeout) {
+    const controller = new AbortController;
+    const id = setTimeout(() => controller.abort(), timeout);
+    const response = await this.socket.fetch(url2, Object.assign(Object.assign({}, options), { signal: controller.signal }));
+    clearTimeout(id);
+    return response;
+  }
+  _on(type, filter, callback) {
+    var _a3;
+    const typeLower = type.toLocaleLowerCase();
+    const filterValue = filter === null || filter === undefined ? undefined : filter.filter;
+    if (filterValue instanceof RealtimePostgresFilterBuilder || typeof filterValue === "object" && filterValue !== null && typeof filterValue.build === "function") {
+      filter = Object.assign(Object.assign({}, filter), { filter: filterValue.build() });
+    }
+    if (typeLower === REALTIME_LISTEN_TYPES.POSTGRES_CHANGES) {
+      const duplicate = (_a3 = this.bindings[typeLower]) === null || _a3 === undefined ? undefined : _a3.find((bind) => RealtimeChannel.isSamePostgresFilter(bind.filter, filter));
+      if (duplicate) {
+        this.socket.log("error", `duplicate \`postgres_changes\` binding for ${this.topic} ignored`, filter);
+        return this;
+      }
+    }
+    const ref = this.channelAdapter.on(type, callback);
+    const binding = {
+      type: typeLower,
+      filter,
+      callback,
+      ref
+    };
+    if (this.bindings[typeLower]) {
+      this.bindings[typeLower].push(binding);
+    } else {
+      this.bindings[typeLower] = [binding];
+    }
+    this._updateFilterMessage();
+    return this;
+  }
+  _onClose(callback) {
+    this.channelAdapter.onClose(callback);
+  }
+  _onError(callback) {
+    this.channelAdapter.onError(callback);
+  }
+  _updateFilterMessage() {
+    this.channelAdapter.updateFilterBindings((binding, payload, ref) => {
+      var _a3, _b, _c, _d, _e, _f, _g;
+      const typeLower = binding.event.toLocaleLowerCase();
+      if (this._notThisChannelEvent(typeLower, ref)) {
+        return false;
+      }
+      const bind = (_a3 = this.bindings[typeLower]) === null || _a3 === undefined ? undefined : _a3.find((bind2) => bind2.ref === binding.ref);
+      if (!bind) {
+        return true;
+      }
+      if (["broadcast", "presence", "postgres_changes"].includes(typeLower)) {
+        if ("id" in bind) {
+          const bindId = bind.id;
+          const bindEvent = (_b = bind.filter) === null || _b === undefined ? undefined : _b.event;
+          return bindId && ((_c = payload.ids) === null || _c === undefined ? undefined : _c.includes(bindId)) && (bindEvent === "*" || (bindEvent === null || bindEvent === undefined ? undefined : bindEvent.toLocaleLowerCase()) === ((_d = payload.data) === null || _d === undefined ? undefined : _d.type.toLocaleLowerCase()));
+        } else {
+          const bindEvent = (_f = (_e = bind === null || bind === undefined ? undefined : bind.filter) === null || _e === undefined ? undefined : _e.event) === null || _f === undefined ? undefined : _f.toLocaleLowerCase();
+          return bindEvent === "*" || bindEvent === ((_g = payload === null || payload === undefined ? undefined : payload.event) === null || _g === undefined ? undefined : _g.toLocaleLowerCase());
+        }
+      } else {
+        return bind.type.toLocaleLowerCase() === typeLower;
+      }
+    });
+  }
+  _notThisChannelEvent(event, ref) {
+    const { close, error: error51, leave, join } = CHANNEL_EVENTS;
+    const events = [close, error51, leave, join];
+    return ref && events.includes(event) && ref !== this.joinPush.ref;
+  }
+  _updateFilterTransform() {
+    this.channelAdapter.updatePayloadTransform((event, payload, ref) => {
+      if (typeof payload === "object" && "ids" in payload) {
+        const postgresChanges = payload.data;
+        const { schema, table, commit_timestamp, type, errors: errors3 } = postgresChanges;
+        const enrichedPayload = {
+          schema,
+          table,
+          commit_timestamp,
+          eventType: type,
+          new: {},
+          old: {},
+          errors: errors3
+        };
+        return Object.assign(Object.assign({}, enrichedPayload), this._getPayloadRecords(postgresChanges));
+      }
+      return payload;
+    });
+  }
+  copyBindings(other) {
+    if (this.joinedOnce) {
+      throw new Error("cannot copy bindings into joined channel");
+    }
+    for (const kind in other.bindings) {
+      for (const binding of other.bindings[kind]) {
+        this._on(binding.type, binding.filter, binding.callback);
+      }
+    }
+  }
+  static isFilterValueEqual(serverValue, clientValue) {
+    const normalizedServer = serverValue !== null && serverValue !== undefined ? serverValue : undefined;
+    const normalizedClient = clientValue !== null && clientValue !== undefined ? clientValue : undefined;
+    return normalizedServer === normalizedClient;
+  }
+  static isSamePostgresFilter(a, b) {
+    var _a3, _b, _c, _d;
+    const selectA = (_b = (_a3 = a === null || a === undefined ? undefined : a.select) === null || _a3 === undefined ? undefined : _a3.join()) !== null && _b !== undefined ? _b : undefined;
+    const selectB = (_d = (_c = b === null || b === undefined ? undefined : b.select) === null || _c === undefined ? undefined : _c.join()) !== null && _d !== undefined ? _d : undefined;
+    return (a === null || a === undefined ? undefined : a.event) === (b === null || b === undefined ? undefined : b.event) && RealtimeChannel.isFilterValueEqual(a === null || a === undefined ? undefined : a.schema, b === null || b === undefined ? undefined : b.schema) && RealtimeChannel.isFilterValueEqual(a === null || a === undefined ? undefined : a.table, b === null || b === undefined ? undefined : b.table) && RealtimeChannel.isFilterValueEqual(a === null || a === undefined ? undefined : a.filter, b === null || b === undefined ? undefined : b.filter) && selectA === selectB;
+  }
+  _getPayloadRecords(payload) {
+    const records = {
+      new: {},
+      old: {}
+    };
+    if (payload.type === "INSERT" || payload.type === "UPDATE") {
+      records.new = convertChangeData(payload.columns, payload.record);
+    }
+    if (payload.type === "UPDATE" || payload.type === "DELETE") {
+      records.old = convertChangeData(payload.columns, payload.old_record);
+    }
+    return records;
+  }
+}
+
+// ../node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
+class SocketAdapter {
+  constructor(endPoint, options) {
+    this.socket = new Socket(endPoint, options);
+  }
+  get timeout() {
+    return this.socket.timeout;
+  }
+  get endPoint() {
+    return this.socket.endPoint;
+  }
+  get transport() {
+    return this.socket.transport;
+  }
+  get heartbeatIntervalMs() {
+    return this.socket.heartbeatIntervalMs;
+  }
+  get heartbeatCallback() {
+    return this.socket.heartbeatCallback;
+  }
+  set heartbeatCallback(callback) {
+    this.socket.heartbeatCallback = callback;
+  }
+  get heartbeatTimer() {
+    return this.socket.heartbeatTimer;
+  }
+  get pendingHeartbeatRef() {
+    return this.socket.pendingHeartbeatRef;
+  }
+  get reconnectTimer() {
+    return this.socket.reconnectTimer;
+  }
+  get vsn() {
+    return this.socket.vsn;
+  }
+  get encode() {
+    return this.socket.encode;
+  }
+  get decode() {
+    return this.socket.decode;
+  }
+  get reconnectAfterMs() {
+    return this.socket.reconnectAfterMs;
+  }
+  get sendBuffer() {
+    return this.socket.sendBuffer;
+  }
+  get stateChangeCallbacks() {
+    return this.socket.stateChangeCallbacks;
+  }
+  connect() {
+    this.socket.connect();
+  }
+  disconnect(callback, code, reason, timeout = 1e4) {
+    return new Promise((resolve) => {
+      setTimeout(() => resolve("timeout"), timeout);
+      this.socket.disconnect(() => {
+        callback();
+        resolve("ok");
+      }, code, reason);
+    });
+  }
+  push(data) {
+    this.socket.push(data);
+  }
+  log(kind, msg, data) {
+    this.socket.log(kind, msg, data);
+  }
+  hasLogger() {
+    return this.socket.hasLogger();
+  }
+  makeRef() {
+    return this.socket.makeRef();
+  }
+  onOpen(callback) {
+    this.socket.onOpen(callback);
+  }
+  onClose(callback) {
+    this.socket.onClose(callback);
+  }
+  onError(callback) {
+    this.socket.onError(callback);
+  }
+  onMessage(callback) {
+    this.socket.onMessage(callback);
+  }
+  isConnected() {
+    return this.socket.isConnected();
+  }
+  isConnecting() {
+    return this.socket.connectionState() == CONNECTION_STATE.connecting;
+  }
+  isDisconnecting() {
+    return this.socket.connectionState() == CONNECTION_STATE.closing;
+  }
+  connectionState() {
+    return this.socket.connectionState();
+  }
+  endPointURL() {
+    return this.socket.endPointURL();
+  }
+  sendHeartbeat() {
+    this.socket.sendHeartbeat();
+  }
+  getSocket() {
+    return this.socket;
+  }
+}
+
+// ../node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
+var CONNECTION_TIMEOUTS = {
+  HEARTBEAT_INTERVAL: 25000,
+  RECONNECT_DELAY: 10,
+  HEARTBEAT_TIMEOUT_FALLBACK: 100
+};
+var RECONNECT_INTERVALS = [1000, 2000, 5000, 1e4];
+var DEFAULT_RECONNECT_FALLBACK = 1e4;
+function createMemorySessionStorage() {
+  const store = new Map;
+  return {
+    get length() {
+      return store.size;
+    },
+    clear() {
+      store.clear();
+    },
+    getItem(key) {
+      return store.has(key) ? store.get(key) : null;
+    },
+    key(index2) {
+      var _a3;
+      return (_a3 = Array.from(store.keys())[index2]) !== null && _a3 !== undefined ? _a3 : null;
+    },
+    removeItem(key) {
+      store.delete(key);
+    },
+    setItem(key, value) {
+      store.set(key, String(value));
+    }
+  };
+}
+function resolveSessionStorage() {
+  try {
+    if (typeof globalThis !== "undefined" && globalThis.sessionStorage) {
+      return globalThis.sessionStorage;
+    }
+  } catch (_a3) {}
+  return createMemorySessionStorage();
+}
+var WORKER_SCRIPT = `
+  addEventListener("message", (e) => {
+    if (e.data.event === "start") {
+      setInterval(() => postMessage({ event: "keepAlive" }), e.data.interval);
+    }
+  });`;
+
+class RealtimeClient {
+  get endPoint() {
+    return this.socketAdapter.endPoint;
+  }
+  get timeout() {
+    return this.socketAdapter.timeout;
+  }
+  get transport() {
+    return this.socketAdapter.transport;
+  }
+  get heartbeatCallback() {
+    return this.socketAdapter.heartbeatCallback;
+  }
+  get heartbeatIntervalMs() {
+    return this.socketAdapter.heartbeatIntervalMs;
+  }
+  get heartbeatTimer() {
+    if (this.worker) {
+      return this._workerHeartbeatTimer;
+    }
+    return this.socketAdapter.heartbeatTimer;
+  }
+  get pendingHeartbeatRef() {
+    if (this.worker) {
+      return this._pendingWorkerHeartbeatRef;
+    }
+    return this.socketAdapter.pendingHeartbeatRef;
+  }
+  get reconnectTimer() {
+    return this.socketAdapter.reconnectTimer;
+  }
+  get vsn() {
+    return this.socketAdapter.vsn;
+  }
+  get encode() {
+    return this.socketAdapter.encode;
+  }
+  get decode() {
+    return this.socketAdapter.decode;
+  }
+  get reconnectAfterMs() {
+    return this.socketAdapter.reconnectAfterMs;
+  }
+  get sendBuffer() {
+    return this.socketAdapter.sendBuffer;
+  }
+  get stateChangeCallbacks() {
+    return this.socketAdapter.stateChangeCallbacks;
+  }
+  constructor(endPoint, options) {
+    var _a3;
+    this.channels = new Array;
+    this.accessTokenValue = null;
+    this.accessToken = null;
+    this.apiKey = null;
+    this.httpEndpoint = "";
+    this.headers = {};
+    this.params = {};
+    this.ref = 0;
+    this.serializer = new Serializer;
+    this._manuallySetToken = false;
+    this._authPromise = null;
+    this._authGeneration = 0;
+    this._workerHeartbeatTimer = undefined;
+    this._pendingWorkerHeartbeatRef = null;
+    this._pendingDisconnectTimer = null;
+    this._disconnectOnEmptyChannelsAfterMs = 0;
+    this._resolveFetch = (customFetch) => {
+      if (customFetch) {
+        return (...args) => customFetch(...args);
+      }
+      return (...args) => fetch(...args);
+    };
+    if (!((_a3 = options === null || options === undefined ? undefined : options.params) === null || _a3 === undefined ? undefined : _a3.apikey)) {
+      throw new Error("API key is required to connect to Realtime");
+    }
+    this.apiKey = options.params.apikey;
+    const socketAdapterOptions = this._initializeOptions(options);
+    this.socketAdapter = new SocketAdapter(endPoint, socketAdapterOptions);
+    this.httpEndpoint = httpEndpointURL(endPoint);
+    this.fetch = this._resolveFetch(options === null || options === undefined ? undefined : options.fetch);
+  }
+  connect() {
+    if (this.isConnecting() || this.isDisconnecting() || this.isConnected()) {
+      return;
+    }
+    if (this.accessToken && !this._authPromise) {
+      this._setAuthSafely("connect");
+    }
+    this._setupConnectionHandlers();
+    try {
+      this.socketAdapter.connect();
+    } catch (error51) {
+      const errorMessage = error51.message;
+      throw new Error(`WebSocket not available: ${errorMessage}`);
+    }
+    this._handleNodeJsRaceCondition();
+  }
+  endpointURL() {
+    return this.socketAdapter.endPointURL();
+  }
+  async disconnect(code, reason) {
+    this._cancelPendingDisconnect();
+    if (this.isDisconnecting()) {
+      return "ok";
+    }
+    return await this.socketAdapter.disconnect(() => {
+      clearInterval(this._workerHeartbeatTimer);
+      this._terminateWorker();
+    }, code, reason);
+  }
+  getChannels() {
+    return this.channels;
+  }
+  async removeChannel(channel) {
+    const status = await channel.unsubscribe();
+    if (status === "ok") {
+      channel.teardown();
+    }
+    return status;
+  }
+  async removeAllChannels() {
+    const promises = this.channels.map(async (channel) => {
+      const result2 = await channel.unsubscribe();
+      channel.teardown();
+      return result2;
+    });
+    const result = await Promise.all(promises);
+    await this.disconnect();
+    return result;
+  }
+  log(kind, msg, data) {
+    this.socketAdapter.log(kind, msg, data);
+  }
+  hasLogger() {
+    return this.socketAdapter.hasLogger();
+  }
+  connectionState() {
+    return this.socketAdapter.connectionState() || CONNECTION_STATE.closed;
+  }
+  isConnected() {
+    return this.socketAdapter.isConnected();
+  }
+  isConnecting() {
+    return this.socketAdapter.isConnecting();
+  }
+  isDisconnecting() {
+    return this.socketAdapter.isDisconnecting();
+  }
+  channel(topic, params = { config: {} }) {
+    const realtimeTopic = `realtime:${topic}`;
+    const exists = this.getChannels().find((c) => c.topic === realtimeTopic);
+    if (!exists) {
+      const chan = new RealtimeChannel(`realtime:${topic}`, params, this);
+      this._cancelPendingDisconnect();
+      this.channels.push(chan);
+      return chan;
+    } else {
+      return exists;
+    }
+  }
+  push(data) {
+    this.socketAdapter.push(data);
+  }
+  async setAuth(token = null) {
+    const authGeneration = ++this._authGeneration;
+    const authPromise = this._performAuth(token, authGeneration);
+    if (authGeneration === this._authGeneration) {
+      this._authPromise = authPromise;
+    }
+    try {
+      await authPromise;
+    } finally {
+      if (this._authPromise === authPromise) {
+        this._authPromise = null;
+      }
+    }
+  }
+  _isManualToken() {
+    return this._manuallySetToken;
+  }
+  async sendHeartbeat() {
+    this.socketAdapter.sendHeartbeat();
+  }
+  onHeartbeat(callback) {
+    this.socketAdapter.heartbeatCallback = this._wrapHeartbeatCallback(callback);
+  }
+  _makeRef() {
+    return this.socketAdapter.makeRef();
+  }
+  _remove(channel) {
+    this.channels = this.channels.filter((c) => c.topic !== channel.topic);
+    if (this.channels.length === 0) {
+      this.log("transport", "no channels remaining, scheduling disconnect");
+      this._schedulePendingDisconnect();
+    }
+  }
+  _schedulePendingDisconnect() {
+    this._cancelPendingDisconnect();
+    if (this._disconnectOnEmptyChannelsAfterMs === 0) {
+      this.log("transport", "disconnecting immediately - no channels");
+      this.disconnect();
+      return;
+    }
+    this._pendingDisconnectTimer = setTimeout(() => {
+      this._pendingDisconnectTimer = null;
+      if (this.channels.length === 0) {
+        this.log("transport", "deferred disconnect fired - no channels, disconnecting");
+        this.disconnect();
+      }
+    }, this._disconnectOnEmptyChannelsAfterMs);
+    this.log("transport", `deferred disconnect scheduled in ${this._disconnectOnEmptyChannelsAfterMs}ms`);
+  }
+  _cancelPendingDisconnect() {
+    if (this._pendingDisconnectTimer !== null) {
+      this.log("transport", "pending disconnect cancelled - channel activity detected");
+      clearTimeout(this._pendingDisconnectTimer);
+      this._pendingDisconnectTimer = null;
+    }
+  }
+  async _performAuth(token, authGeneration) {
+    let tokenToSend;
+    let isManualToken = false;
+    if (token) {
+      tokenToSend = token;
+      isManualToken = true;
+    } else if (this.accessToken) {
+      try {
+        tokenToSend = await this.accessToken();
+      } catch (e) {
+        this.log("error", "Error fetching access token from callback", e);
+        tokenToSend = this.accessTokenValue;
+      }
+    } else {
+      tokenToSend = this.accessTokenValue;
+    }
+    if (authGeneration !== this._authGeneration) {
+      return;
+    }
+    if (this.accessToken) {
+      this._manuallySetToken = false;
+    } else if (isManualToken) {
+      this._manuallySetToken = true;
+    }
+    if (this.accessTokenValue != tokenToSend) {
+      this.accessTokenValue = tokenToSend;
+      this.channels.forEach((channel) => {
+        const payload = {
+          access_token: tokenToSend,
+          version: DEFAULT_VERSION
+        };
+        channel.updateJoinPayload(payload);
+        if (channel.joinedOnce && channel.channelAdapter.isJoined()) {
+          channel.channelAdapter.push(CHANNEL_EVENTS.access_token, {
+            access_token: tokenToSend
+          });
+        }
+      });
+    }
+  }
+  async _waitForAuthIfNeeded() {
+    if (this._authPromise) {
+      await this._authPromise;
+    }
+  }
+  _setAuthSafely(context = "general") {
+    if (!this._isManualToken()) {
+      this.setAuth().catch((e) => {
+        this.log("error", `Error setting auth in ${context}`, e);
+      });
+    }
+  }
+  _setupConnectionHandlers() {
+    this.socketAdapter.onOpen(() => {
+      const authPromise = this._authPromise || (this.accessToken && !this.accessTokenValue ? this.setAuth() : Promise.resolve());
+      authPromise.catch((e) => {
+        this.log("error", "error waiting for auth on connect", e);
+      });
+      if (this.worker && !this.workerRef) {
+        this._startWorkerHeartbeat();
+      }
+    });
+    this.socketAdapter.onClose(() => {
+      if (this.worker && this.workerRef) {
+        this._terminateWorker();
+      }
+    });
+    this.socketAdapter.onMessage((message) => {
+      if (message.ref && message.ref === this._pendingWorkerHeartbeatRef) {
+        this._pendingWorkerHeartbeatRef = null;
+      }
+    });
+  }
+  _handleNodeJsRaceCondition() {
+    if (this.socketAdapter.isConnected()) {
+      this.socketAdapter.getSocket().onConnOpen();
+    }
+  }
+  _wrapHeartbeatCallback(heartbeatCallback) {
+    return (status, latency) => {
+      if (status === "disconnected")
+        return;
+      if (status == "sent")
+        this._setAuthSafely();
+      if (heartbeatCallback)
+        heartbeatCallback(status, latency);
+    };
+  }
+  _startWorkerHeartbeat() {
+    if (this.workerUrl) {
+      this.log("worker", `starting worker for from ${this.workerUrl}`);
+    } else {
+      this.log("worker", `starting default worker`);
+    }
+    const objectUrl = this._workerObjectUrl(this.workerUrl);
+    this.workerRef = new Worker(objectUrl);
+    this.workerRef.onerror = (error51) => {
+      this.log("worker", "worker error", error51.message);
+      this._terminateWorker();
+      this.disconnect();
+    };
+    this.workerRef.onmessage = (event) => {
+      if (event.data.event === "keepAlive") {
+        this.sendHeartbeat();
+      }
+    };
+    this.workerRef.postMessage({
+      event: "start",
+      interval: this.heartbeatIntervalMs
+    });
+  }
+  _terminateWorker() {
+    if (this.workerRef) {
+      this.log("worker", "terminating worker");
+      this.workerRef.terminate();
+      this.workerRef = undefined;
+    }
+  }
+  _workerObjectUrl(url2) {
+    let result_url;
+    if (url2) {
+      result_url = url2;
+    } else {
+      const blob = new Blob([WORKER_SCRIPT], { type: "application/javascript" });
+      result_url = URL.createObjectURL(blob);
+    }
+    return result_url;
+  }
+  _initializeOptions(options) {
+    var _a3, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+    this.worker = (_a3 = options === null || options === undefined ? undefined : options.worker) !== null && _a3 !== undefined ? _a3 : false;
+    this.accessToken = (_b = options === null || options === undefined ? undefined : options.accessToken) !== null && _b !== undefined ? _b : null;
+    const result = {};
+    result.timeout = (_c = options === null || options === undefined ? undefined : options.timeout) !== null && _c !== undefined ? _c : DEFAULT_TIMEOUT;
+    result.heartbeatIntervalMs = (_d = options === null || options === undefined ? undefined : options.heartbeatIntervalMs) !== null && _d !== undefined ? _d : CONNECTION_TIMEOUTS.HEARTBEAT_INTERVAL;
+    this._disconnectOnEmptyChannelsAfterMs = (_e = options === null || options === undefined ? undefined : options.disconnectOnEmptyChannelsAfterMs) !== null && _e !== undefined ? _e : 2 * ((_f = options === null || options === undefined ? undefined : options.heartbeatIntervalMs) !== null && _f !== undefined ? _f : CONNECTION_TIMEOUTS.HEARTBEAT_INTERVAL);
+    result.transport = (_g = options === null || options === undefined ? undefined : options.transport) !== null && _g !== undefined ? _g : websocket_factory_default.getWebSocketConstructor();
+    result.params = options === null || options === undefined ? undefined : options.params;
+    result.logger = options === null || options === undefined ? undefined : options.logger;
+    result.heartbeatCallback = this._wrapHeartbeatCallback(options === null || options === undefined ? undefined : options.heartbeatCallback);
+    result.sessionStorage = (_h = options === null || options === undefined ? undefined : options.sessionStorage) !== null && _h !== undefined ? _h : resolveSessionStorage();
+    result.reconnectAfterMs = (_j = options === null || options === undefined ? undefined : options.reconnectAfterMs) !== null && _j !== undefined ? _j : (tries) => {
+      return RECONNECT_INTERVALS[tries - 1] || DEFAULT_RECONNECT_FALLBACK;
+    };
+    let defaultEncode;
+    let defaultDecode;
+    const vsn = (_k = options === null || options === undefined ? undefined : options.vsn) !== null && _k !== undefined ? _k : DEFAULT_VSN;
+    switch (vsn) {
+      case VSN_1_0_0:
+        defaultEncode = (payload, callback) => {
+          return callback(JSON.stringify(payload));
+        };
+        defaultDecode = (payload, callback) => {
+          return callback(JSON.parse(payload));
+        };
+        break;
+      case VSN_2_0_0:
+        defaultEncode = this.serializer.encode.bind(this.serializer);
+        defaultDecode = this.serializer.decode.bind(this.serializer);
+        break;
+      default:
+        throw new Error(`Unsupported serializer version: ${result.vsn}`);
+    }
+    result.vsn = vsn;
+    result.encode = (_l = options === null || options === undefined ? undefined : options.encode) !== null && _l !== undefined ? _l : defaultEncode;
+    result.decode = (_m = options === null || options === undefined ? undefined : options.decode) !== null && _m !== undefined ? _m : defaultDecode;
+    result.beforeReconnect = this._reconnectAuth.bind(this);
+    if ((options === null || options === undefined ? undefined : options.logLevel) || (options === null || options === undefined ? undefined : options.log_level)) {
+      this.logLevel = options.logLevel || options.log_level;
+      result.params = Object.assign(Object.assign({}, result.params), { log_level: this.logLevel });
+    }
+    if (this.worker) {
+      if (typeof window !== "undefined" && !window.Worker) {
+        throw new Error("Web Worker is not supported");
+      }
+      this.workerUrl = options === null || options === undefined ? undefined : options.workerUrl;
+      result.autoSendHeartbeat = !this.worker;
+    }
+    return result;
+  }
+  async _reconnectAuth() {
+    await this._waitForAuthIfNeeded();
+    if (!this.isConnected()) {
+      this.connect();
+    }
+  }
+}
+
+// ../node_modules/iceberg-js/dist/index.mjs
+var IcebergError = class extends Error {
+  constructor(message, opts) {
+    super(message);
+    this.name = "IcebergError";
+    this.status = opts.status;
+    this.icebergType = opts.icebergType;
+    this.icebergCode = opts.icebergCode;
+    this.details = opts.details;
+    this.isCommitStateUnknown = opts.icebergType === "CommitStateUnknownException" || [500, 502, 504].includes(opts.status) && opts.icebergType?.includes("CommitState") === true;
+  }
+  isNotFound() {
+    return this.status === 404;
+  }
+  isConflict() {
+    return this.status === 409;
+  }
+  isAuthenticationTimeout() {
+    return this.status === 419;
+  }
+};
+function buildUrl(baseUrl, path, query) {
+  const url2 = new URL(path, baseUrl);
+  if (query) {
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined) {
+        url2.searchParams.set(key, value);
+      }
+    }
+  }
+  return url2.toString();
+}
+async function buildAuthHeaders(auth) {
+  if (!auth || auth.type === "none") {
+    return {};
+  }
+  if (auth.type === "bearer") {
+    return { Authorization: `Bearer ${auth.token}` };
+  }
+  if (auth.type === "header") {
+    return { [auth.name]: auth.value };
+  }
+  if (auth.type === "custom") {
+    return await auth.getHeaders();
+  }
+  return {};
+}
+function createFetchClient(options) {
+  const fetchFn = options.fetchImpl ?? globalThis.fetch;
+  return {
+    async request({
+      method,
+      path,
+      query,
+      body,
+      headers
+    }) {
+      const url2 = buildUrl(options.baseUrl, path, query);
+      const authHeaders = await buildAuthHeaders(options.auth);
+      const res = await fetchFn(url2, {
+        method,
+        headers: {
+          ...body ? { "Content-Type": "application/json" } : {},
+          ...authHeaders,
+          ...headers
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      const text2 = await res.text();
+      const isJson = (res.headers.get("content-type") || "").includes("application/json");
+      const data = isJson && text2 ? JSON.parse(text2) : text2;
+      if (!res.ok) {
+        const errBody = isJson ? data : undefined;
+        const errorDetail = errBody?.error;
+        throw new IcebergError(errorDetail?.message ?? `Request failed with status ${res.status}`, {
+          status: res.status,
+          icebergType: errorDetail?.type,
+          icebergCode: errorDetail?.code,
+          details: errBody
+        });
+      }
+      return { status: res.status, headers: res.headers, data };
+    }
+  };
+}
+function namespaceToPath(namespace) {
+  return namespace.join("\x1F");
+}
+var NamespaceOperations = class {
+  constructor(client, prefix = "") {
+    this.client = client;
+    this.prefix = prefix;
+  }
+  async listNamespaces(parent) {
+    const query = parent ? { parent: namespaceToPath(parent.namespace) } : undefined;
+    const response = await this.client.request({
+      method: "GET",
+      path: `${this.prefix}/namespaces`,
+      query
+    });
+    return response.data.namespaces.map((ns) => ({ namespace: ns }));
+  }
+  async createNamespace(id, metadata) {
+    const request = {
+      namespace: id.namespace,
+      properties: metadata?.properties
+    };
+    const response = await this.client.request({
+      method: "POST",
+      path: `${this.prefix}/namespaces`,
+      body: request
+    });
+    return response.data;
+  }
+  async dropNamespace(id) {
+    await this.client.request({
+      method: "DELETE",
+      path: `${this.prefix}/namespaces/${namespaceToPath(id.namespace)}`
+    });
+  }
+  async loadNamespaceMetadata(id) {
+    const response = await this.client.request({
+      method: "GET",
+      path: `${this.prefix}/namespaces/${namespaceToPath(id.namespace)}`
+    });
+    return {
+      properties: response.data.properties
+    };
+  }
+  async namespaceExists(id) {
+    try {
+      await this.client.request({
+        method: "HEAD",
+        path: `${this.prefix}/namespaces/${namespaceToPath(id.namespace)}`
+      });
+      return true;
+    } catch (error51) {
+      if (error51 instanceof IcebergError && error51.status === 404) {
+        return false;
+      }
+      throw error51;
+    }
+  }
+  async createNamespaceIfNotExists(id, metadata) {
+    try {
+      return await this.createNamespace(id, metadata);
+    } catch (error51) {
+      if (error51 instanceof IcebergError && error51.status === 409) {
+        return;
+      }
+      throw error51;
+    }
+  }
+};
+function namespaceToPath2(namespace) {
+  return namespace.join("\x1F");
+}
+var TableOperations = class {
+  constructor(client, prefix = "", accessDelegation) {
+    this.client = client;
+    this.prefix = prefix;
+    this.accessDelegation = accessDelegation;
+  }
+  async listTables(namespace) {
+    const response = await this.client.request({
+      method: "GET",
+      path: `${this.prefix}/namespaces/${namespaceToPath2(namespace.namespace)}/tables`
+    });
+    return response.data.identifiers;
+  }
+  async createTable(namespace, request) {
+    const headers = {};
+    if (this.accessDelegation) {
+      headers["X-Iceberg-Access-Delegation"] = this.accessDelegation;
+    }
+    const response = await this.client.request({
+      method: "POST",
+      path: `${this.prefix}/namespaces/${namespaceToPath2(namespace.namespace)}/tables`,
+      body: request,
+      headers
+    });
+    return response.data.metadata;
+  }
+  async updateTable(id, request) {
+    const response = await this.client.request({
+      method: "POST",
+      path: `${this.prefix}/namespaces/${namespaceToPath2(id.namespace)}/tables/${id.name}`,
+      body: request
+    });
+    return {
+      "metadata-location": response.data["metadata-location"],
+      metadata: response.data.metadata
+    };
+  }
+  async dropTable(id, options) {
+    await this.client.request({
+      method: "DELETE",
+      path: `${this.prefix}/namespaces/${namespaceToPath2(id.namespace)}/tables/${id.name}`,
+      query: { purgeRequested: String(options?.purge ?? false) }
+    });
+  }
+  async loadTable(id) {
+    const headers = {};
+    if (this.accessDelegation) {
+      headers["X-Iceberg-Access-Delegation"] = this.accessDelegation;
+    }
+    const response = await this.client.request({
+      method: "GET",
+      path: `${this.prefix}/namespaces/${namespaceToPath2(id.namespace)}/tables/${id.name}`,
+      headers
+    });
+    return response.data.metadata;
+  }
+  async tableExists(id) {
+    const headers = {};
+    if (this.accessDelegation) {
+      headers["X-Iceberg-Access-Delegation"] = this.accessDelegation;
+    }
+    try {
+      await this.client.request({
+        method: "HEAD",
+        path: `${this.prefix}/namespaces/${namespaceToPath2(id.namespace)}/tables/${id.name}`,
+        headers
+      });
+      return true;
+    } catch (error51) {
+      if (error51 instanceof IcebergError && error51.status === 404) {
+        return false;
+      }
+      throw error51;
+    }
+  }
+  async createTableIfNotExists(namespace, request) {
+    try {
+      return await this.createTable(namespace, request);
+    } catch (error51) {
+      if (error51 instanceof IcebergError && error51.status === 409) {
+        return await this.loadTable({ namespace: namespace.namespace, name: request.name });
+      }
+      throw error51;
+    }
+  }
+};
+var IcebergRestCatalog = class {
+  constructor(options) {
+    let prefix = "v1";
+    if (options.catalogName) {
+      prefix += `/${options.catalogName}`;
+    }
+    const baseUrl = options.baseUrl.endsWith("/") ? options.baseUrl : `${options.baseUrl}/`;
+    this.client = createFetchClient({
+      baseUrl,
+      auth: options.auth,
+      fetchImpl: options.fetch
+    });
+    this.accessDelegation = options.accessDelegation?.join(",");
+    this.namespaceOps = new NamespaceOperations(this.client, prefix);
+    this.tableOps = new TableOperations(this.client, prefix, this.accessDelegation);
+  }
+  async listNamespaces(parent) {
+    return this.namespaceOps.listNamespaces(parent);
+  }
+  async createNamespace(id, metadata) {
+    return this.namespaceOps.createNamespace(id, metadata);
+  }
+  async dropNamespace(id) {
+    await this.namespaceOps.dropNamespace(id);
+  }
+  async loadNamespaceMetadata(id) {
+    return this.namespaceOps.loadNamespaceMetadata(id);
+  }
+  async listTables(namespace) {
+    return this.tableOps.listTables(namespace);
+  }
+  async createTable(namespace, request) {
+    return this.tableOps.createTable(namespace, request);
+  }
+  async updateTable(id, request) {
+    return this.tableOps.updateTable(id, request);
+  }
+  async dropTable(id, options) {
+    await this.tableOps.dropTable(id, options);
+  }
+  async loadTable(id) {
+    return this.tableOps.loadTable(id);
+  }
+  async namespaceExists(id) {
+    return this.namespaceOps.namespaceExists(id);
+  }
+  async tableExists(id) {
+    return this.tableOps.tableExists(id);
+  }
+  async createNamespaceIfNotExists(id, metadata) {
+    return this.namespaceOps.createNamespaceIfNotExists(id, metadata);
+  }
+  async createTableIfNotExists(namespace, request) {
+    return this.tableOps.createTableIfNotExists(namespace, request);
+  }
+};
+
+// ../node_modules/@supabase/storage-js/dist/index.mjs
+function _typeof2(o) {
+  "@babel/helpers - typeof";
+  return _typeof2 = typeof Symbol == "function" && typeof Symbol.iterator == "symbol" ? function(o$1) {
+    return typeof o$1;
+  } : function(o$1) {
+    return o$1 && typeof Symbol == "function" && o$1.constructor === Symbol && o$1 !== Symbol.prototype ? "symbol" : typeof o$1;
+  }, _typeof2(o);
+}
+function toPrimitive2(t, r) {
+  if (_typeof2(t) != "object" || !t)
+    return t;
+  var e = t[Symbol.toPrimitive];
+  if (e !== undefined) {
+    var i = e.call(t, r || "default");
+    if (_typeof2(i) != "object")
+      return i;
+    throw new TypeError("@@toPrimitive must return a primitive value.");
+  }
+  return (r === "string" ? String : Number)(t);
+}
+function toPropertyKey2(t) {
+  var i = toPrimitive2(t, "string");
+  return _typeof2(i) == "symbol" ? i : i + "";
+}
+function _defineProperty2(e, r, t) {
+  return (r = toPropertyKey2(r)) in e ? Object.defineProperty(e, r, {
+    value: t,
+    enumerable: true,
+    configurable: true,
+    writable: true
+  }) : e[r] = t, e;
+}
+function ownKeys2(e, r) {
+  var t = Object.keys(e);
+  if (Object.getOwnPropertySymbols) {
+    var o = Object.getOwnPropertySymbols(e);
+    r && (o = o.filter(function(r$1) {
+      return Object.getOwnPropertyDescriptor(e, r$1).enumerable;
+    })), t.push.apply(t, o);
+  }
+  return t;
+}
+function _objectSpread22(e) {
+  for (var r = 1;r < arguments.length; r++) {
+    var t = arguments[r] != null ? arguments[r] : {};
+    r % 2 ? ownKeys2(Object(t), true).forEach(function(r$1) {
+      _defineProperty2(e, r$1, t[r$1]);
+    }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys2(Object(t)).forEach(function(r$1) {
+      Object.defineProperty(e, r$1, Object.getOwnPropertyDescriptor(t, r$1));
+    });
+  }
+  return e;
+}
+var StorageError = class extends Error {
+  constructor(message, namespace = "storage", status, statusCode) {
+    super(message);
+    this.__isStorageError = true;
+    this.namespace = namespace;
+    this.name = namespace === "vectors" ? "StorageVectorsError" : "StorageError";
+    this.status = status;
+    this.statusCode = statusCode;
+  }
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      status: this.status,
+      statusCode: this.statusCode
+    };
+  }
+};
+function isStorageError(error51) {
+  return typeof error51 === "object" && error51 !== null && "__isStorageError" in error51;
+}
+var StorageApiError = class extends StorageError {
+  constructor(message, status, statusCode, namespace = "storage", code) {
+    super(message, namespace, status, statusCode);
+    this.name = namespace === "vectors" ? "StorageVectorsApiError" : "StorageApiError";
+    this.status = status;
+    this.statusCode = statusCode;
+    this.code = code;
+  }
+  toJSON() {
+    return _objectSpread22(_objectSpread22({}, super.toJSON()), {}, { code: this.code });
+  }
+};
+var StorageUnknownError = class extends StorageError {
+  constructor(message, originalError, namespace = "storage") {
+    super(message, namespace);
+    this.name = namespace === "vectors" ? "StorageVectorsUnknownError" : "StorageUnknownError";
+    this.originalError = originalError;
+  }
+};
+function setHeader(headers, name, value) {
+  const result = _objectSpread22({}, headers);
+  const nameLower = name.toLowerCase();
+  for (const key of Object.keys(result))
+    if (key.toLowerCase() === nameLower)
+      delete result[key];
+  result[nameLower] = value;
+  return result;
+}
+function normalizeHeaders(headers) {
+  const result = {};
+  for (const [key, value] of Object.entries(headers))
+    result[key.toLowerCase()] = value;
+  return result;
+}
+var resolveFetch2 = (customFetch) => {
+  if (customFetch)
+    return (...args) => customFetch(...args);
+  return (...args) => fetch(...args);
+};
+var isPlainObject2 = (value) => {
+  if (typeof value !== "object" || value === null)
+    return false;
+  const prototype = Object.getPrototypeOf(value);
+  return (prototype === null || prototype === Object.prototype || Object.getPrototypeOf(prototype) === null) && !(Symbol.toStringTag in value) && !(Symbol.iterator in value);
+};
+var recursiveToCamel = (item) => {
+  if (Array.isArray(item))
+    return item.map((el) => recursiveToCamel(el));
+  else if (typeof item === "function" || item !== Object(item))
+    return item;
+  const result = {};
+  Object.entries(item).forEach(([key, value]) => {
+    const newKey = key.replace(/([-_][a-z])/gi, (c) => c.toUpperCase().replace(/[-_]/g, ""));
+    result[newKey] = recursiveToCamel(value);
+  });
+  return result;
+};
+var isValidBucketName = (bucketName) => {
+  if (!bucketName || typeof bucketName !== "string")
+    return false;
+  if (bucketName.length === 0 || bucketName.length > 100)
+    return false;
+  if (bucketName.trim() !== bucketName)
+    return false;
+  if (bucketName.includes("/") || bucketName.includes("\\"))
+    return false;
+  return /^[\w!.\*'() &$@=;:+,?-]+$/.test(bucketName);
+};
+var encodeStoragePath = (path) => path.split("/").map(encodeURIComponent).join("/");
+var _getErrorMessage = (err) => {
+  if (typeof err === "object" && err !== null) {
+    const e = err;
+    if (typeof e.msg === "string")
+      return e.msg;
+    if (typeof e.message === "string")
+      return e.message;
+    if (typeof e.error_description === "string")
+      return e.error_description;
+    if (typeof e.error === "string")
+      return e.error;
+    if (typeof e.error === "object" && e.error !== null) {
+      const nested = e.error;
+      if (typeof nested.message === "string")
+        return nested.message;
+    }
+  }
+  return JSON.stringify(err);
+};
+var handleError = async (error51, reject, options, namespace) => {
+  if (error51 !== null && typeof error51 === "object" && "json" in error51 && typeof error51.json === "function") {
+    const responseError = error51;
+    let status = parseInt(String(responseError.status), 10);
+    if (!Number.isFinite(status))
+      status = 500;
+    responseError.json().then((err) => {
+      const statusCode = (err === null || err === undefined ? undefined : err.statusCode) || (err === null || err === undefined ? undefined : err.code) || status + "";
+      reject(new StorageApiError(_getErrorMessage(err), status, statusCode, namespace, err === null || err === undefined ? undefined : err.code));
+    }).catch(() => {
+      const statusCode = status + "";
+      reject(new StorageApiError(responseError.statusText || `HTTP ${status} error`, status, statusCode, namespace));
+    });
+  } else
+    reject(new StorageUnknownError(_getErrorMessage(error51), error51, namespace));
+};
+var _getRequestParams = (method, options, parameters, body) => {
+  const params = {
+    method,
+    headers: (options === null || options === undefined ? undefined : options.headers) || {}
+  };
+  if (method === "GET" || method === "HEAD" || !body)
+    return _objectSpread22(_objectSpread22({}, params), parameters);
+  if (isPlainObject2(body)) {
+    var _contentType;
+    const headers = (options === null || options === undefined ? undefined : options.headers) || {};
+    let contentType;
+    for (const [key, value] of Object.entries(headers))
+      if (key.toLowerCase() === "content-type")
+        contentType = value;
+    params.headers = setHeader(headers, "Content-Type", (_contentType = contentType) !== null && _contentType !== undefined ? _contentType : "application/json");
+    params.body = JSON.stringify(body);
+  } else
+    params.body = body;
+  if (options === null || options === undefined ? undefined : options.duplex)
+    params.duplex = options.duplex;
+  return _objectSpread22(_objectSpread22({}, params), parameters);
+};
+async function _handleRequest(fetcher, method, url2, options, parameters, body, namespace) {
+  return new Promise((resolve, reject) => {
+    fetcher(url2, _getRequestParams(method, options, parameters, body)).then((result) => {
+      if (!result.ok)
+        throw result;
+      if (options === null || options === undefined ? undefined : options.noResolveJson)
+        return result;
+      if (namespace === "vectors") {
+        const contentType = result.headers.get("content-type");
+        if (result.headers.get("content-length") === "0" || result.status === 204)
+          return {};
+        if (!contentType || !contentType.includes("application/json"))
+          return {};
+      }
+      return result.json();
+    }).then((data) => resolve(data)).catch((error51) => handleError(error51, reject, options, namespace));
+  });
+}
+function createFetchApi(namespace = "storage") {
+  return {
+    get: async (fetcher, url2, options, parameters) => {
+      return _handleRequest(fetcher, "GET", url2, options, parameters, undefined, namespace);
+    },
+    post: async (fetcher, url2, body, options, parameters) => {
+      return _handleRequest(fetcher, "POST", url2, options, parameters, body, namespace);
+    },
+    put: async (fetcher, url2, body, options, parameters) => {
+      return _handleRequest(fetcher, "PUT", url2, options, parameters, body, namespace);
+    },
+    head: async (fetcher, url2, options, parameters) => {
+      return _handleRequest(fetcher, "HEAD", url2, _objectSpread22(_objectSpread22({}, options), {}, { noResolveJson: true }), parameters, undefined, namespace);
+    },
+    remove: async (fetcher, url2, body, options, parameters) => {
+      return _handleRequest(fetcher, "DELETE", url2, options, parameters, body, namespace);
+    }
+  };
+}
+var defaultApi = createFetchApi("storage");
+var { get, post, put, head, remove } = defaultApi;
+var vectorsApi = createFetchApi("vectors");
+var BaseApiClient = class {
+  constructor(url2, headers = {}, fetch$1, namespace = "storage") {
+    this.shouldThrowOnError = false;
+    this.url = url2;
+    this.headers = normalizeHeaders(headers);
+    this.fetch = resolveFetch2(fetch$1);
+    this.namespace = namespace;
+  }
+  throwOnError() {
+    this.shouldThrowOnError = true;
+    return this;
+  }
+  setHeader(name, value) {
+    this.headers = setHeader(this.headers, name, value);
+    return this;
+  }
+  async handleOperation(operation) {
+    var _this = this;
+    try {
+      return {
+        data: await operation(),
+        error: null
+      };
+    } catch (error51) {
+      if (_this.shouldThrowOnError)
+        throw error51;
+      if (isStorageError(error51))
+        return {
+          data: null,
+          error: error51
+        };
+      throw error51;
+    }
+  }
+};
+var _Symbol$toStringTag$1;
+_Symbol$toStringTag$1 = Symbol.toStringTag;
+var StreamDownloadBuilder = class {
+  constructor(downloadFn, shouldThrowOnError) {
+    this.downloadFn = downloadFn;
+    this.shouldThrowOnError = shouldThrowOnError;
+    this[_Symbol$toStringTag$1] = "StreamDownloadBuilder";
+    this.promise = null;
+  }
+  then(onfulfilled, onrejected) {
+    return this.getPromise().then(onfulfilled, onrejected);
+  }
+  catch(onrejected) {
+    return this.getPromise().catch(onrejected);
+  }
+  finally(onfinally) {
+    return this.getPromise().finally(onfinally);
+  }
+  getPromise() {
+    if (!this.promise)
+      this.promise = this.execute();
+    return this.promise;
+  }
+  async execute() {
+    var _this = this;
+    try {
+      return {
+        data: (await _this.downloadFn()).body,
+        error: null
+      };
+    } catch (error51) {
+      if (_this.shouldThrowOnError)
+        throw error51;
+      if (isStorageError(error51))
+        return {
+          data: null,
+          error: error51
+        };
+      throw error51;
+    }
+  }
+};
+var _Symbol$toStringTag;
+_Symbol$toStringTag = Symbol.toStringTag;
+var BlobDownloadBuilder = class {
+  constructor(downloadFn, shouldThrowOnError) {
+    this.downloadFn = downloadFn;
+    this.shouldThrowOnError = shouldThrowOnError;
+    this[_Symbol$toStringTag] = "BlobDownloadBuilder";
+    this.promise = null;
+  }
+  asStream() {
+    return new StreamDownloadBuilder(this.downloadFn, this.shouldThrowOnError);
+  }
+  then(onfulfilled, onrejected) {
+    return this.getPromise().then(onfulfilled, onrejected);
+  }
+  catch(onrejected) {
+    return this.getPromise().catch(onrejected);
+  }
+  finally(onfinally) {
+    return this.getPromise().finally(onfinally);
+  }
+  getPromise() {
+    if (!this.promise)
+      this.promise = this.execute();
+    return this.promise;
+  }
+  async execute() {
+    var _this = this;
+    try {
+      return {
+        data: await (await _this.downloadFn()).blob(),
+        error: null
+      };
+    } catch (error51) {
+      if (_this.shouldThrowOnError)
+        throw error51;
+      if (isStorageError(error51))
+        return {
+          data: null,
+          error: error51
+        };
+      throw error51;
+    }
+  }
+};
+var DEFAULT_SEARCH_OPTIONS = {
+  limit: 100,
+  offset: 0,
+  sortBy: {
+    column: "name",
+    order: "asc"
+  }
+};
+var DEFAULT_FILE_OPTIONS = {
+  cacheControl: "3600",
+  contentType: "text/plain;charset=UTF-8",
+  upsert: false
+};
+var StorageFileApi = class extends BaseApiClient {
+  constructor(url2, headers = {}, bucketId, fetch$1) {
+    super(url2, headers, fetch$1, "storage");
+    this.bucketId = bucketId;
+  }
+  async uploadOrUpdate(method, path, fileBody, fileOptions) {
+    var _this = this;
+    return _this.handleOperation(async () => {
+      let body;
+      const options = _objectSpread22(_objectSpread22({}, DEFAULT_FILE_OPTIONS), fileOptions);
+      let headers = _objectSpread22(_objectSpread22({}, _this.headers), method === "POST" && { "x-upsert": String(options.upsert) });
+      const metadata = options.metadata;
+      if (typeof Blob !== "undefined" && fileBody instanceof Blob) {
+        body = new FormData;
+        body.append("cacheControl", options.cacheControl);
+        if (metadata)
+          body.append("metadata", _this.encodeMetadata(metadata));
+        body.append("", fileBody);
+      } else if (typeof FormData !== "undefined" && fileBody instanceof FormData) {
+        body = fileBody;
+        if (!body.has("cacheControl"))
+          body.append("cacheControl", options.cacheControl);
+        if (metadata && !body.has("metadata"))
+          body.append("metadata", _this.encodeMetadata(metadata));
+      } else {
+        body = fileBody;
+        headers["cache-control"] = `max-age=${options.cacheControl}`;
+        headers["content-type"] = options.contentType;
+        if (metadata)
+          headers["x-metadata"] = _this.toBase64(_this.encodeMetadata(metadata));
+        if ((typeof ReadableStream !== "undefined" && body instanceof ReadableStream || body && typeof body === "object" && ("pipe" in body) && typeof body.pipe === "function") && !options.duplex)
+          options.duplex = "half";
+      }
+      if (fileOptions === null || fileOptions === undefined ? undefined : fileOptions.headers)
+        for (const [key, value] of Object.entries(fileOptions.headers))
+          headers = setHeader(headers, key, value);
+      const cleanPath = _this._removeEmptyFolders(path);
+      const _path = _this._getFinalPath(cleanPath);
+      const data = await (method == "PUT" ? put : post)(_this.fetch, `${_this.url}/object/${_path}`, body, _objectSpread22({ headers }, (options === null || options === undefined ? undefined : options.duplex) ? { duplex: options.duplex } : {}));
+      return {
+        path: cleanPath,
+        id: data.Id,
+        fullPath: data.Key
+      };
+    });
+  }
+  async upload(path, fileBody, fileOptions) {
+    return this.uploadOrUpdate("POST", path, fileBody, fileOptions);
+  }
+  async uploadToSignedUrl(path, token, fileBody, fileOptions) {
+    var _this3 = this;
+    const cleanPath = _this3._removeEmptyFolders(path);
+    const _path = _this3._getFinalPath(cleanPath);
+    const url2 = new URL(_this3.url + `/object/upload/sign/${_path}`);
+    url2.searchParams.set("token", token);
+    return _this3.handleOperation(async () => {
+      let body;
+      const options = _objectSpread22(_objectSpread22({}, DEFAULT_FILE_OPTIONS), fileOptions);
+      let headers = _objectSpread22(_objectSpread22({}, _this3.headers), { "x-upsert": String(options.upsert) });
+      const metadata = options.metadata;
+      if (typeof Blob !== "undefined" && fileBody instanceof Blob) {
+        body = new FormData;
+        body.append("cacheControl", options.cacheControl);
+        if (metadata)
+          body.append("metadata", _this3.encodeMetadata(metadata));
+        body.append("", fileBody);
+      } else if (typeof FormData !== "undefined" && fileBody instanceof FormData) {
+        body = fileBody;
+        if (!body.has("cacheControl"))
+          body.append("cacheControl", options.cacheControl);
+        if (metadata && !body.has("metadata"))
+          body.append("metadata", _this3.encodeMetadata(metadata));
+      } else {
+        body = fileBody;
+        headers["cache-control"] = `max-age=${options.cacheControl}`;
+        headers["content-type"] = options.contentType;
+        if (metadata)
+          headers["x-metadata"] = _this3.toBase64(_this3.encodeMetadata(metadata));
+        if ((typeof ReadableStream !== "undefined" && body instanceof ReadableStream || body && typeof body === "object" && ("pipe" in body) && typeof body.pipe === "function") && !options.duplex)
+          options.duplex = "half";
+      }
+      if (fileOptions === null || fileOptions === undefined ? undefined : fileOptions.headers)
+        for (const [key, value] of Object.entries(fileOptions.headers))
+          headers = setHeader(headers, key, value);
+      return {
+        path: cleanPath,
+        fullPath: (await put(_this3.fetch, url2.toString(), body, _objectSpread22({ headers }, (options === null || options === undefined ? undefined : options.duplex) ? { duplex: options.duplex } : {}))).Key
+      };
+    });
+  }
+  async createSignedUploadUrl(path, options) {
+    var _this4 = this;
+    return _this4.handleOperation(async () => {
+      let _path = _this4._getFinalPath(path);
+      const headers = _objectSpread22({}, _this4.headers);
+      if (options === null || options === undefined ? undefined : options.upsert)
+        headers["x-upsert"] = "true";
+      const data = await post(_this4.fetch, `${_this4.url}/object/upload/sign/${_path}`, {}, { headers });
+      const url2 = new URL(_this4.url + data.url);
+      const token = url2.searchParams.get("token");
+      if (!token)
+        throw new StorageError("No token returned by API");
+      return {
+        signedUrl: url2.toString(),
+        path,
+        token
+      };
+    });
+  }
+  async update(path, fileBody, fileOptions) {
+    return this.uploadOrUpdate("PUT", path, fileBody, fileOptions);
+  }
+  async move(fromPath, toPath, options) {
+    var _this6 = this;
+    return _this6.handleOperation(async () => {
+      return await post(_this6.fetch, `${_this6.url}/object/move`, {
+        bucketId: _this6.bucketId,
+        sourceKey: fromPath,
+        destinationKey: toPath,
+        destinationBucket: options === null || options === undefined ? undefined : options.destinationBucket,
+        sourceVersionId: options === null || options === undefined ? undefined : options.sourceVersionId
+      }, { headers: _this6.headers });
+    });
+  }
+  async copy(fromPath, toPath, options) {
+    var _this7 = this;
+    return _this7.handleOperation(async () => {
+      return { path: (await post(_this7.fetch, `${_this7.url}/object/copy`, {
+        bucketId: _this7.bucketId,
+        sourceKey: fromPath,
+        destinationKey: toPath,
+        destinationBucket: options === null || options === undefined ? undefined : options.destinationBucket,
+        sourceVersionId: options === null || options === undefined ? undefined : options.sourceVersionId
+      }, { headers: _this7.headers })).Key };
+    });
+  }
+  async createSignedUrl(path, expiresIn, options) {
+    var _this8 = this;
+    return _this8.handleOperation(async () => {
+      let _path = _this8._getFinalPath(path);
+      const hasTransform = typeof (options === null || options === undefined ? undefined : options.transform) === "object" && options.transform !== null && Object.keys(options.transform).length > 0;
+      let data = await post(_this8.fetch, `${_this8.url}/object/sign/${_path}`, _objectSpread22(_objectSpread22({ expiresIn }, hasTransform ? { transform: options.transform } : {}), (options === null || options === undefined ? undefined : options.versionId) != null ? { versionId: options.versionId } : {}), { headers: _this8.headers });
+      const query = new URLSearchParams;
+      if (options === null || options === undefined ? undefined : options.download)
+        query.set("download", options.download === true ? "" : options.download);
+      if ((options === null || options === undefined ? undefined : options.cacheNonce) != null)
+        query.set("cacheNonce", String(options.cacheNonce));
+      const queryString = query.toString();
+      return { signedUrl: encodeURI(`${_this8.url}${data.signedURL}${queryString ? `&${queryString}` : ""}`) };
+    });
+  }
+  async createSignedUrls(paths, expiresIn, options) {
+    var _this9 = this;
+    return _this9.handleOperation(async () => {
+      const data = await post(_this9.fetch, `${_this9.url}/object/sign/${_this9.bucketId}`, {
+        expiresIn,
+        paths
+      }, { headers: _this9.headers });
+      const query = new URLSearchParams;
+      if (options === null || options === undefined ? undefined : options.download)
+        query.set("download", options.download === true ? "" : options.download);
+      if ((options === null || options === undefined ? undefined : options.cacheNonce) != null)
+        query.set("cacheNonce", String(options.cacheNonce));
+      const queryString = query.toString();
+      return data.map((datum) => _objectSpread22(_objectSpread22({}, datum), {}, { signedUrl: datum.signedURL ? encodeURI(`${_this9.url}${datum.signedURL}${queryString ? `&${queryString}` : ""}`) : null }));
+    });
+  }
+  download(path, options, parameters) {
+    const renderPath = typeof (options === null || options === undefined ? undefined : options.transform) === "object" && options.transform !== null && Object.keys(options.transform).length > 0 ? "render/image/authenticated" : "object";
+    const query = new URLSearchParams;
+    if (options === null || options === undefined ? undefined : options.transform)
+      this.applyTransformOptsToQuery(query, options.transform);
+    if ((options === null || options === undefined ? undefined : options.cacheNonce) != null)
+      query.set("cacheNonce", String(options.cacheNonce));
+    if ((options === null || options === undefined ? undefined : options.versionId) != null)
+      query.set("versionId", String(options.versionId));
+    const queryString = query.toString();
+    const _path = this._getFinalPath(path);
+    const downloadFn = () => get(this.fetch, `${this.url}/${renderPath}/${_path}${queryString ? `?${queryString}` : ""}`, {
+      headers: this.headers,
+      noResolveJson: true
+    }, parameters);
+    return new BlobDownloadBuilder(downloadFn, this.shouldThrowOnError);
+  }
+  async info(path, options) {
+    var _this10 = this;
+    const _path = _this10._getFinalPath(path);
+    const query = new URLSearchParams;
+    if ((options === null || options === undefined ? undefined : options.versionId) != null)
+      query.set("versionId", String(options.versionId));
+    const queryString = query.toString();
+    return _this10.handleOperation(async () => {
+      return recursiveToCamel(await get(_this10.fetch, `${_this10.url}/object/info/${_path}${queryString ? `?${queryString}` : ""}`, { headers: _this10.headers }));
+    });
+  }
+  async exists(path) {
+    var _this11 = this;
+    const _path = _this11._getFinalPath(path);
+    try {
+      await head(_this11.fetch, `${_this11.url}/object/${_path}`, { headers: _this11.headers });
+      return {
+        data: true,
+        error: null
+      };
+    } catch (error51) {
+      if (_this11.shouldThrowOnError)
+        throw error51;
+      if (isStorageError(error51)) {
+        var _error$originalError;
+        const status = error51 instanceof StorageApiError ? error51.status : error51 instanceof StorageUnknownError ? (_error$originalError = error51.originalError) === null || _error$originalError === undefined ? undefined : _error$originalError.status : undefined;
+        if (status !== undefined && [400, 404].includes(status))
+          return {
+            data: false,
+            error: error51
+          };
+      }
+      throw error51;
+    }
+  }
+  getPublicUrl(path, options) {
+    const _path = this._getFinalPath(path);
+    const query = new URLSearchParams;
+    if (options === null || options === undefined ? undefined : options.download)
+      query.set("download", options.download === true ? "" : options.download);
+    if (options === null || options === undefined ? undefined : options.transform)
+      this.applyTransformOptsToQuery(query, options.transform);
+    if ((options === null || options === undefined ? undefined : options.cacheNonce) != null)
+      query.set("cacheNonce", String(options.cacheNonce));
+    if ((options === null || options === undefined ? undefined : options.versionId) != null)
+      query.set("versionId", String(options.versionId));
+    const queryString = query.toString();
+    const renderPath = typeof (options === null || options === undefined ? undefined : options.transform) === "object" && options.transform !== null && Object.keys(options.transform).length > 0 ? "render/image" : "object";
+    return { data: { publicUrl: encodeURI(`${this.url}/${renderPath}/public/${_path}`) + (queryString ? `?${queryString}` : "") } };
+  }
+  async remove(paths) {
+    var _this12 = this;
+    return _this12.handleOperation(async () => {
+      return await remove(_this12.fetch, `${_this12.url}/object/${_this12.bucketId}`, { prefixes: paths }, { headers: _this12.headers });
+    });
+  }
+  async purgeCache(path, options, parameters) {
+    var _this13 = this;
+    return _this13.handleOperation(async () => {
+      const _path = encodeStoragePath(_this13._getFinalPath(path));
+      const query = new URLSearchParams;
+      if (options === null || options === undefined ? undefined : options.transformations)
+        query.set("transformations", "true");
+      const queryString = query.toString();
+      return await remove(_this13.fetch, `${_this13.url}/cdn/${_path}${queryString ? `?${queryString}` : ""}`, {}, { headers: _this13.headers }, parameters);
+    });
+  }
+  async list(path, options, parameters) {
+    var _this14 = this;
+    return _this14.handleOperation(async () => {
+      const sortBy = (options === null || options === undefined ? undefined : options.sortBy) ? _objectSpread22(_objectSpread22({}, DEFAULT_SEARCH_OPTIONS.sortBy), options.sortBy) : DEFAULT_SEARCH_OPTIONS.sortBy;
+      const body = _objectSpread22(_objectSpread22(_objectSpread22({}, DEFAULT_SEARCH_OPTIONS), options), {}, {
+        sortBy,
+        prefix: path || ""
+      });
+      return await post(_this14.fetch, `${_this14.url}/object/list/${_this14.bucketId}`, body, { headers: _this14.headers }, parameters);
+    });
+  }
+  async listV2(options, parameters) {
+    var _this15 = this;
+    return _this15.handleOperation(async () => {
+      const body = _objectSpread22({}, options);
+      return await post(_this15.fetch, `${_this15.url}/object/list-v2/${_this15.bucketId}`, body, { headers: _this15.headers }, parameters);
+    });
+  }
+  encodeMetadata(metadata) {
+    return JSON.stringify(metadata);
+  }
+  toBase64(data) {
+    if (typeof Buffer !== "undefined")
+      return Buffer.from(data).toString("base64");
+    return btoa(data);
+  }
+  _getFinalPath(path) {
+    return `${this.bucketId}/${path.replace(/^\/+/, "")}`;
+  }
+  _removeEmptyFolders(path) {
+    return path.replace(/^\/|\/$/g, "").replace(/\/+/g, "/");
+  }
+  applyTransformOptsToQuery(query, transform2) {
+    if (transform2.width)
+      query.set("width", transform2.width.toString());
+    if (transform2.height)
+      query.set("height", transform2.height.toString());
+    if (transform2.resize)
+      query.set("resize", transform2.resize);
+    if (transform2.format)
+      query.set("format", transform2.format);
+    if (transform2.quality)
+      query.set("quality", transform2.quality.toString());
+    return query;
+  }
+};
+var version4 = "2.116.0";
+var DEFAULT_HEADERS = { "X-Client-Info": `storage-js/${version4}` };
+var StorageBucketApi = class extends BaseApiClient {
+  constructor(url2, headers = {}, fetch$1, opts) {
+    const baseUrl = new URL(url2);
+    if (opts === null || opts === undefined ? undefined : opts.useNewHostname) {
+      if (/supabase\.(co|in|red)$/.test(baseUrl.hostname) && !baseUrl.hostname.includes("storage.supabase."))
+        baseUrl.hostname = baseUrl.hostname.replace("supabase.", "storage.supabase.");
+    }
+    const finalUrl = baseUrl.href.replace(/\/$/, "");
+    const finalHeaders = _objectSpread22(_objectSpread22({}, DEFAULT_HEADERS), headers);
+    super(finalUrl, finalHeaders, fetch$1, "storage");
+  }
+  async listBuckets(options) {
+    var _this = this;
+    return _this.handleOperation(async () => {
+      const queryString = _this.listBucketOptionsToQueryString(options);
+      return await get(_this.fetch, `${_this.url}/bucket${queryString}`, { headers: _this.headers });
+    });
+  }
+  async getBucket(id) {
+    var _this2 = this;
+    return _this2.handleOperation(async () => {
+      return await get(_this2.fetch, `${_this2.url}/bucket/${id}`, { headers: _this2.headers });
+    });
+  }
+  async createBucket(id, options = { public: false }) {
+    var _this3 = this;
+    return _this3.handleOperation(async () => {
+      return await post(_this3.fetch, `${_this3.url}/bucket`, {
+        id,
+        name: id,
+        type: options.type,
+        public: options.public,
+        file_size_limit: options.fileSizeLimit,
+        allowed_mime_types: options.allowedMimeTypes,
+        versioning_status: options.versioningStatus
+      }, { headers: _this3.headers });
+    });
+  }
+  async updateBucket(id, options) {
+    var _this4 = this;
+    return _this4.handleOperation(async () => {
+      return await put(_this4.fetch, `${_this4.url}/bucket/${id}`, {
+        id,
+        name: id,
+        public: options.public,
+        file_size_limit: options.fileSizeLimit,
+        allowed_mime_types: options.allowedMimeTypes,
+        versioning_status: options.versioningStatus
+      }, { headers: _this4.headers });
+    });
+  }
+  async emptyBucket(id) {
+    var _this5 = this;
+    return _this5.handleOperation(async () => {
+      return await post(_this5.fetch, `${_this5.url}/bucket/${id}/empty`, {}, { headers: _this5.headers });
+    });
+  }
+  async deleteBucket(id) {
+    var _this6 = this;
+    return _this6.handleOperation(async () => {
+      return await remove(_this6.fetch, `${_this6.url}/bucket/${id}`, {}, { headers: _this6.headers });
+    });
+  }
+  async getBucketLifecycle(id) {
+    var _this7 = this;
+    return _this7.handleOperation(async () => {
+      return await get(_this7.fetch, _this7.bucketLifecycleUrl(id), { headers: _this7.headers });
+    });
+  }
+  async updateBucketLifecycle(id, configuration) {
+    var _this8 = this;
+    return _this8.handleOperation(async () => {
+      return await put(_this8.fetch, _this8.bucketLifecycleUrl(id), configuration, { headers: _this8.headers });
+    });
+  }
+  async deleteBucketLifecycle(id) {
+    var _this9 = this;
+    return _this9.handleOperation(async () => {
+      return await remove(_this9.fetch, _this9.bucketLifecycleUrl(id), {}, { headers: _this9.headers });
+    });
+  }
+  async purgeBucketCache(id, options, parameters) {
+    var _this10 = this;
+    return _this10.handleOperation(async () => {
+      const query = new URLSearchParams;
+      if (options === null || options === undefined ? undefined : options.transformations)
+        query.set("transformations", "true");
+      const queryString = query.toString();
+      return await remove(_this10.fetch, `${_this10.url}/cdn/${encodeStoragePath(id)}${queryString ? `?${queryString}` : ""}`, {}, { headers: _this10.headers }, parameters);
+    });
+  }
+  bucketLifecycleUrl(id) {
+    return `${this.url}/bucket/${encodeStoragePath(id)}/lifecycle`;
+  }
+  listBucketOptionsToQueryString(options) {
+    const params = {};
+    if (options) {
+      if ("limit" in options)
+        params.limit = String(options.limit);
+      if ("offset" in options)
+        params.offset = String(options.offset);
+      if (options.search)
+        params.search = options.search;
+      if (options.sortColumn)
+        params.sortColumn = options.sortColumn;
+      if (options.sortOrder)
+        params.sortOrder = options.sortOrder;
+    }
+    return Object.keys(params).length > 0 ? "?" + new URLSearchParams(params).toString() : "";
+  }
+};
+var StorageAnalyticsClient = class extends BaseApiClient {
+  constructor(url2, headers = {}, fetch$1) {
+    const finalUrl = url2.replace(/\/$/, "");
+    const finalHeaders = _objectSpread22(_objectSpread22({}, DEFAULT_HEADERS), headers);
+    super(finalUrl, finalHeaders, fetch$1, "storage");
+  }
+  async createBucket(name) {
+    var _this = this;
+    return _this.handleOperation(async () => {
+      return await post(_this.fetch, `${_this.url}/bucket`, { name }, { headers: _this.headers });
+    });
+  }
+  async listBuckets(options) {
+    var _this2 = this;
+    return _this2.handleOperation(async () => {
+      const queryParams = new URLSearchParams;
+      if ((options === null || options === undefined ? undefined : options.limit) !== undefined)
+        queryParams.set("limit", options.limit.toString());
+      if ((options === null || options === undefined ? undefined : options.offset) !== undefined)
+        queryParams.set("offset", options.offset.toString());
+      if (options === null || options === undefined ? undefined : options.sortColumn)
+        queryParams.set("sortColumn", options.sortColumn);
+      if (options === null || options === undefined ? undefined : options.sortOrder)
+        queryParams.set("sortOrder", options.sortOrder);
+      if (options === null || options === undefined ? undefined : options.search)
+        queryParams.set("search", options.search);
+      const queryString = queryParams.toString();
+      const url2 = queryString ? `${_this2.url}/bucket?${queryString}` : `${_this2.url}/bucket`;
+      return await get(_this2.fetch, url2, { headers: _this2.headers });
+    });
+  }
+  async deleteBucket(bucketName) {
+    var _this3 = this;
+    return _this3.handleOperation(async () => {
+      return await remove(_this3.fetch, `${_this3.url}/bucket/${bucketName}`, {}, { headers: _this3.headers });
+    });
+  }
+  from(bucketName) {
+    var _this4 = this;
+    if (!isValidBucketName(bucketName))
+      throw new StorageError("Invalid bucket name: File, folder, and bucket names must follow AWS object key naming guidelines and should avoid the use of any other characters.");
+    const catalog = new IcebergRestCatalog({
+      baseUrl: this.url,
+      catalogName: bucketName,
+      auth: {
+        type: "custom",
+        getHeaders: async () => _this4.headers
+      },
+      fetch: this.fetch
+    });
+    const shouldThrowOnError = this.shouldThrowOnError;
+    return new Proxy(catalog, { get(target, prop) {
+      const value = target[prop];
+      if (typeof value !== "function")
+        return value;
+      return async (...args) => {
+        try {
+          return {
+            data: await value.apply(target, args),
+            error: null
+          };
+        } catch (error51) {
+          if (shouldThrowOnError)
+            throw error51;
+          return {
+            data: null,
+            error: error51
+          };
+        }
+      };
+    } });
+  }
+};
+var VectorIndexApi = class extends BaseApiClient {
+  constructor(url2, headers = {}, fetch$1) {
+    const finalUrl = url2.replace(/\/$/, "");
+    const finalHeaders = _objectSpread22(_objectSpread22({}, DEFAULT_HEADERS), {}, { "Content-Type": "application/json" }, headers);
+    super(finalUrl, finalHeaders, fetch$1, "vectors");
+  }
+  async createIndex(options) {
+    var _this = this;
+    return _this.handleOperation(async () => {
+      return await vectorsApi.post(_this.fetch, `${_this.url}/CreateIndex`, options, { headers: _this.headers }) || {};
+    });
+  }
+  async getIndex(vectorBucketName, indexName) {
+    var _this2 = this;
+    return _this2.handleOperation(async () => {
+      return await vectorsApi.post(_this2.fetch, `${_this2.url}/GetIndex`, {
+        vectorBucketName,
+        indexName
+      }, { headers: _this2.headers });
+    });
+  }
+  async listIndexes(options) {
+    var _this3 = this;
+    return _this3.handleOperation(async () => {
+      return await vectorsApi.post(_this3.fetch, `${_this3.url}/ListIndexes`, options, { headers: _this3.headers });
+    });
+  }
+  async deleteIndex(vectorBucketName, indexName) {
+    var _this4 = this;
+    return _this4.handleOperation(async () => {
+      return await vectorsApi.post(_this4.fetch, `${_this4.url}/DeleteIndex`, {
+        vectorBucketName,
+        indexName
+      }, { headers: _this4.headers }) || {};
+    });
+  }
+};
+var VectorDataApi = class extends BaseApiClient {
+  constructor(url2, headers = {}, fetch$1) {
+    const finalUrl = url2.replace(/\/$/, "");
+    const finalHeaders = _objectSpread22(_objectSpread22({}, DEFAULT_HEADERS), {}, { "Content-Type": "application/json" }, headers);
+    super(finalUrl, finalHeaders, fetch$1, "vectors");
+  }
+  async putVectors(options) {
+    var _this = this;
+    if (options.vectors.length < 1 || options.vectors.length > 500)
+      throw new Error("Vector batch size must be between 1 and 500 items");
+    return _this.handleOperation(async () => {
+      return await vectorsApi.post(_this.fetch, `${_this.url}/PutVectors`, options, { headers: _this.headers }) || {};
+    });
+  }
+  async getVectors(options) {
+    var _this2 = this;
+    return _this2.handleOperation(async () => {
+      return await vectorsApi.post(_this2.fetch, `${_this2.url}/GetVectors`, options, { headers: _this2.headers });
+    });
+  }
+  async listVectors(options) {
+    var _this3 = this;
+    if (options.segmentCount !== undefined) {
+      if (options.segmentCount < 1 || options.segmentCount > 16)
+        throw new Error("segmentCount must be between 1 and 16");
+      if (options.segmentIndex !== undefined) {
+        if (options.segmentIndex < 0 || options.segmentIndex >= options.segmentCount)
+          throw new Error(`segmentIndex must be between 0 and ${options.segmentCount - 1}`);
+      }
+    }
+    return _this3.handleOperation(async () => {
+      return await vectorsApi.post(_this3.fetch, `${_this3.url}/ListVectors`, options, { headers: _this3.headers });
+    });
+  }
+  async queryVectors(options) {
+    var _this4 = this;
+    return _this4.handleOperation(async () => {
+      return await vectorsApi.post(_this4.fetch, `${_this4.url}/QueryVectors`, options, { headers: _this4.headers });
+    });
+  }
+  async deleteVectors(options) {
+    var _this5 = this;
+    if (options.keys.length < 1 || options.keys.length > 500)
+      throw new Error("Keys batch size must be between 1 and 500 items");
+    return _this5.handleOperation(async () => {
+      return await vectorsApi.post(_this5.fetch, `${_this5.url}/DeleteVectors`, options, { headers: _this5.headers }) || {};
+    });
+  }
+};
+var VectorBucketApi = class extends BaseApiClient {
+  constructor(url2, headers = {}, fetch$1) {
+    const finalUrl = url2.replace(/\/$/, "");
+    const finalHeaders = _objectSpread22(_objectSpread22({}, DEFAULT_HEADERS), {}, { "Content-Type": "application/json" }, headers);
+    super(finalUrl, finalHeaders, fetch$1, "vectors");
+  }
+  async createBucket(vectorBucketName) {
+    var _this = this;
+    return _this.handleOperation(async () => {
+      return await vectorsApi.post(_this.fetch, `${_this.url}/CreateVectorBucket`, { vectorBucketName }, { headers: _this.headers }) || {};
+    });
+  }
+  async getBucket(vectorBucketName) {
+    var _this2 = this;
+    return _this2.handleOperation(async () => {
+      return await vectorsApi.post(_this2.fetch, `${_this2.url}/GetVectorBucket`, { vectorBucketName }, { headers: _this2.headers });
+    });
+  }
+  async listBuckets(options = {}) {
+    var _this3 = this;
+    return _this3.handleOperation(async () => {
+      return await vectorsApi.post(_this3.fetch, `${_this3.url}/ListVectorBuckets`, options, { headers: _this3.headers });
+    });
+  }
+  async deleteBucket(vectorBucketName) {
+    var _this4 = this;
+    return _this4.handleOperation(async () => {
+      return await vectorsApi.post(_this4.fetch, `${_this4.url}/DeleteVectorBucket`, { vectorBucketName }, { headers: _this4.headers }) || {};
+    });
+  }
+};
+var StorageVectorsClient = class extends VectorBucketApi {
+  constructor(url2, options = {}) {
+    super(url2, options.headers || {}, options.fetch);
+  }
+  from(vectorBucketName) {
+    return new VectorBucketScope(this.url, this.headers, vectorBucketName, this.fetch);
+  }
+  async createBucket(vectorBucketName) {
+    var _superprop_getCreateBucket = () => super.createBucket, _this = this;
+    return _superprop_getCreateBucket().call(_this, vectorBucketName);
+  }
+  async getBucket(vectorBucketName) {
+    var _superprop_getGetBucket = () => super.getBucket, _this2 = this;
+    return _superprop_getGetBucket().call(_this2, vectorBucketName);
+  }
+  async listBuckets(options = {}) {
+    var _superprop_getListBuckets = () => super.listBuckets, _this3 = this;
+    return _superprop_getListBuckets().call(_this3, options);
+  }
+  async deleteBucket(vectorBucketName) {
+    var _superprop_getDeleteBucket = () => super.deleteBucket, _this4 = this;
+    return _superprop_getDeleteBucket().call(_this4, vectorBucketName);
+  }
+};
+var VectorBucketScope = class extends VectorIndexApi {
+  constructor(url2, headers, vectorBucketName, fetch$1) {
+    super(url2, headers, fetch$1);
+    this.vectorBucketName = vectorBucketName;
+  }
+  async createIndex(options) {
+    var _superprop_getCreateIndex = () => super.createIndex, _this5 = this;
+    return _superprop_getCreateIndex().call(_this5, _objectSpread22(_objectSpread22({}, options), {}, { vectorBucketName: _this5.vectorBucketName }));
+  }
+  async listIndexes(options = {}) {
+    var _superprop_getListIndexes = () => super.listIndexes, _this6 = this;
+    return _superprop_getListIndexes().call(_this6, _objectSpread22(_objectSpread22({}, options), {}, { vectorBucketName: _this6.vectorBucketName }));
+  }
+  async getIndex(indexName) {
+    var _superprop_getGetIndex = () => super.getIndex, _this7 = this;
+    return _superprop_getGetIndex().call(_this7, _this7.vectorBucketName, indexName);
+  }
+  async deleteIndex(indexName) {
+    var _superprop_getDeleteIndex = () => super.deleteIndex, _this8 = this;
+    return _superprop_getDeleteIndex().call(_this8, _this8.vectorBucketName, indexName);
+  }
+  index(indexName) {
+    return new VectorIndexScope(this.url, this.headers, this.vectorBucketName, indexName, this.fetch);
+  }
+};
+var VectorIndexScope = class extends VectorDataApi {
+  constructor(url2, headers, vectorBucketName, indexName, fetch$1) {
+    super(url2, headers, fetch$1);
+    this.vectorBucketName = vectorBucketName;
+    this.indexName = indexName;
+  }
+  async putVectors(options) {
+    var _superprop_getPutVectors = () => super.putVectors, _this9 = this;
+    return _superprop_getPutVectors().call(_this9, _objectSpread22(_objectSpread22({}, options), {}, {
+      vectorBucketName: _this9.vectorBucketName,
+      indexName: _this9.indexName
+    }));
+  }
+  async getVectors(options) {
+    var _superprop_getGetVectors = () => super.getVectors, _this10 = this;
+    return _superprop_getGetVectors().call(_this10, _objectSpread22(_objectSpread22({}, options), {}, {
+      vectorBucketName: _this10.vectorBucketName,
+      indexName: _this10.indexName
+    }));
+  }
+  async listVectors(options = {}) {
+    var _superprop_getListVectors = () => super.listVectors, _this11 = this;
+    return _superprop_getListVectors().call(_this11, _objectSpread22(_objectSpread22({}, options), {}, {
+      vectorBucketName: _this11.vectorBucketName,
+      indexName: _this11.indexName
+    }));
+  }
+  async queryVectors(options) {
+    var _superprop_getQueryVectors = () => super.queryVectors, _this12 = this;
+    return _superprop_getQueryVectors().call(_this12, _objectSpread22(_objectSpread22({}, options), {}, {
+      vectorBucketName: _this12.vectorBucketName,
+      indexName: _this12.indexName
+    }));
+  }
+  async deleteVectors(options) {
+    var _superprop_getDeleteVectors = () => super.deleteVectors, _this13 = this;
+    return _superprop_getDeleteVectors().call(_this13, _objectSpread22(_objectSpread22({}, options), {}, {
+      vectorBucketName: _this13.vectorBucketName,
+      indexName: _this13.indexName
+    }));
+  }
+};
+var StorageClient = class extends StorageBucketApi {
+  constructor(url2, headers = {}, fetch$1, opts) {
+    super(url2, headers, fetch$1, opts);
+  }
+  from(id) {
+    return new StorageFileApi(this.url, this.headers, id, this.fetch);
+  }
+  get vectors() {
+    return new StorageVectorsClient(this.url + "/vector", {
+      headers: this.headers,
+      fetch: this.fetch
+    });
+  }
+  get analytics() {
+    return new StorageAnalyticsClient(this.url + "/iceberg", this.headers, this.fetch);
+  }
+};
+
+// ../node_modules/@supabase/auth-js/dist/module/lib/version.js
+var version5 = "2.116.0";
+
+// ../node_modules/@supabase/auth-js/dist/module/lib/constants.js
+var AUTO_REFRESH_TICK_DURATION_MS = 30 * 1000;
+var AUTO_REFRESH_TICK_THRESHOLD = 3;
+var EXPIRY_MARGIN_MS = AUTO_REFRESH_TICK_THRESHOLD * AUTO_REFRESH_TICK_DURATION_MS;
+var REFRESH_FAILURE_COOLDOWN_MS = 2 * AUTO_REFRESH_TICK_DURATION_MS;
+var GOTRUE_URL = "http://localhost:9999";
+var STORAGE_KEY = "supabase.auth.token";
+var DEFAULT_HEADERS2 = { "X-Client-Info": `gotrue-js/${version5}` };
+var API_VERSION_HEADER_NAME = "X-Supabase-Api-Version";
+var API_VERSIONS = {
+  "2024-01-01": {
+    timestamp: Date.parse("2024-01-01T00:00:00.0Z"),
+    name: "2024-01-01"
+  }
+};
+var BASE64URL_REGEX = /^([a-z0-9_-]{4})*($|[a-z0-9_-]{3}$|[a-z0-9_-]{2}$)$/i;
+var PKCE_FLOW_ID_PARAM = "sb_flow_id";
+var PKCE_MAX_CONCURRENT_FLOWS = 5;
+var JWKS_TTL = 10 * 60 * 1000;
+
+// ../node_modules/@supabase/auth-js/dist/module/lib/errors.js
+class AuthError extends Error {
+  constructor(message, status, code) {
+    super(message);
+    this.__isAuthError = true;
+    this.name = "AuthError";
+    this.status = status;
+    this.code = code;
+  }
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      status: this.status,
+      code: this.code
+    };
+  }
+}
+function isAuthError(error51) {
+  return typeof error51 === "object" && error51 !== null && "__isAuthError" in error51;
+}
+
+class AuthApiError extends AuthError {
+  constructor(message, status, code) {
+    super(message, status, code);
+    this.name = "AuthApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+function isAuthApiError(error51) {
+  return isAuthError(error51) && error51.name === "AuthApiError";
+}
+
+class AuthUnknownError extends AuthError {
+  constructor(message, originalError) {
+    super(message);
+    this.name = "AuthUnknownError";
+    this.originalError = originalError;
+  }
+}
+
+class CustomAuthError extends AuthError {
+  constructor(message, name, status, code) {
+    super(message, status, code);
+    this.name = name;
+    this.status = status;
+  }
+}
+
+class AuthSessionMissingError extends CustomAuthError {
+  constructor() {
+    super("Auth session missing!", "AuthSessionMissingError", 400, undefined);
+  }
+}
+function isAuthSessionMissingError(error51) {
+  return isAuthError(error51) && error51.name === "AuthSessionMissingError";
+}
+
+class AuthInvalidTokenResponseError extends CustomAuthError {
+  constructor() {
+    super("Auth session or user missing", "AuthInvalidTokenResponseError", 500, undefined);
+  }
+}
+
+class AuthInvalidCredentialsError extends CustomAuthError {
+  constructor(message) {
+    super(message, "AuthInvalidCredentialsError", 400, undefined);
+  }
+}
+
+class AuthImplicitGrantRedirectError extends CustomAuthError {
+  constructor(message, details = null) {
+    super(message, "AuthImplicitGrantRedirectError", 500, undefined);
+    this.details = null;
+    this.details = details;
+  }
+  toJSON() {
+    return Object.assign(Object.assign({}, super.toJSON()), { details: this.details });
+  }
+}
+function isAuthImplicitGrantRedirectError(error51) {
+  return isAuthError(error51) && error51.name === "AuthImplicitGrantRedirectError";
+}
+
+class AuthPKCEGrantCodeExchangeError extends CustomAuthError {
+  constructor(message, details = null) {
+    super(message, "AuthPKCEGrantCodeExchangeError", 500, undefined);
+    this.details = null;
+    this.details = details;
+  }
+  toJSON() {
+    return Object.assign(Object.assign({}, super.toJSON()), { details: this.details });
+  }
+}
+
+class AuthPKCECodeVerifierMissingError extends CustomAuthError {
+  constructor() {
+    super("PKCE code verifier not found in storage. " + "This can happen if the auth flow was initiated in a different browser or device, " + "or if the storage was cleared. For SSR frameworks (Next.js, SvelteKit, etc.), " + "use @supabase/ssr on both the server and client to store the code verifier in cookies.", "AuthPKCECodeVerifierMissingError", 400, "pkce_code_verifier_not_found");
+  }
+}
+class AuthRetryableFetchError extends CustomAuthError {
+  constructor(message, status) {
+    super(message, "AuthRetryableFetchError", status, undefined);
+  }
+}
+function isAuthRetryableFetchError(error51) {
+  return isAuthError(error51) && error51.name === "AuthRetryableFetchError";
+}
+
+class AuthRefreshDiscardedError extends CustomAuthError {
+  constructor(message = "Refresh result discarded: session state changed mid-flight (e.g., concurrent signOut)") {
+    super(message, "AuthRefreshDiscardedError", 409, undefined);
+  }
+}
+function isAuthRefreshDiscardedError(error51) {
+  return isAuthError(error51) && error51.name === "AuthRefreshDiscardedError";
+}
+
+class AuthWeakPasswordError extends CustomAuthError {
+  constructor(message, status, reasons) {
+    super(message, "AuthWeakPasswordError", status, "weak_password");
+    this.reasons = reasons;
+  }
+  toJSON() {
+    return Object.assign(Object.assign({}, super.toJSON()), { reasons: this.reasons });
+  }
+}
+class AuthInvalidJwtError extends CustomAuthError {
+  constructor(message) {
+    super(message, "AuthInvalidJwtError", 400, "invalid_jwt");
+  }
+}
+
+// ../node_modules/@supabase/auth-js/dist/module/lib/base64url.js
+var TO_BASE64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".split("");
+var IGNORE_BASE64URL = ` 	
+\r=`.split("");
+var FROM_BASE64URL = (() => {
+  const charMap = new Array(128);
+  for (let i = 0;i < charMap.length; i += 1) {
+    charMap[i] = -1;
+  }
+  for (let i = 0;i < IGNORE_BASE64URL.length; i += 1) {
+    charMap[IGNORE_BASE64URL[i].charCodeAt(0)] = -2;
+  }
+  for (let i = 0;i < TO_BASE64URL.length; i += 1) {
+    charMap[TO_BASE64URL[i].charCodeAt(0)] = i;
+  }
+  return charMap;
+})();
+function byteToBase64URL(byte, state, emit) {
+  if (byte !== null) {
+    state.queue = state.queue << 8 | byte;
+    state.queuedBits += 8;
+    while (state.queuedBits >= 6) {
+      const pos = state.queue >> state.queuedBits - 6 & 63;
+      emit(TO_BASE64URL[pos]);
+      state.queuedBits -= 6;
+    }
+  } else if (state.queuedBits > 0) {
+    state.queue = state.queue << 6 - state.queuedBits;
+    state.queuedBits = 6;
+    while (state.queuedBits >= 6) {
+      const pos = state.queue >> state.queuedBits - 6 & 63;
+      emit(TO_BASE64URL[pos]);
+      state.queuedBits -= 6;
+    }
+  }
+}
+function byteFromBase64URL(charCode, state, emit) {
+  const bits = FROM_BASE64URL[charCode];
+  if (bits > -1) {
+    state.queue = state.queue << 6 | bits;
+    state.queuedBits += 6;
+    while (state.queuedBits >= 8) {
+      emit(state.queue >> state.queuedBits - 8 & 255);
+      state.queuedBits -= 8;
+    }
+  } else if (bits === -2) {
+    return;
+  } else {
+    throw new Error(`Invalid Base64-URL character "${String.fromCharCode(charCode)}"`);
+  }
+}
+function stringFromBase64URL(str) {
+  const conv = [];
+  const utf8Emit = (codepoint) => {
+    conv.push(String.fromCodePoint(codepoint));
+  };
+  const utf8State = {
+    utf8seq: 0,
+    codepoint: 0
+  };
+  const b64State = { queue: 0, queuedBits: 0 };
+  const byteEmit = (byte) => {
+    stringFromUTF8(byte, utf8State, utf8Emit);
+  };
+  for (let i = 0;i < str.length; i += 1) {
+    byteFromBase64URL(str.charCodeAt(i), b64State, byteEmit);
+  }
+  return conv.join("");
+}
+function codepointToUTF8(codepoint, emit) {
+  if (codepoint <= 127) {
+    emit(codepoint);
+    return;
+  } else if (codepoint <= 2047) {
+    emit(192 | codepoint >> 6);
+    emit(128 | codepoint & 63);
+    return;
+  } else if (codepoint <= 65535) {
+    emit(224 | codepoint >> 12);
+    emit(128 | codepoint >> 6 & 63);
+    emit(128 | codepoint & 63);
+    return;
+  } else if (codepoint <= 1114111) {
+    emit(240 | codepoint >> 18);
+    emit(128 | codepoint >> 12 & 63);
+    emit(128 | codepoint >> 6 & 63);
+    emit(128 | codepoint & 63);
+    return;
+  }
+  throw new Error(`Unrecognized Unicode codepoint: ${codepoint.toString(16)}`);
+}
+function stringToUTF8(str, emit) {
+  for (let i = 0;i < str.length; i += 1) {
+    let codepoint = str.charCodeAt(i);
+    if (codepoint > 55295 && codepoint <= 56319) {
+      const highSurrogate = (codepoint - 55296) * 1024 & 65535;
+      const lowSurrogate = str.charCodeAt(i + 1) - 56320 & 65535;
+      codepoint = (lowSurrogate | highSurrogate) + 65536;
+      i += 1;
+    }
+    codepointToUTF8(codepoint, emit);
+  }
+}
+function stringFromUTF8(byte, state, emit) {
+  if (state.utf8seq === 0) {
+    if (byte <= 127) {
+      emit(byte);
+      return;
+    }
+    for (let leadingBit = 1;leadingBit < 6; leadingBit += 1) {
+      if ((byte >> 7 - leadingBit & 1) === 0) {
+        state.utf8seq = leadingBit;
+        break;
+      }
+    }
+    if (state.utf8seq === 2) {
+      state.codepoint = byte & 31;
+    } else if (state.utf8seq === 3) {
+      state.codepoint = byte & 15;
+    } else if (state.utf8seq === 4) {
+      state.codepoint = byte & 7;
+    } else {
+      throw new Error("Invalid UTF-8 sequence");
+    }
+    state.utf8seq -= 1;
+  } else if (state.utf8seq > 0) {
+    if (byte <= 127) {
+      throw new Error("Invalid UTF-8 sequence");
+    }
+    state.codepoint = state.codepoint << 6 | byte & 63;
+    state.utf8seq -= 1;
+    if (state.utf8seq === 0) {
+      emit(state.codepoint);
+    }
+  }
+}
+function base64UrlToUint8Array(str) {
+  const result = [];
+  const state = { queue: 0, queuedBits: 0 };
+  const onByte = (byte) => {
+    result.push(byte);
+  };
+  for (let i = 0;i < str.length; i += 1) {
+    byteFromBase64URL(str.charCodeAt(i), state, onByte);
+  }
+  return new Uint8Array(result);
+}
+function stringToUint8Array(str) {
+  const result = [];
+  stringToUTF8(str, (byte) => result.push(byte));
+  return new Uint8Array(result);
+}
+function bytesToBase64URL(bytes) {
+  const result = [];
+  const state = { queue: 0, queuedBits: 0 };
+  const onChar = (char2) => {
+    result.push(char2);
+  };
+  bytes.forEach((byte) => byteToBase64URL(byte, state, onChar));
+  byteToBase64URL(null, state, onChar);
+  return result.join("");
+}
+
+// ../node_modules/@supabase/auth-js/dist/module/lib/helpers.js
+function expiresAt(expiresIn) {
+  const timeNow = Math.round(Date.now() / 1000);
+  return timeNow + expiresIn;
+}
+function generateCallbackId() {
+  return Symbol("auth-callback");
+}
+var isBrowser = () => typeof window !== "undefined" && typeof document !== "undefined";
+var localStorageWriteTests = {
+  tested: false,
+  writable: false
+};
+var supportsLocalStorage = () => {
+  if (!isBrowser()) {
+    return false;
+  }
+  try {
+    if (typeof globalThis.localStorage !== "object") {
+      return false;
+    }
+  } catch (e) {
+    return false;
+  }
+  if (localStorageWriteTests.tested) {
+    return localStorageWriteTests.writable;
+  }
+  const randomKey = `lswt-${Math.random()}${Math.random()}`;
+  try {
+    globalThis.localStorage.setItem(randomKey, randomKey);
+    globalThis.localStorage.removeItem(randomKey);
+    localStorageWriteTests.tested = true;
+    localStorageWriteTests.writable = true;
+  } catch (e) {
+    localStorageWriteTests.tested = true;
+    localStorageWriteTests.writable = false;
+  }
+  return localStorageWriteTests.writable;
+};
+function parseParametersFromURL(href) {
+  const result = {};
+  const url2 = new URL(href);
+  if (url2.hash && url2.hash[0] === "#") {
+    try {
+      const hashSearchParams = new URLSearchParams(url2.hash.substring(1));
+      hashSearchParams.forEach((value, key) => {
+        result[key] = value;
+      });
+    } catch (_e) {}
+  }
+  url2.searchParams.forEach((value, key) => {
+    result[key] = value;
+  });
+  return result;
+}
+var resolveFetch3 = (customFetch) => {
+  if (customFetch) {
+    return (...args) => customFetch(...args);
+  }
+  return (...args) => fetch(...args);
+};
+var looksLikeFetchResponse = (maybeResponse) => {
+  return typeof maybeResponse === "object" && maybeResponse !== null && "status" in maybeResponse && "ok" in maybeResponse && "json" in maybeResponse && typeof maybeResponse.json === "function";
+};
+var setItemAsync = async (storage, key, data) => {
+  await storage.setItem(key, JSON.stringify(data));
+};
+var getItemAsync = async (storage, key) => {
+  const value = await storage.getItem(key);
+  if (!value) {
+    return null;
+  }
+  try {
+    return JSON.parse(value);
+  } catch (_a3) {
+    return null;
+  }
+};
+var removeItemAsync = async (storage, key) => {
+  await storage.removeItem(key);
+};
+
+class Deferred {
+  constructor() {
+    this.promise = new Deferred.promiseConstructor((res, rej) => {
+      this.resolve = res;
+      this.reject = rej;
+    });
+  }
+}
+Deferred.promiseConstructor = Promise;
+function decodeJWT(token) {
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    throw new AuthInvalidJwtError("Invalid JWT structure");
+  }
+  for (let i = 0;i < parts.length; i++) {
+    if (!BASE64URL_REGEX.test(parts[i])) {
+      throw new AuthInvalidJwtError("JWT not in base64url format");
+    }
+  }
+  const data = {
+    header: JSON.parse(stringFromBase64URL(parts[0])),
+    payload: JSON.parse(stringFromBase64URL(parts[1])),
+    signature: base64UrlToUint8Array(parts[2]),
+    raw: {
+      header: parts[0],
+      payload: parts[1]
+    }
+  };
+  return data;
+}
+async function sleep2(time4) {
+  return await new Promise((accept) => {
+    setTimeout(() => accept(null), time4);
+  });
+}
+function retryable(fn, isRetryable) {
+  const promise2 = new Promise((accept, reject) => {
+    (async () => {
+      for (let attempt = 0;attempt < Infinity; attempt++) {
+        try {
+          const result = await fn(attempt);
+          if (!isRetryable(attempt, null, result)) {
+            accept(result);
+            return;
+          }
+        } catch (e) {
+          if (!isRetryable(attempt, e)) {
+            reject(e);
+            return;
+          }
+        }
+      }
+    })();
+  });
+  return promise2;
+}
+function dec2hex(dec) {
+  return ("0" + dec.toString(16)).substr(-2);
+}
+function generatePKCEVerifier() {
+  const verifierLength = 56;
+  const array2 = new Uint32Array(verifierLength);
+  if (typeof crypto === "undefined") {
+    const charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+    const charSetLen = charSet.length;
+    let verifier = "";
+    for (let i = 0;i < verifierLength; i++) {
+      verifier += charSet.charAt(Math.floor(Math.random() * charSetLen));
+    }
+    return verifier;
+  }
+  crypto.getRandomValues(array2);
+  return Array.from(array2, dec2hex).join("");
+}
+async function sha256(randomString2) {
+  const encoder = new TextEncoder;
+  const encodedData = encoder.encode(randomString2);
+  const hash2 = await crypto.subtle.digest("SHA-256", encodedData);
+  const bytes = new Uint8Array(hash2);
+  return Array.from(bytes).map((c) => String.fromCharCode(c)).join("");
+}
+async function generatePKCEChallenge(verifier) {
+  const hasCryptoSupport = typeof crypto !== "undefined" && typeof crypto.subtle !== "undefined" && typeof TextEncoder !== "undefined";
+  if (!hasCryptoSupport) {
+    console.warn("WebCrypto API is not supported. Code challenge method will default to use plain instead of sha256.");
+    return verifier;
+  }
+  const hashed = await sha256(verifier);
+  return btoa(hashed).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+var PKCE_FLOW_ID_PATTERN = /^[a-zA-Z0-9_-]{8,64}$/;
+function validatePKCEFlowId(flowId) {
+  return typeof flowId === "string" && PKCE_FLOW_ID_PATTERN.test(flowId) ? flowId : null;
+}
+function generatePKCEFlowId() {
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, dec2hex).join("");
+  }
+  let flowId = "";
+  for (let i = 0;i < 32; i++) {
+    flowId += Math.floor(Math.random() * 16).toString(16);
+  }
+  return flowId;
+}
+var pkceVerifierSlotKey = (storageKey, flowId) => `${storageKey}-flow-${flowId}-code-verifier`;
+var pkceFlowIndexKey = (storageKey) => `${storageKey}-flows-code-verifier`;
+async function getPKCEFlowIndex(storage, storageKey) {
+  const index2 = await getItemAsync(storage, pkceFlowIndexKey(storageKey));
+  return Array.isArray(index2) ? index2.filter((id) => validatePKCEFlowId(id) !== null) : [];
+}
+async function storePKCEVerifier(storage, storageKey, flowId, verifier, onEvictFlow) {
+  await setItemAsync(storage, pkceVerifierSlotKey(storageKey, flowId), verifier);
+  const index2 = (await getPKCEFlowIndex(storage, storageKey)).filter((id) => id !== flowId);
+  index2.push(flowId);
+  while (index2.length > PKCE_MAX_CONCURRENT_FLOWS) {
+    const evicted = index2.shift();
+    await removeItemAsync(storage, pkceVerifierSlotKey(storageKey, evicted));
+    onEvictFlow === null || onEvictFlow === undefined || onEvictFlow(evicted);
+  }
+  await setItemAsync(storage, pkceFlowIndexKey(storageKey), index2);
+  await setItemAsync(storage, `${storageKey}-code-verifier`, verifier);
+}
+async function retrievePKCEVerifier(storage, storageKey, flowId) {
+  if (flowId) {
+    const verifier2 = await getItemAsync(storage, pkceVerifierSlotKey(storageKey, flowId));
+    return { verifier: typeof verifier2 === "string" ? verifier2 : null, flowId };
+  }
+  const verifier = await getItemAsync(storage, `${storageKey}-code-verifier`);
+  return { verifier: typeof verifier === "string" ? verifier : null, flowId: null };
+}
+async function removePKCEVerifier(storage, storageKey, flowId) {
+  const legacyKey = `${storageKey}-code-verifier`;
+  if (!flowId) {
+    await removeItemAsync(storage, legacyKey);
+    return;
+  }
+  const slotKey = pkceVerifierSlotKey(storageKey, flowId);
+  const slotValue = await getItemAsync(storage, slotKey);
+  await removeItemAsync(storage, slotKey);
+  const index2 = await getPKCEFlowIndex(storage, storageKey);
+  const remaining = index2.filter((id) => id !== flowId);
+  if (remaining.length !== index2.length) {
+    if (remaining.length > 0) {
+      await setItemAsync(storage, pkceFlowIndexKey(storageKey), remaining);
+    } else {
+      await removeItemAsync(storage, pkceFlowIndexKey(storageKey));
+    }
+  }
+  if (slotValue != null && slotValue === await getItemAsync(storage, legacyKey)) {
+    await removeItemAsync(storage, legacyKey);
+  }
+}
+async function removeAllPKCEVerifiers(storage, storageKey) {
+  const index2 = await getPKCEFlowIndex(storage, storageKey);
+  for (const flowId of index2) {
+    await removeItemAsync(storage, pkceVerifierSlotKey(storageKey, flowId));
+  }
+  await removeItemAsync(storage, pkceFlowIndexKey(storageKey));
+  await removeItemAsync(storage, `${storageKey}-code-verifier`);
+}
+function appendFlowIdToRedirectTo(redirectTo, flowId) {
+  const hashIndex = redirectTo.indexOf("#");
+  let base = hashIndex === -1 ? redirectTo : redirectTo.slice(0, hashIndex);
+  const fragment = hashIndex === -1 ? "" : redirectTo.slice(hashIndex);
+  const queryIndex = base.indexOf("?");
+  if (queryIndex !== -1) {
+    const path = base.slice(0, queryIndex);
+    const remaining = base.slice(queryIndex + 1).split("&").filter((pair) => pair !== "" && pair !== PKCE_FLOW_ID_PARAM && !pair.startsWith(`${PKCE_FLOW_ID_PARAM}=`));
+    base = remaining.length > 0 ? `${path}?${remaining.join("&")}` : path;
+  }
+  const separator = base.includes("?") ? "&" : "?";
+  return `${base}${separator}${PKCE_FLOW_ID_PARAM}=${encodeURIComponent(flowId)}${fragment}`;
+}
+async function getCodeChallengeAndMethod(storage, storageKey, isPasswordRecovery = false, onEvictFlow) {
+  const codeVerifier = generatePKCEVerifier();
+  let storedCodeVerifier = codeVerifier;
+  if (isPasswordRecovery) {
+    storedCodeVerifier += "/recovery";
+  }
+  const flowId = generatePKCEFlowId();
+  await storePKCEVerifier(storage, storageKey, flowId, storedCodeVerifier, onEvictFlow);
+  const codeChallenge = await generatePKCEChallenge(codeVerifier);
+  const codeChallengeMethod = codeVerifier === codeChallenge ? "plain" : "s256";
+  return [codeChallenge, codeChallengeMethod, flowId];
+}
+var API_VERSION_REGEX = /^2[0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|1[0-9]|2[0-9]|3[0-1])$/i;
+function parseResponseAPIVersion(response) {
+  const apiVersion = response.headers.get(API_VERSION_HEADER_NAME);
+  if (!apiVersion) {
+    return null;
+  }
+  if (!apiVersion.match(API_VERSION_REGEX)) {
+    return null;
+  }
+  try {
+    const date6 = new Date(`${apiVersion}T00:00:00.0Z`);
+    return date6;
+  } catch (_e) {
+    return null;
+  }
+}
+function validateExp(exp) {
+  if (!exp) {
+    throw new Error("Missing exp claim");
+  }
+  const timeNow = Math.floor(Date.now() / 1000);
+  if (exp <= timeNow) {
+    throw new Error("JWT has expired");
+  }
+}
+function getAlgorithm(alg) {
+  switch (alg) {
+    case "RS256":
+      return {
+        name: "RSASSA-PKCS1-v1_5",
+        hash: { name: "SHA-256" }
+      };
+    case "ES256":
+      return {
+        name: "ECDSA",
+        namedCurve: "P-256",
+        hash: { name: "SHA-256" }
+      };
+    default:
+      throw new Error("Invalid alg claim");
+  }
+}
+var UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function validateUUID(str) {
+  if (!UUID_REGEX.test(str)) {
+    throw new Error("@supabase/auth-js: Expected parameter to be UUID but is not");
+  }
+}
+function assertPasskeyExperimentalEnabled(experimental) {
+  if (!experimental.passkey) {
+    throw new Error("@supabase/auth-js: the passkey API is experimental and disabled by default. Enable it by passing `auth: { experimental: { passkey: true } }` to createClient (or to the GoTrueClient constructor).");
+  }
+}
+function assertRecoveryCodesExperimentalEnabled(experimental) {
+  if (!experimental.recoveryCodes) {
+    throw new Error("@supabase/auth-js: the MFA recovery codes API is experimental and disabled by default. Enable it by passing `auth: { experimental: { recoveryCodes: true } }` to createClient (or to the GoTrueClient constructor).");
+  }
+}
+function userNotAvailableProxy() {
+  const proxyTarget = {};
+  return new Proxy(proxyTarget, {
+    get: (target, prop) => {
+      if (prop === "__isUserNotAvailableProxy") {
+        return true;
+      }
+      if (typeof prop === "symbol") {
+        const sProp = prop.toString();
+        if (sProp === "Symbol(Symbol.toPrimitive)" || sProp === "Symbol(Symbol.toStringTag)" || sProp === "Symbol(util.inspect.custom)") {
+          return;
+        }
+      }
+      throw new Error(`@supabase/auth-js: client was created with userStorage option and there was no user stored in the user storage. Accessing the "${prop}" property of the session object is not supported. Please use getUser() instead.`);
+    },
+    set: (_target, prop) => {
+      throw new Error(`@supabase/auth-js: client was created with userStorage option and there was no user stored in the user storage. Setting the "${prop}" property of the session object is not supported. Please use getUser() to fetch a user object you can manipulate.`);
+    },
+    deleteProperty: (_target, prop) => {
+      throw new Error(`@supabase/auth-js: client was created with userStorage option and there was no user stored in the user storage. Deleting the "${prop}" property of the session object is not supported. Please use getUser() to fetch a user object you can manipulate.`);
+    }
+  });
+}
+function insecureUserWarningProxy(user, suppressWarningRef) {
+  return new Proxy(user, {
+    get: (target, prop, receiver) => {
+      if (prop === "__isInsecureUserWarningProxy") {
+        return true;
+      }
+      if (typeof prop === "symbol") {
+        const sProp = prop.toString();
+        if (sProp === "Symbol(Symbol.toPrimitive)" || sProp === "Symbol(Symbol.toStringTag)" || sProp === "Symbol(util.inspect.custom)" || sProp === "Symbol(nodejs.util.inspect.custom)") {
+          return Reflect.get(target, prop, receiver);
+        }
+      }
+      if (!suppressWarningRef.value && typeof prop === "string") {
+        console.warn("Using the user object as returned from supabase.auth.getSession() or from some supabase.auth.onAuthStateChange() events could be insecure! This value comes directly from the storage medium (usually cookies on the server) and may not be authentic. Use supabase.auth.getUser() instead which authenticates the data by contacting the Supabase Auth server.");
+        suppressWarningRef.value = true;
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+}
+function deepClone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+// ../node_modules/@supabase/auth-js/dist/module/lib/fetch.js
+var _getErrorMessage2 = (err) => {
+  if (typeof err === "object" && err !== null) {
+    const e = err;
+    if (typeof e.msg === "string")
+      return e.msg;
+    if (typeof e.message === "string")
+      return e.message;
+    if (typeof e.error_description === "string")
+      return e.error_description;
+    if (typeof e.error === "string")
+      return e.error;
+  }
+  return JSON.stringify(err);
+};
+var NETWORK_ERROR_CODES = [
+  500,
+  501,
+  502,
+  503,
+  504,
+  520,
+  521,
+  522,
+  523,
+  524,
+  525,
+  526,
+  527,
+  528,
+  529,
+  530
+];
+async function handleError2(error51) {
+  var _a3;
+  if (!looksLikeFetchResponse(error51)) {
+    throw new AuthRetryableFetchError(_getErrorMessage2(error51), 0);
+  }
+  let data;
+  try {
+    data = await error51.json();
+  } catch (e) {
+    if (NETWORK_ERROR_CODES.includes(error51.status)) {
+      throw new AuthRetryableFetchError(error51.statusText || `HTTP ${error51.status}`, error51.status);
+    }
+    throw new AuthUnknownError(_getErrorMessage2(e), e);
+  }
+  if (NETWORK_ERROR_CODES.includes(error51.status)) {
+    throw new AuthRetryableFetchError(_getErrorMessage2(data), error51.status);
+  }
+  let errorCode = undefined;
+  const responseAPIVersion = parseResponseAPIVersion(error51);
+  if (responseAPIVersion && responseAPIVersion.getTime() >= API_VERSIONS["2024-01-01"].timestamp && typeof data === "object" && data && typeof data.code === "string") {
+    errorCode = data.code;
+  } else if (typeof data === "object" && data && typeof data.error_code === "string") {
+    errorCode = data.error_code;
+  }
+  if (!errorCode) {
+    if (typeof data === "object" && data && typeof data.weak_password === "object" && data.weak_password && Array.isArray(data.weak_password.reasons) && data.weak_password.reasons.length && data.weak_password.reasons.reduce((a, i) => a && typeof i === "string", true)) {
+      throw new AuthWeakPasswordError(_getErrorMessage2(data), error51.status, data.weak_password.reasons);
+    }
+  } else if (errorCode === "weak_password") {
+    throw new AuthWeakPasswordError(_getErrorMessage2(data), error51.status, ((_a3 = data.weak_password) === null || _a3 === undefined ? undefined : _a3.reasons) || []);
+  } else if (errorCode === "session_not_found") {
+    throw new AuthSessionMissingError;
+  }
+  throw new AuthApiError(_getErrorMessage2(data), error51.status || 500, errorCode);
+}
+var _getRequestParams2 = (method, options, parameters, body) => {
+  const params = { method, headers: (options === null || options === undefined ? undefined : options.headers) || {} };
+  if (method === "GET") {
+    return params;
+  }
+  params.headers = Object.assign({ "Content-Type": "application/json;charset=UTF-8" }, options === null || options === undefined ? undefined : options.headers);
+  params.body = JSON.stringify(body);
+  return Object.assign(Object.assign({}, params), parameters);
+};
+async function _request(fetcher, method, url2, options) {
+  var _a3;
+  const headers = Object.assign({}, options === null || options === undefined ? undefined : options.headers);
+  if (!headers[API_VERSION_HEADER_NAME]) {
+    headers[API_VERSION_HEADER_NAME] = API_VERSIONS["2024-01-01"].name;
+  }
+  if (options === null || options === undefined ? undefined : options.jwt) {
+    headers["Authorization"] = `Bearer ${options.jwt}`;
+  }
+  const qs = (_a3 = options === null || options === undefined ? undefined : options.query) !== null && _a3 !== undefined ? _a3 : {};
+  if (options === null || options === undefined ? undefined : options.redirectTo) {
+    qs["redirect_to"] = options.redirectTo;
+  }
+  const queryString = Object.keys(qs).length ? "?" + new URLSearchParams(qs).toString() : "";
+  const data = await _handleRequest2(fetcher, method, url2 + queryString, {
+    headers,
+    noResolveJson: options === null || options === undefined ? undefined : options.noResolveJson
+  }, {}, options === null || options === undefined ? undefined : options.body);
+  return (options === null || options === undefined ? undefined : options.xform) ? options === null || options === undefined ? undefined : options.xform(data) : { data: Object.assign({}, data), error: null };
+}
+async function _handleRequest2(fetcher, method, url2, options, parameters, body) {
+  const requestParams = _getRequestParams2(method, options, parameters, body);
+  let result;
+  try {
+    result = await fetcher(url2, Object.assign({}, requestParams));
+  } catch (e) {
+    throw new AuthRetryableFetchError(_getErrorMessage2(e), 0);
+  }
+  if (!result.ok) {
+    await handleError2(result);
+  }
+  if (options === null || options === undefined ? undefined : options.noResolveJson) {
+    return result;
+  }
+  try {
+    return await result.json();
+  } catch (e) {
+    await handleError2(e);
+  }
+}
+function _sessionResponse(data) {
+  var _a3;
+  let session = null;
+  if (hasSession(data)) {
+    session = Object.assign({}, data);
+    if (!data.expires_at) {
+      session.expires_at = expiresAt(data.expires_in);
+    }
+  }
+  const user = (_a3 = data.user) !== null && _a3 !== undefined ? _a3 : typeof (data === null || data === undefined ? undefined : data.id) === "string" ? data : null;
+  return { data: { session, user }, error: null };
+}
+function _sessionResponsePassword(data) {
+  const response = _sessionResponse(data);
+  if (!response.error && data.weak_password && typeof data.weak_password === "object" && Array.isArray(data.weak_password.reasons) && data.weak_password.reasons.length && data.weak_password.message && typeof data.weak_password.message === "string" && data.weak_password.reasons.reduce((a, i) => a && typeof i === "string", true)) {
+    response.data.weak_password = data.weak_password;
+  }
+  return response;
+}
+function _userResponse(data) {
+  var _a3;
+  const user = (_a3 = data.user) !== null && _a3 !== undefined ? _a3 : data;
+  return { data: { user }, error: null };
+}
+function _ssoResponse(data) {
+  return { data, error: null };
+}
+function _generateLinkResponse(data) {
+  const { action_link, email_otp, hashed_token, redirect_to, verification_type } = data, rest = __rest(data, ["action_link", "email_otp", "hashed_token", "redirect_to", "verification_type"]);
+  const properties = {
+    action_link,
+    email_otp,
+    hashed_token,
+    redirect_to,
+    verification_type
+  };
+  const user = Object.assign({}, rest);
+  return {
+    data: {
+      properties,
+      user
+    },
+    error: null
+  };
+}
+function _noResolveJsonResponse(data) {
+  return data;
+}
+function hasSession(data) {
+  return !!data.access_token && !!data.refresh_token && !!data.expires_in;
+}
+
+// ../node_modules/@supabase/auth-js/dist/module/lib/types.js
+var SIGN_OUT_SCOPES = ["global", "local", "others"];
+
+// ../node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
+class GoTrueAdminApi {
+  constructor({ url: url2 = "", headers = {}, fetch: fetch2, experimental }) {
+    this.url = url2;
+    this.headers = headers;
+    this.fetch = resolveFetch3(fetch2);
+    this.experimental = experimental !== null && experimental !== undefined ? experimental : {};
+    this.mfa = {
+      listFactors: this._listFactors.bind(this),
+      deleteFactor: this._deleteFactor.bind(this)
+    };
+    this.oauth = {
+      listClients: this._listOAuthClients.bind(this),
+      createClient: this._createOAuthClient.bind(this),
+      getClient: this._getOAuthClient.bind(this),
+      updateClient: this._updateOAuthClient.bind(this),
+      deleteClient: this._deleteOAuthClient.bind(this),
+      regenerateClientSecret: this._regenerateOAuthClientSecret.bind(this)
+    };
+    this.customProviders = {
+      listProviders: this._listCustomProviders.bind(this),
+      createProvider: this._createCustomProvider.bind(this),
+      getProvider: this._getCustomProvider.bind(this),
+      updateProvider: this._updateCustomProvider.bind(this),
+      deleteProvider: this._deleteCustomProvider.bind(this)
+    };
+    this.passkey = {
+      listPasskeys: this._adminListPasskeys.bind(this),
+      deletePasskey: this._adminDeletePasskey.bind(this)
+    };
+  }
+  async signOut(jwt2, scope = SIGN_OUT_SCOPES[0]) {
+    if (SIGN_OUT_SCOPES.indexOf(scope) < 0) {
+      throw new Error(`@supabase/auth-js: Parameter scope must be one of ${SIGN_OUT_SCOPES.join(", ")}`);
+    }
+    try {
+      await _request(this.fetch, "POST", `${this.url}/logout?scope=${scope}`, {
+        headers: this.headers,
+        jwt: jwt2,
+        noResolveJson: true
+      });
+      return { data: null, error: null };
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async inviteUserByEmail(email3, options = {}) {
+    try {
+      return await _request(this.fetch, "POST", `${this.url}/invite`, {
+        body: { email: email3, data: options.data },
+        headers: this.headers,
+        redirectTo: options.redirectTo,
+        xform: _userResponse
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: { user: null }, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async generateLink(params) {
+    try {
+      const { options } = params, rest = __rest(params, ["options"]);
+      const body = Object.assign(Object.assign({}, rest), options);
+      if ("newEmail" in rest) {
+        body.new_email = rest === null || rest === undefined ? undefined : rest.newEmail;
+        delete body["newEmail"];
+      }
+      return await _request(this.fetch, "POST", `${this.url}/admin/generate_link`, {
+        body,
+        headers: this.headers,
+        xform: _generateLinkResponse,
+        redirectTo: options === null || options === undefined ? undefined : options.redirectTo
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return {
+          data: {
+            properties: null,
+            user: null
+          },
+          error: error51
+        };
+      }
+      throw error51;
+    }
+  }
+  async createUser(attributes) {
+    try {
+      return await _request(this.fetch, "POST", `${this.url}/admin/users`, {
+        body: attributes,
+        headers: this.headers,
+        xform: _userResponse
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: { user: null }, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async listUsers(params) {
+    var _a3, _b, _c, _d, _e, _f, _g;
+    try {
+      const pagination = { nextPage: null, lastPage: 0, total: 0 };
+      const response = await _request(this.fetch, "GET", `${this.url}/admin/users`, {
+        headers: this.headers,
+        noResolveJson: true,
+        query: {
+          page: (_b = (_a3 = params === null || params === undefined ? undefined : params.page) === null || _a3 === undefined ? undefined : _a3.toString()) !== null && _b !== undefined ? _b : "",
+          per_page: (_d = (_c = params === null || params === undefined ? undefined : params.perPage) === null || _c === undefined ? undefined : _c.toString()) !== null && _d !== undefined ? _d : ""
+        },
+        xform: _noResolveJsonResponse
+      });
+      if (response.error)
+        throw response.error;
+      const users2 = await response.json();
+      const total = (_e = response.headers.get("x-total-count")) !== null && _e !== undefined ? _e : 0;
+      const links = (_g = (_f = response.headers.get("link")) === null || _f === undefined ? undefined : _f.split(",")) !== null && _g !== undefined ? _g : [];
+      if (links.length > 0) {
+        links.forEach((link) => {
+          const page = parseInt(link.split(";")[0].split("=")[1].substring(0, 1));
+          const rel = JSON.parse(link.split(";")[1].split("=")[1]);
+          pagination[`${rel}Page`] = page;
+        });
+        pagination.total = parseInt(total);
+      }
+      return { data: Object.assign(Object.assign({}, users2), pagination), error: null };
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: { users: [] }, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async getUserById(uid) {
+    validateUUID(uid);
+    try {
+      return await _request(this.fetch, "GET", `${this.url}/admin/users/${uid}`, {
+        headers: this.headers,
+        xform: _userResponse
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: { user: null }, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async updateUserById(uid, attributes) {
+    validateUUID(uid);
+    try {
+      return await _request(this.fetch, "PUT", `${this.url}/admin/users/${uid}`, {
+        body: attributes,
+        headers: this.headers,
+        xform: _userResponse
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: { user: null }, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async deleteUser(id, shouldSoftDelete = false) {
+    validateUUID(id);
+    try {
+      return await _request(this.fetch, "DELETE", `${this.url}/admin/users/${id}`, {
+        headers: this.headers,
+        body: {
+          should_soft_delete: shouldSoftDelete
+        },
+        xform: _userResponse
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: { user: null }, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _listFactors(params) {
+    validateUUID(params.userId);
+    try {
+      const { data, error: error51 } = await _request(this.fetch, "GET", `${this.url}/admin/users/${params.userId}/factors`, {
+        headers: this.headers,
+        xform: (factors) => {
+          return { data: { factors }, error: null };
+        }
+      });
+      return { data, error: error51 };
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _deleteFactor(params) {
+    validateUUID(params.userId);
+    validateUUID(params.id);
+    try {
+      const data = await _request(this.fetch, "DELETE", `${this.url}/admin/users/${params.userId}/factors/${params.id}`, {
+        headers: this.headers
+      });
+      return { data, error: null };
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _listOAuthClients(params) {
+    var _a3, _b, _c, _d, _e, _f, _g;
+    try {
+      const pagination = { nextPage: null, lastPage: 0, total: 0 };
+      const response = await _request(this.fetch, "GET", `${this.url}/admin/oauth/clients`, {
+        headers: this.headers,
+        noResolveJson: true,
+        query: {
+          page: (_b = (_a3 = params === null || params === undefined ? undefined : params.page) === null || _a3 === undefined ? undefined : _a3.toString()) !== null && _b !== undefined ? _b : "",
+          per_page: (_d = (_c = params === null || params === undefined ? undefined : params.perPage) === null || _c === undefined ? undefined : _c.toString()) !== null && _d !== undefined ? _d : ""
+        },
+        xform: _noResolveJsonResponse
+      });
+      if (response.error)
+        throw response.error;
+      const clients = await response.json();
+      const total = (_e = response.headers.get("x-total-count")) !== null && _e !== undefined ? _e : 0;
+      const links = (_g = (_f = response.headers.get("link")) === null || _f === undefined ? undefined : _f.split(",")) !== null && _g !== undefined ? _g : [];
+      if (links.length > 0) {
+        links.forEach((link) => {
+          const page = parseInt(link.split(";")[0].split("=")[1].substring(0, 1));
+          const rel = JSON.parse(link.split(";")[1].split("=")[1]);
+          pagination[`${rel}Page`] = page;
+        });
+        pagination.total = parseInt(total);
+      }
+      return { data: Object.assign(Object.assign({}, clients), pagination), error: null };
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: { clients: [] }, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _createOAuthClient(params) {
+    try {
+      return await _request(this.fetch, "POST", `${this.url}/admin/oauth/clients`, {
+        body: params,
+        headers: this.headers,
+        xform: (client) => {
+          return { data: client, error: null };
+        }
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _getOAuthClient(clientId) {
+    try {
+      return await _request(this.fetch, "GET", `${this.url}/admin/oauth/clients/${clientId}`, {
+        headers: this.headers,
+        xform: (client) => {
+          return { data: client, error: null };
+        }
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _updateOAuthClient(clientId, params) {
+    try {
+      return await _request(this.fetch, "PUT", `${this.url}/admin/oauth/clients/${clientId}`, {
+        body: params,
+        headers: this.headers,
+        xform: (client) => {
+          return { data: client, error: null };
+        }
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _deleteOAuthClient(clientId) {
+    try {
+      await _request(this.fetch, "DELETE", `${this.url}/admin/oauth/clients/${clientId}`, {
+        headers: this.headers,
+        noResolveJson: true
+      });
+      return { data: null, error: null };
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _regenerateOAuthClientSecret(clientId) {
+    try {
+      return await _request(this.fetch, "POST", `${this.url}/admin/oauth/clients/${clientId}/regenerate_secret`, {
+        headers: this.headers,
+        xform: (client) => {
+          return { data: client, error: null };
+        }
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _listCustomProviders(params) {
+    try {
+      const query = {};
+      if (params === null || params === undefined ? undefined : params.type) {
+        query.type = params.type;
+      }
+      return await _request(this.fetch, "GET", `${this.url}/admin/custom-providers`, {
+        headers: this.headers,
+        query,
+        xform: (data) => {
+          var _a3;
+          return { data: { providers: (_a3 = data === null || data === undefined ? undefined : data.providers) !== null && _a3 !== undefined ? _a3 : [] }, error: null };
+        }
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: { providers: [] }, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _createCustomProvider(params) {
+    try {
+      return await _request(this.fetch, "POST", `${this.url}/admin/custom-providers`, {
+        body: params,
+        headers: this.headers,
+        xform: (provider) => {
+          return { data: provider, error: null };
+        }
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _getCustomProvider(identifier) {
+    try {
+      return await _request(this.fetch, "GET", `${this.url}/admin/custom-providers/${identifier}`, {
+        headers: this.headers,
+        xform: (provider) => {
+          return { data: provider, error: null };
+        }
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _updateCustomProvider(identifier, params) {
+    try {
+      return await _request(this.fetch, "PUT", `${this.url}/admin/custom-providers/${identifier}`, {
+        body: params,
+        headers: this.headers,
+        xform: (provider) => {
+          return { data: provider, error: null };
+        }
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _deleteCustomProvider(identifier) {
+    try {
+      await _request(this.fetch, "DELETE", `${this.url}/admin/custom-providers/${identifier}`, {
+        headers: this.headers,
+        noResolveJson: true
+      });
+      return { data: null, error: null };
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _adminListPasskeys(params) {
+    assertPasskeyExperimentalEnabled(this.experimental);
+    validateUUID(params.userId);
+    try {
+      return await _request(this.fetch, "GET", `${this.url}/admin/users/${params.userId}/passkeys`, { headers: this.headers, xform: (data) => ({ data, error: null }) });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+  async _adminDeletePasskey(params) {
+    assertPasskeyExperimentalEnabled(this.experimental);
+    validateUUID(params.userId);
+    validateUUID(params.passkeyId);
+    try {
+      await _request(this.fetch, "DELETE", `${this.url}/admin/users/${params.userId}/passkeys/${params.passkeyId}`, { headers: this.headers, noResolveJson: true });
+      return { data: null, error: null };
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      throw error51;
+    }
+  }
+}
+
+// ../node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
+function memoryLocalStorageAdapter(store = {}) {
+  return {
+    getItem: (key) => {
+      return store[key] || null;
+    },
+    setItem: (key, value) => {
+      store[key] = value;
+    },
+    removeItem: (key) => {
+      delete store[key];
+    }
+  };
+}
+
+// ../node_modules/@supabase/auth-js/dist/module/lib/locks.js
+var internals = {
+  debug: !!(globalThis && supportsLocalStorage() && globalThis.localStorage && globalThis.localStorage.getItem("supabase.gotrue-js.locks.debug") === "true")
+};
+
+class LockAcquireTimeoutError extends Error {
+  constructor(message) {
+    super(message);
+    this.isAcquireTimeout = true;
+  }
+}
+
+// ../node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
+function polyfillGlobalThis() {
+  if (typeof globalThis === "object")
+    return;
+  try {
+    Object.defineProperty(Object.prototype, "__magic__", {
+      get: function() {
+        return this;
+      },
+      configurable: true
+    });
+    __magic__.globalThis = __magic__;
+    delete Object.prototype.__magic__;
+  } catch (e) {
+    if (typeof self !== "undefined") {
+      self.globalThis = self;
+    }
+  }
+}
+
+// ../node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
+function getAddress(address) {
+  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    throw new Error(`@supabase/auth-js: Address "${address}" is invalid.`);
+  }
+  return address.toLowerCase();
+}
+function fromHex(hex3) {
+  return parseInt(hex3, 16);
+}
+function toHex(value) {
+  const bytes = new TextEncoder().encode(value);
+  const hex3 = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return "0x" + hex3;
+}
+function createSiweMessage(parameters) {
+  var _a3;
+  const { chainId, domain: domain2, expirationTime, issuedAt = new Date, nonce, notBefore, requestId, resources, scheme, uri, version: version6 } = parameters;
+  {
+    if (!Number.isInteger(chainId))
+      throw new Error(`@supabase/auth-js: Invalid SIWE message field "chainId". Chain ID must be a EIP-155 chain ID. Provided value: ${chainId}`);
+    if (!domain2)
+      throw new Error(`@supabase/auth-js: Invalid SIWE message field "domain". Domain must be provided.`);
+    if (nonce && nonce.length < 8)
+      throw new Error(`@supabase/auth-js: Invalid SIWE message field "nonce". Nonce must be at least 8 characters. Provided value: ${nonce}`);
+    if (!uri)
+      throw new Error(`@supabase/auth-js: Invalid SIWE message field "uri". URI must be provided.`);
+    if (version6 !== "1")
+      throw new Error(`@supabase/auth-js: Invalid SIWE message field "version". Version must be '1'. Provided value: ${version6}`);
+    if ((_a3 = parameters.statement) === null || _a3 === undefined ? undefined : _a3.includes(`
+`))
+      throw new Error(`@supabase/auth-js: Invalid SIWE message field "statement". Statement must not include '\\n'. Provided value: ${parameters.statement}`);
+  }
+  const address = getAddress(parameters.address);
+  const origin = scheme ? `${scheme}://${domain2}` : domain2;
+  const statement = parameters.statement ? `${parameters.statement}
+` : "";
+  const prefix = `${origin} wants you to sign in with your Ethereum account:
+${address}
+
+${statement}`;
+  let suffix = `URI: ${uri}
+Version: ${version6}
+Chain ID: ${chainId}${nonce ? `
+Nonce: ${nonce}` : ""}
+Issued At: ${issuedAt.toISOString()}`;
+  if (expirationTime)
+    suffix += `
+Expiration Time: ${expirationTime.toISOString()}`;
+  if (notBefore)
+    suffix += `
+Not Before: ${notBefore.toISOString()}`;
+  if (requestId)
+    suffix += `
+Request ID: ${requestId}`;
+  if (resources) {
+    let content = `
+Resources:`;
+    for (const resource of resources) {
+      if (!resource || typeof resource !== "string")
+        throw new Error(`@supabase/auth-js: Invalid SIWE message field "resources". Every resource must be a valid string. Provided value: ${resource}`);
+      content += `
+- ${resource}`;
+    }
+    suffix += content;
+  }
+  return `${prefix}
+${suffix}`;
+}
+
+// ../node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
+class WebAuthnError extends Error {
+  constructor({ message, code, cause, name }) {
+    var _a3;
+    super(message, { cause });
+    this.__isWebAuthnError = true;
+    this.name = (_a3 = name !== null && name !== undefined ? name : cause instanceof Error ? cause.name : undefined) !== null && _a3 !== undefined ? _a3 : "Unknown Error";
+    this.code = code;
+  }
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      code: this.code
+    };
+  }
+}
+
+class WebAuthnUnknownError extends WebAuthnError {
+  constructor(message, originalError) {
+    super({
+      code: "ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY",
+      cause: originalError,
+      message
+    });
+    this.name = "WebAuthnUnknownError";
+    this.originalError = originalError;
+  }
+}
+function identifyRegistrationError({ error: error51, options }) {
+  var _a3, _b, _c;
+  const { publicKey } = options;
+  if (!publicKey) {
+    throw Error("options was missing required publicKey property");
+  }
+  if (error51.name === "AbortError") {
+    if (options.signal instanceof AbortSignal) {
+      return new WebAuthnError({
+        message: "Registration ceremony was sent an abort signal",
+        code: "ERROR_CEREMONY_ABORTED",
+        cause: error51
+      });
+    }
+  } else if (error51.name === "ConstraintError") {
+    if (((_a3 = publicKey.authenticatorSelection) === null || _a3 === undefined ? undefined : _a3.requireResidentKey) === true) {
+      return new WebAuthnError({
+        message: "Discoverable credentials were required but no available authenticator supported it",
+        code: "ERROR_AUTHENTICATOR_MISSING_DISCOVERABLE_CREDENTIAL_SUPPORT",
+        cause: error51
+      });
+    } else if (options.mediation === "conditional" && ((_b = publicKey.authenticatorSelection) === null || _b === undefined ? undefined : _b.userVerification) === "required") {
+      return new WebAuthnError({
+        message: "User verification was required during automatic registration but it could not be performed",
+        code: "ERROR_AUTO_REGISTER_USER_VERIFICATION_FAILURE",
+        cause: error51
+      });
+    } else if (((_c = publicKey.authenticatorSelection) === null || _c === undefined ? undefined : _c.userVerification) === "required") {
+      return new WebAuthnError({
+        message: "User verification was required but no available authenticator supported it",
+        code: "ERROR_AUTHENTICATOR_MISSING_USER_VERIFICATION_SUPPORT",
+        cause: error51
+      });
+    }
+  } else if (error51.name === "InvalidStateError") {
+    return new WebAuthnError({
+      message: "The authenticator was previously registered",
+      code: "ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED",
+      cause: error51
+    });
+  } else if (error51.name === "NotAllowedError") {
+    return new WebAuthnError({
+      message: error51.message,
+      code: "ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY",
+      cause: error51
+    });
+  } else if (error51.name === "NotSupportedError") {
+    const validPubKeyCredParams = publicKey.pubKeyCredParams.filter((param) => param.type === "public-key");
+    if (validPubKeyCredParams.length === 0) {
+      return new WebAuthnError({
+        message: 'No entry in pubKeyCredParams was of type "public-key"',
+        code: "ERROR_MALFORMED_PUBKEYCREDPARAMS",
+        cause: error51
+      });
+    }
+    return new WebAuthnError({
+      message: "No available authenticator supported any of the specified pubKeyCredParams algorithms",
+      code: "ERROR_AUTHENTICATOR_NO_SUPPORTED_PUBKEYCREDPARAMS_ALG",
+      cause: error51
+    });
+  } else if (error51.name === "SecurityError") {
+    const effectiveDomain = window.location.hostname;
+    if (!isValidDomain(effectiveDomain)) {
+      return new WebAuthnError({
+        message: `${window.location.hostname} is an invalid domain`,
+        code: "ERROR_INVALID_DOMAIN",
+        cause: error51
+      });
+    } else if (publicKey.rp.id !== effectiveDomain) {
+      return new WebAuthnError({
+        message: `The RP ID "${publicKey.rp.id}" is invalid for this domain`,
+        code: "ERROR_INVALID_RP_ID",
+        cause: error51
+      });
+    }
+  } else if (error51.name === "TypeError") {
+    if (publicKey.user.id.byteLength < 1 || publicKey.user.id.byteLength > 64) {
+      return new WebAuthnError({
+        message: "User ID was not between 1 and 64 characters",
+        code: "ERROR_INVALID_USER_ID_LENGTH",
+        cause: error51
+      });
+    }
+  } else if (error51.name === "UnknownError") {
+    return new WebAuthnError({
+      message: "The authenticator was unable to process the specified options, or could not create a new credential",
+      code: "ERROR_AUTHENTICATOR_GENERAL_ERROR",
+      cause: error51
+    });
+  }
+  return new WebAuthnError({
+    message: "a Non-Webauthn related error has occurred",
+    code: "ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY",
+    cause: error51
+  });
+}
+function identifyAuthenticationError({ error: error51, options }) {
+  const { publicKey } = options;
+  if (!publicKey) {
+    throw Error("options was missing required publicKey property");
+  }
+  if (error51.name === "AbortError") {
+    if (options.signal instanceof AbortSignal) {
+      return new WebAuthnError({
+        message: "Authentication ceremony was sent an abort signal",
+        code: "ERROR_CEREMONY_ABORTED",
+        cause: error51
+      });
+    }
+  } else if (error51.name === "NotAllowedError") {
+    return new WebAuthnError({
+      message: error51.message,
+      code: "ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY",
+      cause: error51
+    });
+  } else if (error51.name === "SecurityError") {
+    const effectiveDomain = window.location.hostname;
+    if (!isValidDomain(effectiveDomain)) {
+      return new WebAuthnError({
+        message: `${window.location.hostname} is an invalid domain`,
+        code: "ERROR_INVALID_DOMAIN",
+        cause: error51
+      });
+    } else if (publicKey.rpId !== effectiveDomain) {
+      return new WebAuthnError({
+        message: `The RP ID "${publicKey.rpId}" is invalid for this domain`,
+        code: "ERROR_INVALID_RP_ID",
+        cause: error51
+      });
+    }
+  } else if (error51.name === "UnknownError") {
+    return new WebAuthnError({
+      message: "The authenticator was unable to process the specified options, or could not create a new assertion signature",
+      code: "ERROR_AUTHENTICATOR_GENERAL_ERROR",
+      cause: error51
+    });
+  }
+  return new WebAuthnError({
+    message: "a Non-Webauthn related error has occurred",
+    code: "ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY",
+    cause: error51
+  });
+}
+
+// ../node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
+class WebAuthnAbortService {
+  createNewAbortSignal() {
+    if (this.controller) {
+      const abortError = new Error("Cancelling existing WebAuthn API call for new one");
+      abortError.name = "AbortError";
+      this.controller.abort(abortError);
+    }
+    const newController = new AbortController;
+    this.controller = newController;
+    return newController.signal;
+  }
+  cancelCeremony() {
+    if (this.controller) {
+      const abortError = new Error("Manually cancelling existing WebAuthn API call");
+      abortError.name = "AbortError";
+      this.controller.abort(abortError);
+      this.controller = undefined;
+    }
+  }
+}
+var webAuthnAbortService = new WebAuthnAbortService;
+function deserializeCredentialCreationOptions(options) {
+  if (!options) {
+    throw new Error("Credential creation options are required");
+  }
+  if (typeof PublicKeyCredential !== "undefined" && "parseCreationOptionsFromJSON" in PublicKeyCredential && typeof PublicKeyCredential.parseCreationOptionsFromJSON === "function") {
+    return PublicKeyCredential.parseCreationOptionsFromJSON(options);
+  }
+  const { challenge: challengeStr, user: userOpts, excludeCredentials } = options, restOptions = __rest(options, ["challenge", "user", "excludeCredentials"]);
+  const challenge = base64UrlToUint8Array(challengeStr).buffer;
+  const user = Object.assign(Object.assign({}, userOpts), { id: base64UrlToUint8Array(userOpts.id).buffer });
+  const result = Object.assign(Object.assign({}, restOptions), {
+    challenge,
+    user
+  });
+  if (excludeCredentials && excludeCredentials.length > 0) {
+    result.excludeCredentials = new Array(excludeCredentials.length);
+    for (let i = 0;i < excludeCredentials.length; i++) {
+      const cred = excludeCredentials[i];
+      result.excludeCredentials[i] = Object.assign(Object.assign({}, cred), {
+        id: base64UrlToUint8Array(cred.id).buffer,
+        type: cred.type || "public-key",
+        transports: cred.transports
+      });
+    }
+  }
+  return result;
+}
+function deserializeCredentialRequestOptions(options) {
+  if (!options) {
+    throw new Error("Credential request options are required");
+  }
+  if (typeof PublicKeyCredential !== "undefined" && "parseRequestOptionsFromJSON" in PublicKeyCredential && typeof PublicKeyCredential.parseRequestOptionsFromJSON === "function") {
+    return PublicKeyCredential.parseRequestOptionsFromJSON(options);
+  }
+  const { challenge: challengeStr, allowCredentials } = options, restOptions = __rest(options, ["challenge", "allowCredentials"]);
+  const challenge = base64UrlToUint8Array(challengeStr).buffer;
+  const result = Object.assign(Object.assign({}, restOptions), { challenge });
+  if (allowCredentials && allowCredentials.length > 0) {
+    result.allowCredentials = new Array(allowCredentials.length);
+    for (let i = 0;i < allowCredentials.length; i++) {
+      const cred = allowCredentials[i];
+      result.allowCredentials[i] = Object.assign(Object.assign({}, cred), {
+        id: base64UrlToUint8Array(cred.id).buffer,
+        type: cred.type || "public-key",
+        transports: cred.transports
+      });
+    }
+  }
+  return result;
+}
+function serializeCredentialCreationResponse(credential) {
+  var _a3;
+  if ("toJSON" in credential && typeof credential.toJSON === "function") {
+    return credential.toJSON();
+  }
+  const credentialWithAttachment = credential;
+  return {
+    id: credential.id,
+    rawId: credential.id,
+    response: {
+      attestationObject: bytesToBase64URL(new Uint8Array(credential.response.attestationObject)),
+      clientDataJSON: bytesToBase64URL(new Uint8Array(credential.response.clientDataJSON))
+    },
+    type: "public-key",
+    clientExtensionResults: credential.getClientExtensionResults(),
+    authenticatorAttachment: (_a3 = credentialWithAttachment.authenticatorAttachment) !== null && _a3 !== undefined ? _a3 : undefined
+  };
+}
+function serializeCredentialRequestResponse(credential) {
+  var _a3;
+  if ("toJSON" in credential && typeof credential.toJSON === "function") {
+    return credential.toJSON();
+  }
+  const credentialWithAttachment = credential;
+  const clientExtensionResults = credential.getClientExtensionResults();
+  const assertionResponse = credential.response;
+  return {
+    id: credential.id,
+    rawId: credential.id,
+    response: {
+      authenticatorData: bytesToBase64URL(new Uint8Array(assertionResponse.authenticatorData)),
+      clientDataJSON: bytesToBase64URL(new Uint8Array(assertionResponse.clientDataJSON)),
+      signature: bytesToBase64URL(new Uint8Array(assertionResponse.signature)),
+      userHandle: assertionResponse.userHandle ? bytesToBase64URL(new Uint8Array(assertionResponse.userHandle)) : undefined
+    },
+    type: "public-key",
+    clientExtensionResults,
+    authenticatorAttachment: (_a3 = credentialWithAttachment.authenticatorAttachment) !== null && _a3 !== undefined ? _a3 : undefined
+  };
+}
+function isValidDomain(hostname3) {
+  return hostname3 === "localhost" || /^([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}$/i.test(hostname3);
+}
+function browserSupportsWebAuthn() {
+  var _a3, _b;
+  return !!(isBrowser() && ("PublicKeyCredential" in window) && window.PublicKeyCredential && ("credentials" in navigator) && typeof ((_a3 = navigator === null || navigator === undefined ? undefined : navigator.credentials) === null || _a3 === undefined ? undefined : _a3.create) === "function" && typeof ((_b = navigator === null || navigator === undefined ? undefined : navigator.credentials) === null || _b === undefined ? undefined : _b.get) === "function");
+}
+async function createCredential(options) {
+  try {
+    const response = await navigator.credentials.create(options);
+    if (!response) {
+      return {
+        data: null,
+        error: new WebAuthnUnknownError("Empty credential response", response)
+      };
+    }
+    if (!(response instanceof PublicKeyCredential)) {
+      return {
+        data: null,
+        error: new WebAuthnUnknownError("Browser returned unexpected credential type", response)
+      };
+    }
+    return { data: response, error: null };
+  } catch (err) {
+    return {
+      data: null,
+      error: identifyRegistrationError({
+        error: err,
+        options
+      })
+    };
+  }
+}
+async function getCredential(options) {
+  try {
+    const response = await navigator.credentials.get(options);
+    if (!response) {
+      return {
+        data: null,
+        error: new WebAuthnUnknownError("Empty credential response", response)
+      };
+    }
+    if (!(response instanceof PublicKeyCredential)) {
+      return {
+        data: null,
+        error: new WebAuthnUnknownError("Browser returned unexpected credential type", response)
+      };
+    }
+    return { data: response, error: null };
+  } catch (err) {
+    return {
+      data: null,
+      error: identifyAuthenticationError({
+        error: err,
+        options
+      })
+    };
+  }
+}
+var DEFAULT_CREATION_OPTIONS = {
+  hints: ["security-key"],
+  authenticatorSelection: {
+    authenticatorAttachment: "cross-platform",
+    requireResidentKey: false,
+    userVerification: "preferred",
+    residentKey: "discouraged"
+  },
+  attestation: "direct"
+};
+var DEFAULT_REQUEST_OPTIONS = {
+  userVerification: "preferred",
+  hints: ["security-key"],
+  attestation: "direct"
+};
+function deepMerge(...sources) {
+  const isObject2 = (val) => val !== null && typeof val === "object" && !Array.isArray(val);
+  const isArrayBufferLike = (val) => val instanceof ArrayBuffer || ArrayBuffer.isView(val);
+  const result = {};
+  for (const source of sources) {
+    if (!source)
+      continue;
+    for (const key in source) {
+      const value = source[key];
+      if (value === undefined)
+        continue;
+      if (Array.isArray(value)) {
+        result[key] = value;
+      } else if (isArrayBufferLike(value)) {
+        result[key] = value;
+      } else if (isObject2(value)) {
+        const existing = result[key];
+        if (isObject2(existing)) {
+          result[key] = deepMerge(existing, value);
+        } else {
+          result[key] = deepMerge(value);
+        }
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+  return result;
+}
+function mergeCredentialCreationOptions(baseOptions, overrides) {
+  return deepMerge(DEFAULT_CREATION_OPTIONS, baseOptions, overrides || {});
+}
+function mergeCredentialRequestOptions(baseOptions, overrides) {
+  return deepMerge(DEFAULT_REQUEST_OPTIONS, baseOptions, overrides || {});
+}
+
+class WebAuthnApi {
+  constructor(client) {
+    this.client = client;
+    this.enroll = this._enroll.bind(this);
+    this.challenge = this._challenge.bind(this);
+    this.verify = this._verify.bind(this);
+    this.authenticate = this._authenticate.bind(this);
+    this.register = this._register.bind(this);
+  }
+  async _enroll(params) {
+    return this.client.mfa.enroll(Object.assign(Object.assign({}, params), { factorType: "webauthn" }));
+  }
+  async _challenge({ factorId, webauthn, friendlyName, signal }, overrides) {
+    var _a3;
+    try {
+      const { data: challengeResponse, error: challengeError } = await this.client.mfa.challenge({
+        factorId,
+        webauthn
+      });
+      if (!challengeResponse) {
+        return { data: null, error: challengeError };
+      }
+      const abortSignal = signal !== null && signal !== undefined ? signal : webAuthnAbortService.createNewAbortSignal();
+      if (challengeResponse.webauthn.type === "create") {
+        const { user } = challengeResponse.webauthn.credential_options.publicKey;
+        if (!user.name) {
+          const nameToUse = friendlyName;
+          if (!nameToUse) {
+            const currentUser = await this.client.getUser();
+            const userData = currentUser.data.user;
+            const fallbackName = ((_a3 = userData === null || userData === undefined ? undefined : userData.user_metadata) === null || _a3 === undefined ? undefined : _a3.name) || (userData === null || userData === undefined ? undefined : userData.email) || (userData === null || userData === undefined ? undefined : userData.id) || "User";
+            user.name = `${user.id}:${fallbackName}`;
+          } else {
+            user.name = `${user.id}:${nameToUse}`;
+          }
+        }
+        if (!user.displayName) {
+          user.displayName = user.name;
+        }
+      }
+      switch (challengeResponse.webauthn.type) {
+        case "create": {
+          const options = mergeCredentialCreationOptions(challengeResponse.webauthn.credential_options.publicKey, overrides === null || overrides === undefined ? undefined : overrides.create);
+          const { data, error: error51 } = await createCredential({
+            publicKey: options,
+            signal: abortSignal
+          });
+          if (data) {
+            return {
+              data: {
+                factorId,
+                challengeId: challengeResponse.id,
+                webauthn: {
+                  type: challengeResponse.webauthn.type,
+                  credential_response: data
+                }
+              },
+              error: null
+            };
+          }
+          return { data: null, error: error51 };
+        }
+        case "request": {
+          const options = mergeCredentialRequestOptions(challengeResponse.webauthn.credential_options.publicKey, overrides === null || overrides === undefined ? undefined : overrides.request);
+          const { data, error: error51 } = await getCredential(Object.assign(Object.assign({}, challengeResponse.webauthn.credential_options), { publicKey: options, signal: abortSignal }));
+          if (data) {
+            return {
+              data: {
+                factorId,
+                challengeId: challengeResponse.id,
+                webauthn: {
+                  type: challengeResponse.webauthn.type,
+                  credential_response: data
+                }
+              },
+              error: null
+            };
+          }
+          return { data: null, error: error51 };
+        }
+      }
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      return {
+        data: null,
+        error: new AuthUnknownError("Unexpected error in challenge", error51)
+      };
+    }
+  }
+  async _verify({ challengeId, factorId, webauthn }) {
+    return this.client.mfa.verify({
+      factorId,
+      challengeId,
+      webauthn
+    });
+  }
+  async _authenticate({ factorId, webauthn: { rpId = typeof window !== "undefined" ? window.location.hostname : undefined, rpOrigins = typeof window !== "undefined" ? [window.location.origin] : undefined, signal } = {} }, overrides) {
+    if (!rpId) {
+      return {
+        data: null,
+        error: new AuthError("rpId is required for WebAuthn authentication")
+      };
+    }
+    try {
+      if (!browserSupportsWebAuthn()) {
+        return {
+          data: null,
+          error: new AuthUnknownError("Browser does not support WebAuthn", null)
+        };
+      }
+      const { data: challengeResponse, error: challengeError } = await this.challenge({
+        factorId,
+        webauthn: { rpId, rpOrigins },
+        signal
+      }, { request: overrides });
+      if (!challengeResponse) {
+        return { data: null, error: challengeError };
+      }
+      const { webauthn } = challengeResponse;
+      return this._verify({
+        factorId,
+        challengeId: challengeResponse.challengeId,
+        webauthn: {
+          type: webauthn.type,
+          rpId,
+          rpOrigins,
+          credential_response: webauthn.credential_response
+        }
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      return {
+        data: null,
+        error: new AuthUnknownError("Unexpected error in authenticate", error51)
+      };
+    }
+  }
+  async _register({ friendlyName, webauthn: { rpId = typeof window !== "undefined" ? window.location.hostname : undefined, rpOrigins = typeof window !== "undefined" ? [window.location.origin] : undefined, signal } = {} }, overrides) {
+    if (!rpId) {
+      return {
+        data: null,
+        error: new AuthError("rpId is required for WebAuthn registration")
+      };
+    }
+    try {
+      if (!browserSupportsWebAuthn()) {
+        return {
+          data: null,
+          error: new AuthUnknownError("Browser does not support WebAuthn", null)
+        };
+      }
+      const { data: factor, error: enrollError } = await this._enroll({
+        friendlyName
+      });
+      if (!factor) {
+        await this.client.mfa.listFactors().then((factors) => {
+          var _a3;
+          return (_a3 = factors.data) === null || _a3 === undefined ? undefined : _a3.all.find((v) => v.factor_type === "webauthn" && v.friendly_name === friendlyName && v.status === "unverified");
+        }).then((factor2) => factor2 ? this.client.mfa.unenroll({ factorId: factor2 === null || factor2 === undefined ? undefined : factor2.id }) : undefined);
+        return { data: null, error: enrollError };
+      }
+      const { data: challengeResponse, error: challengeError } = await this._challenge({
+        factorId: factor.id,
+        friendlyName: factor.friendly_name,
+        webauthn: { rpId, rpOrigins },
+        signal
+      }, {
+        create: overrides
+      });
+      if (!challengeResponse) {
+        return { data: null, error: challengeError };
+      }
+      return this._verify({
+        factorId: factor.id,
+        challengeId: challengeResponse.challengeId,
+        webauthn: {
+          rpId,
+          rpOrigins,
+          type: challengeResponse.webauthn.type,
+          credential_response: challengeResponse.webauthn.credential_response
+        }
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return { data: null, error: error51 };
+      }
+      return {
+        data: null,
+        error: new AuthUnknownError("Unexpected error in register", error51)
+      };
+    }
+  }
+}
+
+// ../node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
+polyfillGlobalThis();
+var DEFAULT_OPTIONS = {
+  url: GOTRUE_URL,
+  storageKey: STORAGE_KEY,
+  autoRefreshToken: true,
+  persistSession: true,
+  detectSessionInUrl: true,
+  headers: DEFAULT_HEADERS2,
+  flowType: "implicit",
+  debug: false,
+  hasCustomAuthorizationHeader: false,
+  throwOnError: false,
+  lockAcquireTimeout: 5000,
+  skipAutoInitialize: false,
+  experimental: {}
+};
+var GLOBAL_JWKS = {};
+var deprecatedLockWarned = false;
+
+class GoTrueClient {
+  get jwks() {
+    var _a3, _b;
+    return (_b = (_a3 = GLOBAL_JWKS[this.storageKey]) === null || _a3 === undefined ? undefined : _a3.jwks) !== null && _b !== undefined ? _b : { keys: [] };
+  }
+  set jwks(value) {
+    GLOBAL_JWKS[this.storageKey] = Object.assign(Object.assign({}, GLOBAL_JWKS[this.storageKey]), { jwks: value });
+  }
+  get jwks_cached_at() {
+    var _a3, _b;
+    return (_b = (_a3 = GLOBAL_JWKS[this.storageKey]) === null || _a3 === undefined ? undefined : _a3.cachedAt) !== null && _b !== undefined ? _b : Number.MIN_SAFE_INTEGER;
+  }
+  set jwks_cached_at(value) {
+    GLOBAL_JWKS[this.storageKey] = Object.assign(Object.assign({}, GLOBAL_JWKS[this.storageKey]), { cachedAt: value });
+  }
+  constructor(options) {
+    var _a3, _b, _c;
+    this.userStorage = null;
+    this.memoryStorage = null;
+    this.stateChangeEmitters = new Map;
+    this.autoRefreshTicker = null;
+    this.autoRefreshTickTimeout = null;
+    this.visibilityChangedCallback = null;
+    this.refreshingDeferred = null;
+    this.lastRefreshFailure = null;
+    this._sessionRemovalEpoch = 0;
+    this.initializePromise = null;
+    this._pendingInitNotifications = null;
+    this.detectSessionInUrl = true;
+    this.hasCustomAuthorizationHeader = false;
+    this.suppressGetSessionWarning = false;
+    this.lock = null;
+    this.lockAcquired = false;
+    this.pendingInLock = [];
+    this.broadcastChannel = null;
+    this.logger = console.log;
+    const settings = Object.assign(Object.assign({}, DEFAULT_OPTIONS), options);
+    this.storageKey = settings.storageKey;
+    this.instanceID = (_a3 = GoTrueClient.nextInstanceID[this.storageKey]) !== null && _a3 !== undefined ? _a3 : 0;
+    GoTrueClient.nextInstanceID[this.storageKey] = this.instanceID + 1;
+    this.logDebugMessages = !!settings.debug;
+    if (typeof settings.debug === "function") {
+      this.logger = settings.debug;
+    }
+    if (this.instanceID > 0 && isBrowser()) {
+      const message = `${this._logPrefix()} Multiple GoTrueClient instances detected in the same browser context. It is not an error, but this should be avoided as it may produce undefined behavior when used concurrently under the same storage key.`;
+      console.warn(message);
+      if (this.logDebugMessages) {
+        console.trace(message);
+      }
+    }
+    this.persistSession = settings.persistSession;
+    this.autoRefreshToken = settings.autoRefreshToken;
+    this.experimental = (_b = settings.experimental) !== null && _b !== undefined ? _b : {};
+    this.admin = new GoTrueAdminApi({
+      url: settings.url,
+      headers: settings.headers,
+      fetch: settings.fetch,
+      experimental: this.experimental
+    });
+    this.url = settings.url;
+    this.headers = settings.headers;
+    this.fetch = resolveFetch3(settings.fetch);
+    this.detectSessionInUrl = settings.detectSessionInUrl;
+    this.flowType = settings.flowType;
+    this.hasCustomAuthorizationHeader = settings.hasCustomAuthorizationHeader;
+    this.throwOnError = settings.throwOnError;
+    this.lockAcquireTimeout = settings.lockAcquireTimeout;
+    if (settings.lock != null) {
+      this.lock = settings.lock;
+      if (!deprecatedLockWarned) {
+        deprecatedLockWarned = true;
+        console.warn(`${this._logPrefix()} The "lock" option is deprecated and will be removed in v3. The client now coordinates session refreshes without a lock, so most apps can drop the option. See https://github.com/supabase/supabase-js/blob/master/packages/core/auth-js/migrations/lockless-coordination.md`);
+      }
+    }
+    if (!this.jwks) {
+      this.jwks = { keys: [] };
+      this.jwks_cached_at = Number.MIN_SAFE_INTEGER;
+    }
+    this.mfa = {
+      verify: this._verify.bind(this),
+      enroll: this._enroll.bind(this),
+      unenroll: this._unenroll.bind(this),
+      challenge: this._challenge.bind(this),
+      listFactors: this._listFactors.bind(this),
+      challengeAndVerify: this._challengeAndVerify.bind(this),
+      getAuthenticatorAssuranceLevel: this._getAuthenticatorAssuranceLevel.bind(this),
+      webauthn: new WebAuthnApi(this),
+      recoveryCodes: {
+        getStatus: this._getRecoveryCodesStatus.bind(this),
+        generate: this._generateRecoveryCodes.bind(this),
+        verify: this._verifyRecoveryCode.bind(this),
+        regenerate: this._regenerateRecoveryCodes.bind(this),
+        unenroll: this._unenrollRecoveryCodes.bind(this)
+      }
+    };
+    this.oauth = {
+      getAuthorizationDetails: this._getAuthorizationDetails.bind(this),
+      approveAuthorization: this._approveAuthorization.bind(this),
+      denyAuthorization: this._denyAuthorization.bind(this),
+      listGrants: this._listOAuthGrants.bind(this),
+      revokeGrant: this._revokeOAuthGrant.bind(this)
+    };
+    this.passkey = {
+      startRegistration: this._startPasskeyRegistration.bind(this),
+      verifyRegistration: this._verifyPasskeyRegistration.bind(this),
+      startAuthentication: this._startPasskeyAuthentication.bind(this),
+      verifyAuthentication: this._verifyPasskeyAuthentication.bind(this),
+      list: this._listPasskeys.bind(this),
+      update: this._updatePasskey.bind(this),
+      delete: this._deletePasskey.bind(this)
+    };
+    if (this.persistSession) {
+      if (settings.storage) {
+        this.storage = settings.storage;
+      } else {
+        if (supportsLocalStorage()) {
+          this.storage = globalThis.localStorage;
+        } else {
+          this.memoryStorage = {};
+          this.storage = memoryLocalStorageAdapter(this.memoryStorage);
+        }
+      }
+      if (settings.userStorage) {
+        this.userStorage = settings.userStorage;
+      }
+    } else {
+      this.memoryStorage = {};
+      this.storage = memoryLocalStorageAdapter(this.memoryStorage);
+    }
+    if (isBrowser() && globalThis.BroadcastChannel && this.persistSession && this.storageKey) {
+      try {
+        this.broadcastChannel = new globalThis.BroadcastChannel(this.storageKey);
+      } catch (e) {
+        console.error("Failed to create a new BroadcastChannel, multi-tab state changes will not be available", e);
+      }
+      (_c = this.broadcastChannel) === null || _c === undefined || _c.addEventListener("message", async (event) => {
+        this._debug("received broadcast notification from other tab or client", event);
+        if (event.data.event === "TOKEN_REFRESHED" || event.data.event === "SIGNED_IN") {
+          this.lastRefreshFailure = null;
+        }
+        try {
+          await this._notifyAllSubscribers(event.data.event, event.data.session, false);
+        } catch (error51) {
+          this._debug("#broadcastChannel", "error", error51);
+        }
+      });
+    }
+    if (!settings.skipAutoInitialize) {
+      this.initialize().catch((error51) => {
+        this._debug("#initialize()", "error", error51);
+      });
+    }
+  }
+  isThrowOnErrorEnabled() {
+    return this.throwOnError;
+  }
+  _returnResult(result) {
+    if (this.throwOnError && result && result.error) {
+      throw result.error;
+    }
+    return result;
+  }
+  _logPrefix() {
+    return "GoTrueClient@" + `${this.storageKey}:${this.instanceID} (${version5}) ${new Date().toISOString()}`;
+  }
+  _debug(...args) {
+    if (this.logDebugMessages) {
+      this.logger(this._logPrefix(), ...args);
+    }
+    return this;
+  }
+  async initialize() {
+    var _a3;
+    if (this.initializePromise) {
+      return await this.initializePromise;
+    }
+    this._pendingInitNotifications = [];
+    this.initializePromise = (async () => {
+      if (this.lock != null) {
+        return await this._acquireLock(this.lockAcquireTimeout, async () => {
+          return await this._initialize();
+        });
+      }
+      return await this._initialize();
+    })();
+    const result = await this.initializePromise;
+    const queue = (_a3 = this._pendingInitNotifications) !== null && _a3 !== undefined ? _a3 : [];
+    this._pendingInitNotifications = null;
+    for (const n of queue) {
+      await this._notifyAllSubscribers(n.event, n.session, n.broadcast);
+    }
+    return result;
+  }
+  async _initialize() {
+    var _a3;
+    try {
+      let params = {};
+      let callbackUrlType = "none";
+      if (isBrowser()) {
+        params = parseParametersFromURL(window.location.href);
+        if (this._isImplicitGrantCallback(params)) {
+          callbackUrlType = "implicit";
+        } else if (await this._isPKCECallback(params)) {
+          callbackUrlType = "pkce";
+        }
+      }
+      if (isBrowser() && this.detectSessionInUrl && callbackUrlType !== "none") {
+        const { data, error: error51 } = await this._getSessionFromURL(params, callbackUrlType);
+        if (error51) {
+          this._debug("#_initialize()", "error detecting session from URL", error51);
+          if (isAuthImplicitGrantRedirectError(error51)) {
+            const errorCode = (_a3 = error51.details) === null || _a3 === undefined ? undefined : _a3.code;
+            if (errorCode === "identity_already_exists" || errorCode === "identity_not_found" || errorCode === "single_identity_not_deletable") {
+              return { error: error51 };
+            }
+          }
+          return { error: error51 };
+        }
+        const { session, redirectType } = data;
+        this._debug("#_initialize()", "detected session in URL", session, "redirect type", redirectType);
+        await this._saveSession(session);
+        setTimeout(async () => {
+          if (redirectType === "recovery") {
+            await this._notifyAllSubscribers("PASSWORD_RECOVERY", session);
+          } else {
+            await this._notifyAllSubscribers("SIGNED_IN", session);
+          }
+        }, 0);
+        return { error: null };
+      }
+      await this._recoverAndRefresh();
+      return { error: null };
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ error: error51 });
+      }
+      return this._returnResult({
+        error: new AuthUnknownError("Unexpected error during initialization", error51)
+      });
+    } finally {
+      await this._handleVisibilityChange();
+      this._debug("#_initialize()", "end");
+    }
+  }
+  async signInAnonymously(credentials) {
+    var _a3, _b, _c;
+    try {
+      const res = await _request(this.fetch, "POST", `${this.url}/signup`, {
+        headers: this.headers,
+        body: {
+          data: (_b = (_a3 = credentials === null || credentials === undefined ? undefined : credentials.options) === null || _a3 === undefined ? undefined : _a3.data) !== null && _b !== undefined ? _b : {},
+          gotrue_meta_security: { captcha_token: (_c = credentials === null || credentials === undefined ? undefined : credentials.options) === null || _c === undefined ? undefined : _c.captchaToken }
+        },
+        xform: _sessionResponse
+      });
+      const { data, error: error51 } = res;
+      if (error51 || !data) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      const session = data.session;
+      const user = data.user;
+      if (data.session) {
+        await this._saveSession(data.session);
+        await this._notifyAllSubscribers("SIGNED_IN", session);
+      }
+      return this._returnResult({ data: { user, session }, error: null });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async signUp(credentials) {
+    var _a3, _b, _c;
+    let flowId = null;
+    try {
+      let res;
+      if ("email" in credentials) {
+        const { email: email3, password, options } = credentials;
+        let codeChallenge = null;
+        let codeChallengeMethod = null;
+        if (this.flowType === "pkce") {
+          [codeChallenge, codeChallengeMethod, flowId] = await this._getCodeChallengeAndMethod();
+        }
+        res = await _request(this.fetch, "POST", `${this.url}/signup`, {
+          headers: this.headers,
+          redirectTo: this._maybeAppendFlowIdToRedirect(options === null || options === undefined ? undefined : options.emailRedirectTo, flowId),
+          body: {
+            email: email3,
+            password,
+            data: (_a3 = options === null || options === undefined ? undefined : options.data) !== null && _a3 !== undefined ? _a3 : {},
+            gotrue_meta_security: { captcha_token: options === null || options === undefined ? undefined : options.captchaToken },
+            code_challenge: codeChallenge,
+            code_challenge_method: codeChallengeMethod
+          },
+          xform: _sessionResponse
+        });
+      } else if ("phone" in credentials) {
+        const { phone, password, options } = credentials;
+        res = await _request(this.fetch, "POST", `${this.url}/signup`, {
+          headers: this.headers,
+          body: {
+            phone,
+            password,
+            data: (_b = options === null || options === undefined ? undefined : options.data) !== null && _b !== undefined ? _b : {},
+            channel: (_c = options === null || options === undefined ? undefined : options.channel) !== null && _c !== undefined ? _c : "sms",
+            gotrue_meta_security: { captcha_token: options === null || options === undefined ? undefined : options.captchaToken }
+          },
+          xform: _sessionResponse
+        });
+      } else {
+        throw new AuthInvalidCredentialsError("You must provide either an email or phone number and a password");
+      }
+      const { data, error: error51 } = res;
+      if (error51 || !data) {
+        await removePKCEVerifier(this.storage, this.storageKey, flowId);
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      const session = data.session;
+      const user = data.user;
+      if (data.session) {
+        await this._saveSession(data.session);
+        await this._notifyAllSubscribers("SIGNED_IN", session);
+      }
+      return this._returnResult({ data: { user, session }, error: null });
+    } catch (error51) {
+      await removePKCEVerifier(this.storage, this.storageKey, flowId);
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async signInWithPassword(credentials) {
+    try {
+      let res;
+      if ("email" in credentials) {
+        const { email: email3, password, options } = credentials;
+        res = await _request(this.fetch, "POST", `${this.url}/token?grant_type=password`, {
+          headers: this.headers,
+          body: {
+            email: email3,
+            password,
+            gotrue_meta_security: { captcha_token: options === null || options === undefined ? undefined : options.captchaToken }
+          },
+          xform: _sessionResponsePassword
+        });
+      } else if ("phone" in credentials) {
+        const { phone, password, options } = credentials;
+        res = await _request(this.fetch, "POST", `${this.url}/token?grant_type=password`, {
+          headers: this.headers,
+          body: {
+            phone,
+            password,
+            gotrue_meta_security: { captcha_token: options === null || options === undefined ? undefined : options.captchaToken }
+          },
+          xform: _sessionResponsePassword
+        });
+      } else {
+        throw new AuthInvalidCredentialsError("You must provide either an email or phone number and a password");
+      }
+      const { data, error: error51 } = res;
+      if (error51) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      } else if (!data || !data.session || !data.user) {
+        const invalidTokenError = new AuthInvalidTokenResponseError;
+        return this._returnResult({ data: { user: null, session: null }, error: invalidTokenError });
+      }
+      if (data.session) {
+        await this._saveSession(data.session);
+        await this._notifyAllSubscribers("SIGNED_IN", data.session);
+      }
+      return this._returnResult({
+        data: Object.assign({ user: data.user, session: data.session }, data.weak_password ? { weakPassword: data.weak_password } : null),
+        error: error51
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async signInWithOAuth(credentials) {
+    var _a3, _b, _c, _d;
+    return await this._handleProviderSignIn(credentials.provider, {
+      redirectTo: (_a3 = credentials.options) === null || _a3 === undefined ? undefined : _a3.redirectTo,
+      scopes: (_b = credentials.options) === null || _b === undefined ? undefined : _b.scopes,
+      queryParams: (_c = credentials.options) === null || _c === undefined ? undefined : _c.queryParams,
+      skipBrowserRedirect: (_d = credentials.options) === null || _d === undefined ? undefined : _d.skipBrowserRedirect
+    });
+  }
+  async exchangeCodeForSession(authCode, options) {
+    await this.initializePromise;
+    if (this.lock != null) {
+      return this._acquireLock(this.lockAcquireTimeout, async () => {
+        return this._exchangeCodeForSession(authCode, options);
+      });
+    }
+    return this._exchangeCodeForSession(authCode, options);
+  }
+  async signInWithWeb3(credentials) {
+    const { chain } = credentials;
+    switch (chain) {
+      case "ethereum":
+        return await this.signInWithEthereum(credentials);
+      case "solana":
+        return await this.signInWithSolana(credentials);
+      default:
+        throw new Error(`@supabase/auth-js: Unsupported chain "${chain}"`);
+    }
+  }
+  async signInWithEthereum(credentials) {
+    var _a3, _b, _c, _d, _f, _g, _h, _j, _k, _l, _m;
+    let message;
+    let signature;
+    if ("message" in credentials) {
+      message = credentials.message;
+      signature = credentials.signature;
+    } else {
+      const { chain, wallet, statement, options } = credentials;
+      let resolvedWallet;
+      if (!isBrowser()) {
+        if (typeof wallet !== "object" || !(options === null || options === undefined ? undefined : options.url)) {
+          throw new Error("@supabase/auth-js: Both wallet and url must be specified in non-browser environments.");
+        }
+        resolvedWallet = wallet;
+      } else if (typeof wallet === "object") {
+        resolvedWallet = wallet;
+      } else {
+        const windowAny = window;
+        if ("ethereum" in windowAny && typeof windowAny.ethereum === "object" && "request" in windowAny.ethereum && typeof windowAny.ethereum.request === "function") {
+          resolvedWallet = windowAny.ethereum;
+        } else {
+          throw new Error(`@supabase/auth-js: No compatible Ethereum wallet interface on the window object (window.ethereum) detected. Make sure the user already has a wallet installed and connected for this app. Prefer passing the wallet interface object directly to signInWithWeb3({ chain: 'ethereum', wallet: resolvedUserWallet }) instead.`);
+        }
+      }
+      const url2 = new URL((_a3 = options === null || options === undefined ? undefined : options.url) !== null && _a3 !== undefined ? _a3 : window.location.href);
+      const accounts = await resolvedWallet.request({
+        method: "eth_requestAccounts"
+      }).then((accs) => accs).catch(() => {
+        throw new Error(`@supabase/auth-js: Wallet method eth_requestAccounts is missing or invalid`);
+      });
+      if (!accounts || accounts.length === 0) {
+        throw new Error(`@supabase/auth-js: No accounts available. Please ensure the wallet is connected.`);
+      }
+      const address = getAddress(accounts[0]);
+      let chainId = (_b = options === null || options === undefined ? undefined : options.signInWithEthereum) === null || _b === undefined ? undefined : _b.chainId;
+      if (!chainId) {
+        const chainIdHex = await resolvedWallet.request({
+          method: "eth_chainId"
+        });
+        chainId = fromHex(chainIdHex);
+      }
+      const siweMessage = {
+        domain: url2.host,
+        address,
+        statement,
+        uri: url2.href,
+        version: "1",
+        chainId,
+        nonce: (_c = options === null || options === undefined ? undefined : options.signInWithEthereum) === null || _c === undefined ? undefined : _c.nonce,
+        issuedAt: (_f = (_d = options === null || options === undefined ? undefined : options.signInWithEthereum) === null || _d === undefined ? undefined : _d.issuedAt) !== null && _f !== undefined ? _f : new Date,
+        expirationTime: (_g = options === null || options === undefined ? undefined : options.signInWithEthereum) === null || _g === undefined ? undefined : _g.expirationTime,
+        notBefore: (_h = options === null || options === undefined ? undefined : options.signInWithEthereum) === null || _h === undefined ? undefined : _h.notBefore,
+        requestId: (_j = options === null || options === undefined ? undefined : options.signInWithEthereum) === null || _j === undefined ? undefined : _j.requestId,
+        resources: (_k = options === null || options === undefined ? undefined : options.signInWithEthereum) === null || _k === undefined ? undefined : _k.resources
+      };
+      message = createSiweMessage(siweMessage);
+      signature = await resolvedWallet.request({
+        method: "personal_sign",
+        params: [toHex(message), address]
+      });
+    }
+    try {
+      const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/token?grant_type=web3`, {
+        headers: this.headers,
+        body: Object.assign({
+          chain: "ethereum",
+          message,
+          signature
+        }, ((_l = credentials.options) === null || _l === undefined ? undefined : _l.captchaToken) ? { gotrue_meta_security: { captcha_token: (_m = credentials.options) === null || _m === undefined ? undefined : _m.captchaToken } } : null),
+        xform: _sessionResponse
+      });
+      if (error51) {
+        throw error51;
+      }
+      if (!data || !data.session || !data.user) {
+        const invalidTokenError = new AuthInvalidTokenResponseError;
+        return this._returnResult({ data: { user: null, session: null }, error: invalidTokenError });
+      }
+      if (data.session) {
+        await this._saveSession(data.session);
+        await this._notifyAllSubscribers("SIGNED_IN", data.session);
+      }
+      return this._returnResult({ data: Object.assign({}, data), error: error51 });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async signInWithSolana(credentials) {
+    var _a3, _b, _c, _d, _f, _g, _h, _j, _k, _l, _m, _o;
+    let message;
+    let signature;
+    if ("message" in credentials) {
+      message = credentials.message;
+      signature = credentials.signature;
+    } else {
+      const { chain, wallet, statement, options } = credentials;
+      let resolvedWallet;
+      if (!isBrowser()) {
+        if (typeof wallet !== "object" || !(options === null || options === undefined ? undefined : options.url)) {
+          throw new Error("@supabase/auth-js: Both wallet and url must be specified in non-browser environments.");
+        }
+        resolvedWallet = wallet;
+      } else if (typeof wallet === "object") {
+        resolvedWallet = wallet;
+      } else {
+        const windowAny = window;
+        if ("solana" in windowAny && typeof windowAny.solana === "object" && (("signIn" in windowAny.solana) && typeof windowAny.solana.signIn === "function" || ("signMessage" in windowAny.solana) && typeof windowAny.solana.signMessage === "function")) {
+          resolvedWallet = windowAny.solana;
+        } else {
+          throw new Error(`@supabase/auth-js: No compatible Solana wallet interface on the window object (window.solana) detected. Make sure the user already has a wallet installed and connected for this app. Prefer passing the wallet interface object directly to signInWithWeb3({ chain: 'solana', wallet: resolvedUserWallet }) instead.`);
+        }
+      }
+      const url2 = new URL((_a3 = options === null || options === undefined ? undefined : options.url) !== null && _a3 !== undefined ? _a3 : window.location.href);
+      if ("signIn" in resolvedWallet && resolvedWallet.signIn) {
+        const output = await resolvedWallet.signIn(Object.assign(Object.assign(Object.assign({ issuedAt: new Date().toISOString() }, options === null || options === undefined ? undefined : options.signInWithSolana), {
+          version: "1",
+          domain: url2.host,
+          uri: url2.href
+        }), statement ? { statement } : null));
+        let outputToProcess;
+        if (Array.isArray(output) && output[0] && typeof output[0] === "object") {
+          outputToProcess = output[0];
+        } else if (output && typeof output === "object" && "signedMessage" in output && "signature" in output) {
+          outputToProcess = output;
+        } else {
+          throw new Error("@supabase/auth-js: Wallet method signIn() returned unrecognized value");
+        }
+        if ("signedMessage" in outputToProcess && "signature" in outputToProcess && (typeof outputToProcess.signedMessage === "string" || outputToProcess.signedMessage instanceof Uint8Array) && outputToProcess.signature instanceof Uint8Array) {
+          message = typeof outputToProcess.signedMessage === "string" ? outputToProcess.signedMessage : new TextDecoder().decode(outputToProcess.signedMessage);
+          signature = outputToProcess.signature;
+        } else {
+          throw new Error("@supabase/auth-js: Wallet method signIn() API returned object without signedMessage and signature fields");
+        }
+      } else {
+        if (!("signMessage" in resolvedWallet) || typeof resolvedWallet.signMessage !== "function" || !("publicKey" in resolvedWallet) || typeof resolvedWallet !== "object" || !resolvedWallet.publicKey || !("toBase58" in resolvedWallet.publicKey) || typeof resolvedWallet.publicKey.toBase58 !== "function") {
+          throw new Error("@supabase/auth-js: Wallet does not have a compatible signMessage() and publicKey.toBase58() API");
+        }
+        message = [
+          `${url2.host} wants you to sign in with your Solana account:`,
+          resolvedWallet.publicKey.toBase58(),
+          ...statement ? ["", statement, ""] : [""],
+          "Version: 1",
+          `URI: ${url2.href}`,
+          `Issued At: ${(_c = (_b = options === null || options === undefined ? undefined : options.signInWithSolana) === null || _b === undefined ? undefined : _b.issuedAt) !== null && _c !== undefined ? _c : new Date().toISOString()}`,
+          ...((_d = options === null || options === undefined ? undefined : options.signInWithSolana) === null || _d === undefined ? undefined : _d.notBefore) ? [`Not Before: ${options.signInWithSolana.notBefore}`] : [],
+          ...((_f = options === null || options === undefined ? undefined : options.signInWithSolana) === null || _f === undefined ? undefined : _f.expirationTime) ? [`Expiration Time: ${options.signInWithSolana.expirationTime}`] : [],
+          ...((_g = options === null || options === undefined ? undefined : options.signInWithSolana) === null || _g === undefined ? undefined : _g.chainId) ? [`Chain ID: ${options.signInWithSolana.chainId}`] : [],
+          ...((_h = options === null || options === undefined ? undefined : options.signInWithSolana) === null || _h === undefined ? undefined : _h.nonce) ? [`Nonce: ${options.signInWithSolana.nonce}`] : [],
+          ...((_j = options === null || options === undefined ? undefined : options.signInWithSolana) === null || _j === undefined ? undefined : _j.requestId) ? [`Request ID: ${options.signInWithSolana.requestId}`] : [],
+          ...((_l = (_k = options === null || options === undefined ? undefined : options.signInWithSolana) === null || _k === undefined ? undefined : _k.resources) === null || _l === undefined ? undefined : _l.length) ? [
+            "Resources",
+            ...options.signInWithSolana.resources.map((resource) => `- ${resource}`)
+          ] : []
+        ].join(`
+`);
+        const maybeSignature = await resolvedWallet.signMessage(new TextEncoder().encode(message), "utf8");
+        if (!maybeSignature || !(maybeSignature instanceof Uint8Array)) {
+          throw new Error("@supabase/auth-js: Wallet signMessage() API returned an recognized value");
+        }
+        signature = maybeSignature;
+      }
+    }
+    try {
+      const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/token?grant_type=web3`, {
+        headers: this.headers,
+        body: Object.assign({ chain: "solana", message, signature: bytesToBase64URL(signature) }, ((_m = credentials.options) === null || _m === undefined ? undefined : _m.captchaToken) ? { gotrue_meta_security: { captcha_token: (_o = credentials.options) === null || _o === undefined ? undefined : _o.captchaToken } } : null),
+        xform: _sessionResponse
+      });
+      if (error51) {
+        throw error51;
+      }
+      if (!data || !data.session || !data.user) {
+        const invalidTokenError = new AuthInvalidTokenResponseError;
+        return this._returnResult({ data: { user: null, session: null }, error: invalidTokenError });
+      }
+      if (data.session) {
+        await this._saveSession(data.session);
+        await this._notifyAllSubscribers("SIGNED_IN", data.session);
+      }
+      return this._returnResult({ data: Object.assign({}, data), error: error51 });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _exchangeCodeForSession(authCode, options) {
+    const hasExplicitFlowId = (options === null || options === undefined ? undefined : options.flowId) != null;
+    const requestedFlowId = hasExplicitFlowId ? validatePKCEFlowId(options === null || options === undefined ? undefined : options.flowId) : isBrowser() ? validatePKCEFlowId(parseParametersFromURL(window.location.href)[PKCE_FLOW_ID_PARAM]) : null;
+    if (hasExplicitFlowId && !requestedFlowId) {
+      this._debug("#_exchangeCodeForSession()", "provided flowId is not a valid flow id", options === null || options === undefined ? undefined : options.flowId);
+    }
+    const { verifier: storageItem, flowId } = hasExplicitFlowId && !requestedFlowId ? { verifier: null, flowId: null } : await retrievePKCEVerifier(this.storage, this.storageKey, requestedFlowId);
+    const [codeVerifier, redirectType] = (storageItem !== null && storageItem !== undefined ? storageItem : "").split("/");
+    try {
+      if (!codeVerifier && this.flowType === "pkce") {
+        throw new AuthPKCECodeVerifierMissingError;
+      }
+      const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/token?grant_type=pkce`, {
+        headers: this.headers,
+        body: {
+          auth_code: authCode,
+          code_verifier: codeVerifier
+        },
+        xform: _sessionResponse
+      });
+      await removePKCEVerifier(this.storage, this.storageKey, flowId);
+      if (error51) {
+        throw error51;
+      }
+      if (!data || !data.session || !data.user) {
+        const invalidTokenError = new AuthInvalidTokenResponseError;
+        return this._returnResult({
+          data: { user: null, session: null, redirectType: null },
+          error: invalidTokenError
+        });
+      }
+      if (data.session) {
+        await this._saveSession(data.session);
+        await this._notifyAllSubscribers(redirectType === "recovery" ? "PASSWORD_RECOVERY" : "SIGNED_IN", data.session);
+      }
+      return this._returnResult({ data: Object.assign(Object.assign({}, data), { redirectType: redirectType !== null && redirectType !== undefined ? redirectType : null }), error: error51 });
+    } catch (error51) {
+      await removePKCEVerifier(this.storage, this.storageKey, flowId);
+      if (isAuthError(error51)) {
+        return this._returnResult({
+          data: { user: null, session: null, redirectType: null },
+          error: error51
+        });
+      }
+      throw error51;
+    }
+  }
+  async signInWithIdToken(credentials) {
+    try {
+      const { options, provider, token, access_token, nonce } = credentials;
+      const res = await _request(this.fetch, "POST", `${this.url}/token?grant_type=id_token`, {
+        headers: this.headers,
+        body: {
+          provider,
+          id_token: token,
+          access_token,
+          nonce,
+          gotrue_meta_security: { captcha_token: options === null || options === undefined ? undefined : options.captchaToken }
+        },
+        xform: _sessionResponse
+      });
+      const { data, error: error51 } = res;
+      if (error51) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      } else if (!data || !data.session || !data.user) {
+        const invalidTokenError = new AuthInvalidTokenResponseError;
+        return this._returnResult({ data: { user: null, session: null }, error: invalidTokenError });
+      }
+      if (data.session) {
+        await this._saveSession(data.session);
+        await this._notifyAllSubscribers("SIGNED_IN", data.session);
+      }
+      return this._returnResult({ data, error: error51 });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async signInWithOtp(credentials) {
+    var _a3, _b, _c, _d, _f;
+    let flowId = null;
+    try {
+      if ("email" in credentials) {
+        const { email: email3, options } = credentials;
+        let codeChallenge = null;
+        let codeChallengeMethod = null;
+        if (this.flowType === "pkce") {
+          [codeChallenge, codeChallengeMethod, flowId] = await this._getCodeChallengeAndMethod();
+        }
+        const { error: error51 } = await _request(this.fetch, "POST", `${this.url}/otp`, {
+          headers: this.headers,
+          body: {
+            email: email3,
+            data: (_a3 = options === null || options === undefined ? undefined : options.data) !== null && _a3 !== undefined ? _a3 : {},
+            create_user: (_b = options === null || options === undefined ? undefined : options.shouldCreateUser) !== null && _b !== undefined ? _b : true,
+            gotrue_meta_security: { captcha_token: options === null || options === undefined ? undefined : options.captchaToken },
+            code_challenge: codeChallenge,
+            code_challenge_method: codeChallengeMethod
+          },
+          redirectTo: this._maybeAppendFlowIdToRedirect(options === null || options === undefined ? undefined : options.emailRedirectTo, flowId)
+        });
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      if ("phone" in credentials) {
+        const { phone, options } = credentials;
+        const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/otp`, {
+          headers: this.headers,
+          body: {
+            phone,
+            data: (_c = options === null || options === undefined ? undefined : options.data) !== null && _c !== undefined ? _c : {},
+            create_user: (_d = options === null || options === undefined ? undefined : options.shouldCreateUser) !== null && _d !== undefined ? _d : true,
+            gotrue_meta_security: { captcha_token: options === null || options === undefined ? undefined : options.captchaToken },
+            channel: (_f = options === null || options === undefined ? undefined : options.channel) !== null && _f !== undefined ? _f : "sms"
+          }
+        });
+        return this._returnResult({
+          data: { user: null, session: null, messageId: data === null || data === undefined ? undefined : data.message_id },
+          error: error51
+        });
+      }
+      throw new AuthInvalidCredentialsError("You must provide either an email or phone number.");
+    } catch (error51) {
+      await removePKCEVerifier(this.storage, this.storageKey, flowId);
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async verifyOtp(params) {
+    var _a3, _b;
+    try {
+      let redirectTo = undefined;
+      let captchaToken = undefined;
+      if ("options" in params) {
+        redirectTo = (_a3 = params.options) === null || _a3 === undefined ? undefined : _a3.redirectTo;
+        captchaToken = (_b = params.options) === null || _b === undefined ? undefined : _b.captchaToken;
+      }
+      const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/verify`, {
+        headers: this.headers,
+        body: Object.assign(Object.assign({}, params), { gotrue_meta_security: { captcha_token: captchaToken } }),
+        redirectTo,
+        xform: _sessionResponse
+      });
+      if (error51) {
+        throw error51;
+      }
+      if (!data) {
+        const tokenVerificationError = new Error("An error occurred on token verification.");
+        throw tokenVerificationError;
+      }
+      const session = data.session;
+      const user = data.user;
+      if (session === null || session === undefined ? undefined : session.access_token) {
+        await this._saveSession(session);
+        await this._notifyAllSubscribers(params.type == "recovery" ? "PASSWORD_RECOVERY" : "SIGNED_IN", session);
+      }
+      return this._returnResult({ data: { user, session }, error: null });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async signInWithSSO(params) {
+    var _a3, _b, _c, _d;
+    let flowId = null;
+    try {
+      let codeChallenge = null;
+      let codeChallengeMethod = null;
+      if (this.flowType === "pkce") {
+        [codeChallenge, codeChallengeMethod, flowId] = await this._getCodeChallengeAndMethod();
+      }
+      const result = await _request(this.fetch, "POST", `${this.url}/sso`, {
+        body: Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, "providerId" in params ? { provider_id: params.providerId } : null), "domain" in params ? { domain: params.domain } : null), { redirect_to: this._maybeAppendFlowIdToRedirect((_a3 = params.options) === null || _a3 === undefined ? undefined : _a3.redirectTo, flowId) }), ((_b = params === null || params === undefined ? undefined : params.options) === null || _b === undefined ? undefined : _b.captchaToken) ? { gotrue_meta_security: { captcha_token: params.options.captchaToken } } : null), { skip_http_redirect: true, code_challenge: codeChallenge, code_challenge_method: codeChallengeMethod }),
+        headers: this.headers,
+        xform: _ssoResponse
+      });
+      if (((_c = result.data) === null || _c === undefined ? undefined : _c.url) && isBrowser() && !((_d = params.options) === null || _d === undefined ? undefined : _d.skipBrowserRedirect)) {
+        window.location.assign(result.data.url);
+      }
+      return this._returnResult(result);
+    } catch (error51) {
+      await removePKCEVerifier(this.storage, this.storageKey, flowId);
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async reauthenticate() {
+    await this.initializePromise;
+    if (this.lock != null) {
+      return await this._acquireLock(this.lockAcquireTimeout, async () => {
+        return await this._reauthenticate();
+      });
+    }
+    return await this._reauthenticate();
+  }
+  async _reauthenticate() {
+    try {
+      return await this._useSession(async (result) => {
+        const { data: { session }, error: sessionError } = result;
+        if (sessionError)
+          throw sessionError;
+        if (!session)
+          throw new AuthSessionMissingError;
+        const { error: error51 } = await _request(this.fetch, "GET", `${this.url}/reauthenticate`, {
+          headers: this.headers,
+          jwt: session.access_token
+        });
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async resend(credentials) {
+    let flowId = null;
+    try {
+      const endpoint = `${this.url}/resend`;
+      if ("email" in credentials) {
+        const { email: email3, type, options } = credentials;
+        let codeChallenge = null;
+        let codeChallengeMethod = null;
+        if (this.flowType === "pkce") {
+          [codeChallenge, codeChallengeMethod, flowId] = await this._getCodeChallengeAndMethod();
+        }
+        const { error: error51 } = await _request(this.fetch, "POST", endpoint, {
+          headers: this.headers,
+          body: {
+            email: email3,
+            type,
+            gotrue_meta_security: { captcha_token: options === null || options === undefined ? undefined : options.captchaToken },
+            code_challenge: codeChallenge,
+            code_challenge_method: codeChallengeMethod
+          },
+          redirectTo: this._maybeAppendFlowIdToRedirect(options === null || options === undefined ? undefined : options.emailRedirectTo, flowId)
+        });
+        if (error51) {
+          await removePKCEVerifier(this.storage, this.storageKey, flowId);
+        }
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      } else if ("phone" in credentials) {
+        const { phone, type, options } = credentials;
+        const { data, error: error51 } = await _request(this.fetch, "POST", endpoint, {
+          headers: this.headers,
+          body: {
+            phone,
+            type,
+            gotrue_meta_security: { captcha_token: options === null || options === undefined ? undefined : options.captchaToken }
+          }
+        });
+        return this._returnResult({
+          data: { user: null, session: null, messageId: data === null || data === undefined ? undefined : data.message_id },
+          error: error51
+        });
+      }
+      throw new AuthInvalidCredentialsError("You must provide either an email or phone number and a type");
+    } catch (error51) {
+      await removePKCEVerifier(this.storage, this.storageKey, flowId);
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async getSession() {
+    await this.initializePromise;
+    if (this.lock != null) {
+      return await this._acquireLock(this.lockAcquireTimeout, async () => {
+        return this._useSession(async (result) => {
+          return result;
+        });
+      });
+    }
+    return await this._useSession(async (result) => {
+      return result;
+    });
+  }
+  async _acquireLock(acquireTimeout, fn) {
+    this._debug("#_acquireLock", "begin", acquireTimeout);
+    try {
+      if (this.lockAcquired) {
+        const last = this.pendingInLock.length ? this.pendingInLock[this.pendingInLock.length - 1] : Promise.resolve();
+        const result = (async () => {
+          await last;
+          return await fn();
+        })();
+        this.pendingInLock.push((async () => {
+          try {
+            await result;
+          } catch (_e) {}
+        })());
+        return result;
+      }
+      return await this.lock(`lock:${this.storageKey}`, acquireTimeout, async () => {
+        this._debug("#_acquireLock", "lock acquired for storage key", this.storageKey);
+        try {
+          this.lockAcquired = true;
+          const result = fn();
+          this.pendingInLock.push((async () => {
+            try {
+              await result;
+            } catch (e) {}
+          })());
+          await result;
+          while (this.pendingInLock.length) {
+            const waitOn = [...this.pendingInLock];
+            await Promise.all(waitOn);
+            this.pendingInLock.splice(0, waitOn.length);
+          }
+          return await result;
+        } finally {
+          this._debug("#_acquireLock", "lock released for storage key", this.storageKey);
+          this.lockAcquired = false;
+        }
+      });
+    } finally {
+      this._debug("#_acquireLock", "end");
+    }
+  }
+  async _useSession(fn) {
+    this._debug("#_useSession", "begin");
+    try {
+      const result = await this.__loadSession();
+      return await fn(result);
+    } finally {
+      this._debug("#_useSession", "end");
+    }
+  }
+  async __loadSession() {
+    this._debug("#__loadSession()", "begin");
+    if (this.lock != null && !this.lockAcquired) {
+      this._debug("#__loadSession()", "used outside of an acquired lock!", new Error().stack);
+    }
+    try {
+      let currentSession = null;
+      const maybeSession = await getItemAsync(this.storage, this.storageKey);
+      this._debug("#getSession()", "session from storage", maybeSession);
+      if (maybeSession !== null) {
+        if (this._isValidSession(maybeSession)) {
+          currentSession = maybeSession;
+        } else {
+          this._debug("#getSession()", "session from storage is not valid");
+          await this._removeSession();
+        }
+      }
+      if (!currentSession) {
+        return { data: { session: null }, error: null };
+      }
+      const hasExpired = currentSession.expires_at ? currentSession.expires_at * 1000 - Date.now() < EXPIRY_MARGIN_MS : false;
+      this._debug("#__loadSession()", `session has${hasExpired ? "" : " not"} expired`, "expires_at", currentSession.expires_at);
+      if (!hasExpired) {
+        if (this.userStorage) {
+          const maybeUser = await getItemAsync(this.userStorage, this.storageKey + "-user");
+          if (maybeUser === null || maybeUser === undefined ? undefined : maybeUser.user) {
+            currentSession.user = maybeUser.user;
+          } else {
+            currentSession.user = userNotAvailableProxy();
+          }
+        }
+        if (this.storage.isServer && currentSession.user && !currentSession.user.__isUserNotAvailableProxy) {
+          const suppressWarningRef = { value: this.suppressGetSessionWarning };
+          currentSession.user = insecureUserWarningProxy(currentSession.user, suppressWarningRef);
+          if (suppressWarningRef.value) {
+            this.suppressGetSessionWarning = true;
+          }
+        }
+        return { data: { session: currentSession }, error: null };
+      }
+      const { data: session, error: error51 } = await this._callRefreshToken(currentSession.refresh_token);
+      if (error51) {
+        const accessTokenStillValid = !!(currentSession.expires_at && currentSession.expires_at * 1000 > Date.now());
+        if (accessTokenStillValid) {
+          const stillStored = await getItemAsync(this.storage, this.storageKey);
+          if (stillStored && stillStored.refresh_token === currentSession.refresh_token) {
+            return this._returnResult({ data: { session: currentSession }, error: null });
+          }
+        }
+        return this._returnResult({ data: { session: null }, error: error51 });
+      }
+      return this._returnResult({ data: { session }, error: null });
+    } finally {
+      this._debug("#__loadSession()", "end");
+    }
+  }
+  async getUser(jwt2) {
+    if (jwt2) {
+      return await this._getUser(jwt2);
+    }
+    await this.initializePromise;
+    let result;
+    if (this.lock != null) {
+      result = await this._acquireLock(this.lockAcquireTimeout, async () => {
+        return await this._getUser();
+      });
+    } else {
+      result = await this._getUser();
+    }
+    if (result.data.user) {
+      this.suppressGetSessionWarning = true;
+    }
+    return result;
+  }
+  async _getUser(jwt2) {
+    try {
+      if (jwt2) {
+        return await _request(this.fetch, "GET", `${this.url}/user`, {
+          headers: this.headers,
+          jwt: jwt2,
+          xform: _userResponse
+        });
+      }
+      return await this._useSession(async (result) => {
+        var _a3, _b, _c;
+        const { data, error: error51 } = result;
+        if (error51) {
+          throw error51;
+        }
+        if (!((_a3 = data.session) === null || _a3 === undefined ? undefined : _a3.access_token) && !this.hasCustomAuthorizationHeader) {
+          return { data: { user: null }, error: new AuthSessionMissingError };
+        }
+        return await _request(this.fetch, "GET", `${this.url}/user`, {
+          headers: this.headers,
+          jwt: (_c = (_b = data.session) === null || _b === undefined ? undefined : _b.access_token) !== null && _c !== undefined ? _c : undefined,
+          xform: _userResponse
+        });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        if (isAuthSessionMissingError(error51)) {
+          await this._removeSession();
+        }
+        return this._returnResult({ data: { user: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async updateUser(attributes, options = {}) {
+    await this.initializePromise;
+    if (this.lock != null) {
+      return await this._acquireLock(this.lockAcquireTimeout, async () => {
+        return await this._updateUser(attributes, options);
+      });
+    }
+    return await this._updateUser(attributes, options);
+  }
+  async _updateUser(attributes, options = {}) {
+    let flowId = null;
+    try {
+      return await this._useSession(async (result) => {
+        const { data: sessionData, error: sessionError } = result;
+        if (sessionError) {
+          throw sessionError;
+        }
+        if (!sessionData.session) {
+          throw new AuthSessionMissingError;
+        }
+        const session = sessionData.session;
+        let codeChallenge = null;
+        let codeChallengeMethod = null;
+        if (this.flowType === "pkce" && attributes.email != null) {
+          [codeChallenge, codeChallengeMethod, flowId] = await this._getCodeChallengeAndMethod();
+        }
+        const { data, error: userError } = await _request(this.fetch, "PUT", `${this.url}/user`, {
+          headers: this.headers,
+          redirectTo: this._maybeAppendFlowIdToRedirect(options === null || options === undefined ? undefined : options.emailRedirectTo, flowId),
+          body: Object.assign(Object.assign({}, attributes), { code_challenge: codeChallenge, code_challenge_method: codeChallengeMethod }),
+          jwt: session.access_token,
+          xform: _userResponse
+        });
+        if (userError) {
+          throw userError;
+        }
+        session.user = data.user;
+        await this._saveSession(session);
+        await this._notifyAllSubscribers("USER_UPDATED", session);
+        return this._returnResult({ data: { user: session.user }, error: null });
+      });
+    } catch (error51) {
+      await removePKCEVerifier(this.storage, this.storageKey, flowId);
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { user: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async setSession(currentSession) {
+    await this.initializePromise;
+    if (this.lock != null) {
+      return await this._acquireLock(this.lockAcquireTimeout, async () => {
+        return await this._setSession(currentSession);
+      });
+    }
+    return await this._setSession(currentSession);
+  }
+  async _setSession(currentSession) {
+    try {
+      if (!currentSession.access_token || !currentSession.refresh_token) {
+        throw new AuthSessionMissingError;
+      }
+      const timeNow = Date.now() / 1000;
+      let expiresAt2 = timeNow;
+      let hasExpired = true;
+      let session = null;
+      const { payload } = decodeJWT(currentSession.access_token);
+      if (payload.exp) {
+        expiresAt2 = payload.exp;
+        hasExpired = expiresAt2 <= timeNow;
+      }
+      if (hasExpired) {
+        const { data: refreshedSession, error: error51 } = await this._callRefreshToken(currentSession.refresh_token);
+        if (error51) {
+          return this._returnResult({ data: { user: null, session: null }, error: error51 });
+        }
+        if (!refreshedSession) {
+          return { data: { user: null, session: null }, error: null };
+        }
+        session = refreshedSession;
+      } else {
+        const { data, error: error51 } = await this._getUser(currentSession.access_token);
+        if (error51) {
+          return this._returnResult({ data: { user: null, session: null }, error: error51 });
+        }
+        session = {
+          access_token: currentSession.access_token,
+          refresh_token: currentSession.refresh_token,
+          user: data.user,
+          token_type: "bearer",
+          expires_in: expiresAt2 - timeNow,
+          expires_at: expiresAt2
+        };
+        await this._saveSession(session);
+        await this._notifyAllSubscribers("SIGNED_IN", session);
+      }
+      return this._returnResult({ data: { user: session.user, session }, error: null });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { session: null, user: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async refreshSession(currentSession) {
+    await this.initializePromise;
+    if (this.lock != null) {
+      return await this._acquireLock(this.lockAcquireTimeout, async () => {
+        return await this._refreshSession(currentSession);
+      });
+    }
+    return await this._refreshSession(currentSession);
+  }
+  async _refreshSession(currentSession) {
+    try {
+      return await this._useSession(async (result) => {
+        var _a3;
+        if (!currentSession) {
+          const { data, error: error52 } = result;
+          if (error52) {
+            throw error52;
+          }
+          currentSession = (_a3 = data.session) !== null && _a3 !== undefined ? _a3 : undefined;
+        }
+        if (!(currentSession === null || currentSession === undefined ? undefined : currentSession.refresh_token)) {
+          throw new AuthSessionMissingError;
+        }
+        const { data: session, error: error51 } = await this._callRefreshToken(currentSession.refresh_token);
+        if (error51) {
+          return this._returnResult({ data: { user: null, session: null }, error: error51 });
+        }
+        if (!session) {
+          return this._returnResult({ data: { user: null, session: null }, error: null });
+        }
+        return this._returnResult({ data: { user: session.user, session }, error: null });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { user: null, session: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _getSessionFromURL(params, callbackUrlType) {
+    var _a3;
+    try {
+      if (!isBrowser())
+        throw new AuthImplicitGrantRedirectError("No browser detected.");
+      if (params.error || params.error_description || params.error_code) {
+        throw new AuthImplicitGrantRedirectError(params.error_description || "Error in URL with unspecified error_description", {
+          error: params.error || "unspecified_error",
+          code: params.error_code || "unspecified_code"
+        });
+      }
+      switch (callbackUrlType) {
+        case "implicit":
+          if (this.flowType === "pkce") {
+            throw new AuthPKCEGrantCodeExchangeError("Not a valid PKCE flow url.");
+          }
+          break;
+        case "pkce":
+          if (this.flowType === "implicit") {
+            throw new AuthImplicitGrantRedirectError("Not a valid implicit grant flow url.");
+          }
+          break;
+        default:
+      }
+      if (callbackUrlType === "pkce") {
+        this._debug("#_initialize()", "begin", "is PKCE flow", true);
+        if (!params.code)
+          throw new AuthPKCEGrantCodeExchangeError("No code detected.");
+        const { data: data2, error: error52 } = await this._exchangeCodeForSession(params.code, {
+          flowId: params[PKCE_FLOW_ID_PARAM]
+        });
+        if (error52)
+          throw error52;
+        const url2 = new URL(window.location.href);
+        url2.searchParams.delete("code");
+        url2.searchParams.delete(PKCE_FLOW_ID_PARAM);
+        window.history.replaceState(window.history.state, "", url2.toString());
+        return {
+          data: { session: data2.session, redirectType: (_a3 = data2.redirectType) !== null && _a3 !== undefined ? _a3 : null },
+          error: null
+        };
+      }
+      const { provider_token, provider_refresh_token, access_token, refresh_token, expires_in, expires_at, token_type } = params;
+      if (!access_token || !expires_in || !refresh_token || !token_type) {
+        throw new AuthImplicitGrantRedirectError("No session defined in URL");
+      }
+      const timeNow = Math.round(Date.now() / 1000);
+      const expiresIn = parseInt(expires_in);
+      let expiresAt2 = timeNow + expiresIn;
+      if (expires_at) {
+        expiresAt2 = parseInt(expires_at);
+      }
+      const actuallyExpiresIn = expiresAt2 - timeNow;
+      if (actuallyExpiresIn * 1000 <= AUTO_REFRESH_TICK_DURATION_MS) {
+        console.warn(`@supabase/gotrue-js: Session as retrieved from URL expires in ${actuallyExpiresIn}s, should have been closer to ${expiresIn}s`);
+      }
+      const issuedAt = expiresAt2 - expiresIn;
+      if (timeNow - issuedAt >= 120) {
+        console.warn("@supabase/gotrue-js: Session as retrieved from URL was issued over 120s ago, URL could be stale", issuedAt, expiresAt2, timeNow);
+      } else if (timeNow - issuedAt < 0) {
+        console.warn("@supabase/gotrue-js: Session as retrieved from URL was issued in the future? Check the device clock for skew", issuedAt, expiresAt2, timeNow);
+      }
+      const { data, error: error51 } = await this._getUser(access_token);
+      if (error51)
+        throw error51;
+      const session = {
+        provider_token,
+        provider_refresh_token,
+        access_token,
+        expires_in: expiresIn,
+        expires_at: expiresAt2,
+        refresh_token,
+        token_type,
+        user: data.user
+      };
+      window.location.hash = "";
+      this._debug("#_getSessionFromURL()", "clearing window.location.hash");
+      return this._returnResult({ data: { session, redirectType: params.type }, error: null });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { session: null, redirectType: null }, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  _isImplicitGrantCallback(params) {
+    if (typeof this.detectSessionInUrl === "function") {
+      return this.detectSessionInUrl(new URL(window.location.href), params);
+    }
+    return Boolean(params.access_token || params.error || params.error_description || params.error_code);
+  }
+  async _isPKCECallback(params) {
+    if (!params.code) {
+      return false;
+    }
+    const flowId = validatePKCEFlowId(params[PKCE_FLOW_ID_PARAM]);
+    if (flowId && await getItemAsync(this.storage, pkceVerifierSlotKey(this.storageKey, flowId))) {
+      return true;
+    }
+    const currentStorageContent = await getItemAsync(this.storage, `${this.storageKey}-code-verifier`);
+    return !!currentStorageContent;
+  }
+  async signOut(options = { scope: "global" }) {
+    await this.initializePromise;
+    if (this.lock != null) {
+      return await this._acquireLock(this.lockAcquireTimeout, async () => {
+        return await this._signOut(options);
+      });
+    }
+    return await this._signOut(options);
+  }
+  async _signOut({ scope } = { scope: "global" }) {
+    return await this._useSession(async (result) => {
+      var _a3;
+      const removeCurrentSession = async () => {
+        await this._removeSession();
+      };
+      const { data, error: sessionError } = result;
+      if (sessionError && !isAuthSessionMissingError(sessionError)) {
+        return this._returnResult({ error: sessionError });
+      }
+      const accessToken = (_a3 = data.session) === null || _a3 === undefined ? undefined : _a3.access_token;
+      if (accessToken) {
+        const { error: error51 } = await this.admin.signOut(accessToken, scope);
+        if (error51) {
+          if (!(isAuthApiError(error51) && (error51.status === 404 || error51.status === 401 || error51.status === 403) || isAuthSessionMissingError(error51))) {
+            if (scope !== "others") {
+              await removeCurrentSession();
+            }
+            return this._returnResult({ error: error51 });
+          }
+        }
+      }
+      if (scope !== "others") {
+        await removeCurrentSession();
+      }
+      return this._returnResult({ error: null });
+    });
+  }
+  onAuthStateChange(callback) {
+    const id = generateCallbackId();
+    const subscription = {
+      id,
+      callback,
+      unsubscribe: () => {
+        this._debug("#unsubscribe()", "state change callback with id removed", id);
+        this.stateChangeEmitters.delete(id);
+      }
+    };
+    this._debug("#onAuthStateChange()", "registered callback with id", id);
+    this.stateChangeEmitters.set(id, subscription);
+    (async () => {
+      await this.initializePromise;
+      if (this.lock != null) {
+        await this._acquireLock(this.lockAcquireTimeout, async () => {
+          this._emitInitialSession(id);
+        });
+      } else {
+        await this._emitInitialSession(id);
+      }
+    })();
+    return { data: { subscription } };
+  }
+  async _emitInitialSession(id) {
+    return await this._useSession(async (result) => {
+      var _a3, _b;
+      try {
+        const { data: { session }, error: error51 } = result;
+        if (error51)
+          throw error51;
+        await ((_a3 = this.stateChangeEmitters.get(id)) === null || _a3 === undefined ? undefined : _a3.callback("INITIAL_SESSION", session));
+        this._debug("INITIAL_SESSION", "callback id", id, "session", session);
+      } catch (err) {
+        await ((_b = this.stateChangeEmitters.get(id)) === null || _b === undefined ? undefined : _b.callback("INITIAL_SESSION", null));
+        this._debug("INITIAL_SESSION", "callback id", id, "error", err);
+        if (isAuthRefreshDiscardedError(err)) {
+          return;
+        }
+        if (isAuthSessionMissingError(err) || isAuthRetryableFetchError(err) || isAuthApiError(err) && (err.code === "refresh_token_not_found" || err.code === "refresh_token_already_used" || err.code === "session_expired")) {
+          console.warn(err);
+        } else {
+          console.error(err);
+        }
+      }
+    });
+  }
+  async resetPasswordForEmail(email3, options = {}) {
+    let codeChallenge = null;
+    let codeChallengeMethod = null;
+    let flowId = null;
+    if (this.flowType === "pkce") {
+      [codeChallenge, codeChallengeMethod, flowId] = await this._getCodeChallengeAndMethod(true);
+    }
+    try {
+      return await _request(this.fetch, "POST", `${this.url}/recover`, {
+        body: {
+          email: email3,
+          code_challenge: codeChallenge,
+          code_challenge_method: codeChallengeMethod,
+          gotrue_meta_security: { captcha_token: options.captchaToken }
+        },
+        headers: this.headers,
+        redirectTo: this._maybeAppendFlowIdToRedirect(options.redirectTo, flowId)
+      });
+    } catch (error51) {
+      await removePKCEVerifier(this.storage, this.storageKey, flowId);
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async getUserIdentities() {
+    var _a3;
+    try {
+      const { data, error: error51 } = await this.getUser();
+      if (error51)
+        throw error51;
+      return this._returnResult({ data: { identities: (_a3 = data.user.identities) !== null && _a3 !== undefined ? _a3 : [] }, error: null });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async linkIdentity(credentials) {
+    if ("token" in credentials) {
+      return this.linkIdentityIdToken(credentials);
+    }
+    return this.linkIdentityOAuth(credentials);
+  }
+  async linkIdentityOAuth(credentials) {
+    var _a3;
+    let flowId = null;
+    try {
+      const { data, error: error51 } = await this._useSession(async (result) => {
+        var _a4, _b, _c, _d, _f;
+        const { data: data2, error: error52 } = result;
+        if (error52)
+          throw error52;
+        const { url: url2, flowId: urlFlowId } = await this._getUrlForProvider(`${this.url}/user/identities/authorize`, credentials.provider, {
+          redirectTo: (_a4 = credentials.options) === null || _a4 === undefined ? undefined : _a4.redirectTo,
+          scopes: (_b = credentials.options) === null || _b === undefined ? undefined : _b.scopes,
+          queryParams: (_c = credentials.options) === null || _c === undefined ? undefined : _c.queryParams,
+          skipBrowserRedirect: true
+        });
+        flowId = urlFlowId;
+        return await _request(this.fetch, "GET", url2, {
+          headers: this.headers,
+          jwt: (_f = (_d = data2.session) === null || _d === undefined ? undefined : _d.access_token) !== null && _f !== undefined ? _f : undefined
+        });
+      });
+      if (error51)
+        throw error51;
+      if (isBrowser() && !((_a3 = credentials.options) === null || _a3 === undefined ? undefined : _a3.skipBrowserRedirect)) {
+        window.location.assign(data === null || data === undefined ? undefined : data.url);
+      }
+      return this._returnResult({
+        data: { provider: credentials.provider, url: data === null || data === undefined ? undefined : data.url, flowId },
+        error: null
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({
+          data: { provider: credentials.provider, url: null, flowId },
+          error: error51
+        });
+      }
+      throw error51;
+    }
+  }
+  async linkIdentityIdToken(credentials) {
+    return await this._useSession(async (result) => {
+      var _a3;
+      try {
+        const { error: sessionError, data: { session } } = result;
+        if (sessionError)
+          throw sessionError;
+        const { options, provider, token, access_token, nonce } = credentials;
+        const res = await _request(this.fetch, "POST", `${this.url}/token?grant_type=id_token`, {
+          headers: this.headers,
+          jwt: (_a3 = session === null || session === undefined ? undefined : session.access_token) !== null && _a3 !== undefined ? _a3 : undefined,
+          body: {
+            provider,
+            id_token: token,
+            access_token,
+            nonce,
+            link_identity: true,
+            gotrue_meta_security: { captcha_token: options === null || options === undefined ? undefined : options.captchaToken }
+          },
+          xform: _sessionResponse
+        });
+        const { data, error: error51 } = res;
+        if (error51) {
+          return this._returnResult({ data: { user: null, session: null }, error: error51 });
+        } else if (!data || !data.session || !data.user) {
+          return this._returnResult({
+            data: { user: null, session: null },
+            error: new AuthInvalidTokenResponseError
+          });
+        }
+        if (data.session) {
+          await this._saveSession(data.session);
+          await this._notifyAllSubscribers("USER_UPDATED", data.session);
+        }
+        return this._returnResult({ data, error: error51 });
+      } catch (error51) {
+        await removePKCEVerifier(this.storage, this.storageKey, null);
+        if (isAuthError(error51)) {
+          return this._returnResult({ data: { user: null, session: null }, error: error51 });
+        }
+        throw error51;
+      }
+    });
+  }
+  async unlinkIdentity(identity) {
+    try {
+      return await this._useSession(async (result) => {
+        var _a3, _b;
+        const { data, error: error51 } = result;
+        if (error51) {
+          throw error51;
+        }
+        return await _request(this.fetch, "DELETE", `${this.url}/user/identities/${identity.identity_id}`, {
+          headers: this.headers,
+          jwt: (_b = (_a3 = data.session) === null || _a3 === undefined ? undefined : _a3.access_token) !== null && _b !== undefined ? _b : undefined
+        });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _refreshAccessToken(refreshToken) {
+    const debugName = `#_refreshAccessToken()`;
+    this._debug(debugName, "begin");
+    try {
+      const startedAt = Date.now();
+      return await retryable(async (attempt) => {
+        if (attempt > 0) {
+          await sleep2(200 * Math.pow(2, attempt - 1));
+        }
+        this._debug(debugName, "refreshing attempt", attempt);
+        return await _request(this.fetch, "POST", `${this.url}/token?grant_type=refresh_token`, {
+          body: { refresh_token: refreshToken },
+          headers: this.headers,
+          xform: _sessionResponse
+        });
+      }, (attempt, error51) => {
+        const nextBackOffInterval = 200 * Math.pow(2, attempt);
+        return error51 && isAuthRetryableFetchError(error51) && Date.now() + nextBackOffInterval - startedAt < AUTO_REFRESH_TICK_DURATION_MS;
+      });
+    } catch (error51) {
+      this._debug(debugName, "error", error51);
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: { session: null, user: null }, error: error51 });
+      }
+      throw error51;
+    } finally {
+      this._debug(debugName, "end");
+    }
+  }
+  _isValidSession(maybeSession) {
+    const isValidSession = typeof maybeSession === "object" && maybeSession !== null && "access_token" in maybeSession && "refresh_token" in maybeSession && "expires_at" in maybeSession;
+    return isValidSession;
+  }
+  async _handleProviderSignIn(provider, options) {
+    const { url: url2, flowId } = await this._getUrlForProvider(`${this.url}/authorize`, provider, {
+      redirectTo: options.redirectTo,
+      scopes: options.scopes,
+      queryParams: options.queryParams
+    });
+    this._debug("#_handleProviderSignIn()", "provider", provider, "options", options, "url", url2);
+    if (isBrowser() && !options.skipBrowserRedirect) {
+      window.location.assign(url2);
+    }
+    return { data: { provider, url: url2, flowId }, error: null };
+  }
+  async _recoverAndRefresh() {
+    var _a3, _b;
+    const debugName = "#_recoverAndRefresh()";
+    this._debug(debugName, "begin");
+    try {
+      const currentSession = await getItemAsync(this.storage, this.storageKey);
+      if (currentSession && this.userStorage) {
+        let maybeUser = await getItemAsync(this.userStorage, this.storageKey + "-user");
+        if (!this.storage.isServer && Object.is(this.storage, this.userStorage) && !maybeUser) {
+          maybeUser = { user: currentSession.user };
+          await setItemAsync(this.userStorage, this.storageKey + "-user", maybeUser);
+        }
+        currentSession.user = (_a3 = maybeUser === null || maybeUser === undefined ? undefined : maybeUser.user) !== null && _a3 !== undefined ? _a3 : userNotAvailableProxy();
+      } else if (currentSession && !currentSession.user) {
+        if (!currentSession.user) {
+          const separateUser = await getItemAsync(this.storage, this.storageKey + "-user");
+          if (separateUser && (separateUser === null || separateUser === undefined ? undefined : separateUser.user)) {
+            currentSession.user = separateUser.user;
+            await removeItemAsync(this.storage, this.storageKey + "-user");
+            await setItemAsync(this.storage, this.storageKey, currentSession);
+          } else {
+            currentSession.user = userNotAvailableProxy();
+          }
+        }
+      }
+      this._debug(debugName, "session from storage", currentSession);
+      if (!this._isValidSession(currentSession)) {
+        this._debug(debugName, "session is not valid");
+        if (currentSession !== null) {
+          await this._removeSession();
+        }
+        return;
+      }
+      const expiresWithMargin = ((_b = currentSession.expires_at) !== null && _b !== undefined ? _b : Infinity) * 1000 - Date.now() < EXPIRY_MARGIN_MS;
+      this._debug(debugName, `session has${expiresWithMargin ? "" : " not"} expired with margin of ${EXPIRY_MARGIN_MS}s`);
+      if (expiresWithMargin) {
+        if (this.autoRefreshToken && currentSession.refresh_token) {
+          const { error: error51 } = await this._callRefreshToken(currentSession.refresh_token);
+          if (error51) {
+            if (isAuthRefreshDiscardedError(error51)) {
+              this._debug(debugName, "refresh discarded by commit guard", error51);
+            } else {
+              this._debug(debugName, "refresh failed", error51);
+            }
+          }
+        }
+      } else if (currentSession.user && currentSession.user.__isUserNotAvailableProxy === true) {
+        try {
+          const { data, error: userError } = await this._getUser(currentSession.access_token);
+          if (!userError && (data === null || data === undefined ? undefined : data.user)) {
+            currentSession.user = data.user;
+            await this._saveSession(currentSession);
+            await this._notifyAllSubscribers("SIGNED_IN", currentSession);
+          } else {
+            this._debug(debugName, "could not get user data, skipping SIGNED_IN notification");
+          }
+        } catch (getUserError) {
+          console.error("Error getting user data:", getUserError);
+          this._debug(debugName, "error getting user data, skipping SIGNED_IN notification", getUserError);
+        }
+      } else {
+        await this._notifyAllSubscribers("SIGNED_IN", currentSession);
+      }
+    } catch (err) {
+      this._debug(debugName, "error", err);
+      if (isAuthRetryableFetchError(err)) {
+        console.warn(err);
+      } else {
+        console.error(err);
+      }
+      return;
+    } finally {
+      this._debug(debugName, "end");
+    }
+  }
+  async _callRefreshToken(refreshToken) {
+    var _a3, _b;
+    if (!refreshToken) {
+      throw new AuthSessionMissingError;
+    }
+    if (this.refreshingDeferred) {
+      return this.refreshingDeferred.promise;
+    }
+    if (this.lastRefreshFailure && this.lastRefreshFailure.refreshToken === refreshToken && Date.now() < this.lastRefreshFailure.expiresAt) {
+      this._debug("#_callRefreshToken()", "returning cached failure (cooldown active)");
+      return this.lastRefreshFailure.result;
+    }
+    const debugName = `#_callRefreshToken()`;
+    this._debug(debugName, "begin");
+    try {
+      this.refreshingDeferred = new Deferred;
+      this.refreshingDeferred.promise.then(undefined, () => {});
+      const storedAtStart = await getItemAsync(this.storage, this.storageKey);
+      const { data, error: error51 } = await this._refreshAccessToken(refreshToken);
+      if (error51)
+        throw error51;
+      if (!data.session)
+        throw new AuthSessionMissingError;
+      const storedAfter = await getItemAsync(this.storage, this.storageKey);
+      const storageChangedUnderUs = storedAtStart !== null && (storedAfter === null || storedAfter.refresh_token !== storedAtStart.refresh_token);
+      if (storageChangedUnderUs) {
+        this._debug(debugName, "commit guard: storage changed since refresh started, discarding rotated tokens", {
+          startedWith: "present",
+          nowHolds: storedAfter ? "replaced" : "cleared"
+        });
+        const discarded = {
+          data: null,
+          error: new AuthRefreshDiscardedError
+        };
+        this.refreshingDeferred.resolve(discarded);
+        return discarded;
+      }
+      const epochBeforeSave = this._sessionRemovalEpoch;
+      await this._saveSession(data.session);
+      if (this._sessionRemovalEpoch !== epochBeforeSave) {
+        this._debug(debugName, "commit guard (post-save): _removeSession ran during _saveSession, undoing write");
+        await removeItemAsync(this.storage, this.storageKey);
+        if (this.userStorage) {
+          await removeItemAsync(this.userStorage, this.storageKey + "-user");
+        }
+        const discarded = {
+          data: null,
+          error: new AuthRefreshDiscardedError
+        };
+        this.refreshingDeferred.resolve(discarded);
+        return discarded;
+      }
+      await this._notifyAllSubscribers("TOKEN_REFRESHED", data.session);
+      const result = { data: data.session, error: null };
+      this.lastRefreshFailure = null;
+      this.refreshingDeferred.resolve(result);
+      return result;
+    } catch (error51) {
+      this._debug(debugName, "error", error51);
+      if (isAuthError(error51)) {
+        const result = { data: null, error: error51 };
+        if (!isAuthRetryableFetchError(error51)) {
+          const storedNow = await getItemAsync(this.storage, this.storageKey);
+          const accessTokenStillValid = !!((storedNow === null || storedNow === undefined ? undefined : storedNow.expires_at) && storedNow.expires_at * 1000 > Date.now());
+          if (accessTokenStillValid) {
+            this._debug(debugName, "proactive refresh failed, access token still valid \u2014 preserving session");
+          } else {
+            await this._removeSession();
+          }
+        }
+        this.lastRefreshFailure = {
+          refreshToken,
+          result,
+          expiresAt: Date.now() + REFRESH_FAILURE_COOLDOWN_MS
+        };
+        (_a3 = this.refreshingDeferred) === null || _a3 === undefined || _a3.resolve(result);
+        return result;
+      }
+      (_b = this.refreshingDeferred) === null || _b === undefined || _b.reject(error51);
+      throw error51;
+    } finally {
+      this.refreshingDeferred = null;
+      this._debug(debugName, "end");
+    }
+  }
+  async _notifyAllSubscribers(event, session, broadcast = true) {
+    if (this._pendingInitNotifications !== null && broadcast) {
+      this._pendingInitNotifications.push({ event, session, broadcast });
+      return;
+    }
+    const debugName = `#_notifyAllSubscribers(${event})`;
+    this._debug(debugName, "begin", session, `broadcast = ${broadcast}`);
+    try {
+      if (this.broadcastChannel && broadcast) {
+        this.broadcastChannel.postMessage({ event, session });
+      }
+      const errors3 = [];
+      const promises = Array.from(this.stateChangeEmitters.values()).map(async (x) => {
+        try {
+          await x.callback(event, session);
+        } catch (e) {
+          errors3.push(e);
+        }
+      });
+      await Promise.all(promises);
+      if (errors3.length > 0) {
+        for (let i = 0;i < errors3.length; i += 1) {
+          console.error(errors3[i]);
+        }
+        throw errors3[0];
+      }
+    } finally {
+      this._debug(debugName, "end");
+    }
+  }
+  async _saveSession(session) {
+    this._debug("#_saveSession()", session);
+    this.suppressGetSessionWarning = true;
+    const sessionToProcess = Object.assign({}, session);
+    const userIsProxy = sessionToProcess.user && sessionToProcess.user.__isUserNotAvailableProxy === true;
+    if (this.userStorage) {
+      if (!userIsProxy && sessionToProcess.user) {
+        await setItemAsync(this.userStorage, this.storageKey + "-user", {
+          user: sessionToProcess.user
+        });
+      } else if (userIsProxy) {}
+      const mainSessionData = Object.assign({}, sessionToProcess);
+      delete mainSessionData.user;
+      const clonedMainSessionData = deepClone(mainSessionData);
+      await setItemAsync(this.storage, this.storageKey, clonedMainSessionData);
+    } else {
+      const clonedSession = deepClone(sessionToProcess);
+      await setItemAsync(this.storage, this.storageKey, clonedSession);
+    }
+  }
+  async _removeSession() {
+    this._sessionRemovalEpoch += 1;
+    this._debug("#_removeSession()");
+    this.lastRefreshFailure = null;
+    this.suppressGetSessionWarning = false;
+    await removeItemAsync(this.storage, this.storageKey);
+    await removeAllPKCEVerifiers(this.storage, this.storageKey);
+    await removeItemAsync(this.storage, this.storageKey + "-user");
+    if (this.userStorage) {
+      await removeItemAsync(this.userStorage, this.storageKey + "-user");
+    }
+    await this._notifyAllSubscribers("SIGNED_OUT", null);
+  }
+  _removeVisibilityChangedCallback() {
+    this._debug("#_removeVisibilityChangedCallback()");
+    const callback = this.visibilityChangedCallback;
+    this.visibilityChangedCallback = null;
+    try {
+      if (callback && isBrowser() && (window === null || window === undefined ? undefined : window.removeEventListener)) {
+        window.removeEventListener("visibilitychange", callback);
+      }
+    } catch (e) {
+      console.error("removing visibilitychange callback failed", e);
+    }
+  }
+  async _startAutoRefresh() {
+    await this._stopAutoRefresh();
+    this._debug("#_startAutoRefresh()");
+    const ticker = setInterval(() => this._autoRefreshTokenTick(), AUTO_REFRESH_TICK_DURATION_MS);
+    this.autoRefreshTicker = ticker;
+    if (ticker && typeof ticker === "object" && typeof ticker.unref === "function") {
+      ticker.unref();
+    } else if (typeof Deno !== "undefined" && typeof Deno.unrefTimer === "function") {
+      Deno.unrefTimer(ticker);
+    }
+    const timeout = setTimeout(async () => {
+      await this.initializePromise;
+      await this._autoRefreshTokenTick();
+    }, 0);
+    this.autoRefreshTickTimeout = timeout;
+    if (timeout && typeof timeout === "object" && typeof timeout.unref === "function") {
+      timeout.unref();
+    } else if (typeof Deno !== "undefined" && typeof Deno.unrefTimer === "function") {
+      Deno.unrefTimer(timeout);
+    }
+  }
+  async _stopAutoRefresh() {
+    this._debug("#_stopAutoRefresh()");
+    const ticker = this.autoRefreshTicker;
+    this.autoRefreshTicker = null;
+    if (ticker) {
+      clearInterval(ticker);
+    }
+    const timeout = this.autoRefreshTickTimeout;
+    this.autoRefreshTickTimeout = null;
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+  async startAutoRefresh() {
+    this._removeVisibilityChangedCallback();
+    await this._startAutoRefresh();
+  }
+  async stopAutoRefresh() {
+    this._removeVisibilityChangedCallback();
+    await this._stopAutoRefresh();
+  }
+  async dispose() {
+    var _a3;
+    this._removeVisibilityChangedCallback();
+    await this._stopAutoRefresh();
+    (_a3 = this.broadcastChannel) === null || _a3 === undefined || _a3.close();
+    this.broadcastChannel = null;
+    this.stateChangeEmitters.clear();
+  }
+  async _autoRefreshTokenTick() {
+    this._debug("#_autoRefreshTokenTick()", "begin");
+    if (this.lock != null) {
+      try {
+        await this._acquireLock(0, async () => {
+          try {
+            const now = Date.now();
+            try {
+              return await this._useSession(async (result) => {
+                const { data: { session } } = result;
+                if (!session || !session.refresh_token || !session.expires_at) {
+                  this._debug("#_autoRefreshTokenTick()", "no session");
+                  return;
+                }
+                const expiresInTicks = Math.floor((session.expires_at * 1000 - now) / AUTO_REFRESH_TICK_DURATION_MS);
+                this._debug("#_autoRefreshTokenTick()", `access token expires in ${expiresInTicks} ticks, a tick lasts ${AUTO_REFRESH_TICK_DURATION_MS}ms, refresh threshold is ${AUTO_REFRESH_TICK_THRESHOLD} ticks`);
+                if (expiresInTicks <= AUTO_REFRESH_TICK_THRESHOLD) {
+                  await this._callRefreshToken(session.refresh_token);
+                }
+              });
+            } catch (e) {
+              console.error("Auto refresh tick failed with error. This is likely a transient error.", e);
+            }
+          } finally {
+            this._debug("#_autoRefreshTokenTick()", "end");
+          }
+        });
+      } catch (e) {
+        if (e instanceof LockAcquireTimeoutError) {
+          this._debug("auto refresh token tick lock not available");
+        } else {
+          throw e;
+        }
+      }
+      return;
+    }
+    if (this.refreshingDeferred !== null) {
+      this._debug("#_autoRefreshTokenTick()", "refresh already in flight, skipping");
+      return;
+    }
+    try {
+      const now = Date.now();
+      try {
+        await this._useSession(async (result) => {
+          const { data: { session } } = result;
+          if (!session || !session.refresh_token || !session.expires_at) {
+            this._debug("#_autoRefreshTokenTick()", "no session");
+            return;
+          }
+          const expiresInTicks = Math.floor((session.expires_at * 1000 - now) / AUTO_REFRESH_TICK_DURATION_MS);
+          this._debug("#_autoRefreshTokenTick()", `access token expires in ${expiresInTicks} ticks, a tick lasts ${AUTO_REFRESH_TICK_DURATION_MS}ms, refresh threshold is ${AUTO_REFRESH_TICK_THRESHOLD} ticks`);
+          if (expiresInTicks <= AUTO_REFRESH_TICK_THRESHOLD) {
+            await this._callRefreshToken(session.refresh_token);
+          }
+        });
+      } catch (e) {
+        console.error("Auto refresh tick failed with error. This is likely a transient error.", e);
+      }
+    } finally {
+      this._debug("#_autoRefreshTokenTick()", "end");
+    }
+  }
+  async _handleVisibilityChange() {
+    this._debug("#_handleVisibilityChange()");
+    if (!isBrowser() || !(window === null || window === undefined ? undefined : window.addEventListener)) {
+      if (this.autoRefreshToken) {
+        this.startAutoRefresh();
+      }
+      return false;
+    }
+    try {
+      this.visibilityChangedCallback = async () => {
+        try {
+          await this._onVisibilityChanged(false);
+        } catch (error51) {
+          this._debug("#visibilityChangedCallback", "error", error51);
+        }
+      };
+      window === null || window === undefined || window.addEventListener("visibilitychange", this.visibilityChangedCallback);
+      await this._onVisibilityChanged(true);
+    } catch (error51) {
+      console.error("_handleVisibilityChange", error51);
+    }
+  }
+  async _onVisibilityChanged(calledFromInitialize) {
+    const methodName = `#_onVisibilityChanged(${calledFromInitialize})`;
+    this._debug(methodName, "visibilityState", document.visibilityState);
+    if (document.visibilityState === "visible") {
+      if (this.autoRefreshToken) {
+        this._startAutoRefresh();
+      }
+      if (!calledFromInitialize) {
+        await this.initializePromise;
+        if (this.lock != null) {
+          await this._acquireLock(this.lockAcquireTimeout, async () => {
+            if (document.visibilityState !== "visible") {
+              this._debug(methodName, "acquired the lock to recover the session, but the browser visibilityState is no longer visible, aborting");
+              return;
+            }
+            await this._recoverAndRefresh();
+          });
+        } else {
+          if (document.visibilityState !== "visible") {
+            this._debug(methodName, "visibilityState is no longer visible, skipping recovery");
+            return;
+          }
+          await this._recoverAndRefresh();
+        }
+      }
+    } else if (document.visibilityState === "hidden") {
+      if (this.autoRefreshToken) {
+        this._stopAutoRefresh();
+      }
+    }
+  }
+  async _getUrlForProvider(url2, provider, options) {
+    let redirectTo = options === null || options === undefined ? undefined : options.redirectTo;
+    let codeChallenge = null;
+    let codeChallengeMethod = null;
+    let flowId = null;
+    if (this.flowType === "pkce") {
+      [codeChallenge, codeChallengeMethod, flowId] = await this._getCodeChallengeAndMethod();
+      redirectTo = this._maybeAppendFlowIdToRedirect(redirectTo, flowId);
+    }
+    const urlParams = [`provider=${encodeURIComponent(provider)}`];
+    if (redirectTo) {
+      urlParams.push(`redirect_to=${encodeURIComponent(redirectTo)}`);
+    }
+    if (options === null || options === undefined ? undefined : options.scopes) {
+      urlParams.push(`scopes=${encodeURIComponent(options.scopes)}`);
+    }
+    if (codeChallenge != null && codeChallengeMethod != null) {
+      const flowParams = new URLSearchParams({
+        code_challenge: `${encodeURIComponent(codeChallenge)}`,
+        code_challenge_method: `${encodeURIComponent(codeChallengeMethod)}`
+      });
+      urlParams.push(flowParams.toString());
+    }
+    if (options === null || options === undefined ? undefined : options.queryParams) {
+      const query = new URLSearchParams(options.queryParams);
+      urlParams.push(query.toString());
+    }
+    if (options === null || options === undefined ? undefined : options.skipBrowserRedirect) {
+      urlParams.push(`skip_http_redirect=${options.skipBrowserRedirect}`);
+    }
+    return { url: `${url2}?${urlParams.join("&")}`, flowId };
+  }
+  _maybeAppendFlowIdToRedirect(redirectTo, flowId) {
+    if (!redirectTo || !flowId || !this.experimental.appendPkceFlowIdToRedirects) {
+      return redirectTo !== null && redirectTo !== undefined ? redirectTo : undefined;
+    }
+    return appendFlowIdToRedirectTo(redirectTo, flowId);
+  }
+  async _getCodeChallengeAndMethod(isPasswordRecovery = false) {
+    return getCodeChallengeAndMethod(this.storage, this.storageKey, isPasswordRecovery, (evictedFlowId) => this._debug("#_getCodeChallengeAndMethod()", "evicted oldest pending PKCE verifier slot", evictedFlowId));
+  }
+  async _unenroll(params) {
+    try {
+      return await this._useSession(async (result) => {
+        var _a3;
+        const { data: sessionData, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        return await _request(this.fetch, "DELETE", `${this.url}/factors/${params.factorId}`, {
+          headers: this.headers,
+          jwt: (_a3 = sessionData === null || sessionData === undefined ? undefined : sessionData.session) === null || _a3 === undefined ? undefined : _a3.access_token
+        });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _enroll(params) {
+    try {
+      return await this._useSession(async (result) => {
+        var _a3, _b;
+        const { data: sessionData, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        const body = Object.assign({ friendly_name: params.friendlyName, factor_type: params.factorType }, params.factorType === "phone" ? { phone: params.phone } : params.factorType === "totp" ? { issuer: params.issuer } : {});
+        const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/factors`, {
+          body,
+          headers: this.headers,
+          jwt: (_a3 = sessionData === null || sessionData === undefined ? undefined : sessionData.session) === null || _a3 === undefined ? undefined : _a3.access_token
+        });
+        if (error51) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        if (params.factorType === "totp" && data.type === "totp" && ((_b = data === null || data === undefined ? undefined : data.totp) === null || _b === undefined ? undefined : _b.qr_code)) {
+          data.totp.qr_code = `data:image/svg+xml;utf-8,${data.totp.qr_code}`;
+        }
+        return this._returnResult({ data, error: null });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _verify(params) {
+    const run = async () => {
+      try {
+        return await this._useSession(async (result) => {
+          var _a3;
+          const { data: sessionData, error: sessionError } = result;
+          if (sessionError) {
+            return this._returnResult({ data: null, error: sessionError });
+          }
+          const body = Object.assign({ challenge_id: params.challengeId }, "webauthn" in params ? {
+            webauthn: Object.assign(Object.assign({}, params.webauthn), { credential_response: params.webauthn.type === "create" ? serializeCredentialCreationResponse(params.webauthn.credential_response) : serializeCredentialRequestResponse(params.webauthn.credential_response) })
+          } : { code: params.code });
+          const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/factors/${params.factorId}/verify`, {
+            body,
+            headers: this.headers,
+            jwt: (_a3 = sessionData === null || sessionData === undefined ? undefined : sessionData.session) === null || _a3 === undefined ? undefined : _a3.access_token
+          });
+          if (error51) {
+            return this._returnResult({ data: null, error: error51 });
+          }
+          await this._saveSession(Object.assign({ expires_at: Math.round(Date.now() / 1000) + data.expires_in }, data));
+          await this._notifyAllSubscribers("MFA_CHALLENGE_VERIFIED", data);
+          return this._returnResult({ data, error: error51 });
+        });
+      } catch (error51) {
+        if (isAuthError(error51)) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        throw error51;
+      }
+    };
+    if (this.lock != null) {
+      return this._acquireLock(this.lockAcquireTimeout, run);
+    }
+    return run();
+  }
+  async _challenge(params) {
+    const run = async () => {
+      try {
+        return await this._useSession(async (result) => {
+          var _a3;
+          const { data: sessionData, error: sessionError } = result;
+          if (sessionError) {
+            return this._returnResult({ data: null, error: sessionError });
+          }
+          const response = await _request(this.fetch, "POST", `${this.url}/factors/${params.factorId}/challenge`, {
+            body: params,
+            headers: this.headers,
+            jwt: (_a3 = sessionData === null || sessionData === undefined ? undefined : sessionData.session) === null || _a3 === undefined ? undefined : _a3.access_token
+          });
+          if (response.error) {
+            return response;
+          }
+          const { data } = response;
+          if (data.type !== "webauthn") {
+            return { data, error: null };
+          }
+          switch (data.webauthn.type) {
+            case "create":
+              return {
+                data: Object.assign(Object.assign({}, data), { webauthn: Object.assign(Object.assign({}, data.webauthn), { credential_options: Object.assign(Object.assign({}, data.webauthn.credential_options), { publicKey: deserializeCredentialCreationOptions(data.webauthn.credential_options.publicKey) }) }) }),
+                error: null
+              };
+            case "request":
+              return {
+                data: Object.assign(Object.assign({}, data), { webauthn: Object.assign(Object.assign({}, data.webauthn), { credential_options: Object.assign(Object.assign({}, data.webauthn.credential_options), { publicKey: deserializeCredentialRequestOptions(data.webauthn.credential_options.publicKey) }) }) }),
+                error: null
+              };
+          }
+        });
+      } catch (error51) {
+        if (isAuthError(error51)) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        throw error51;
+      }
+    };
+    if (this.lock != null) {
+      return this._acquireLock(this.lockAcquireTimeout, run);
+    }
+    return run();
+  }
+  async _challengeAndVerify(params) {
+    const { data: challengeData, error: challengeError } = await this._challenge({
+      factorId: params.factorId
+    });
+    if (challengeError) {
+      return this._returnResult({ data: null, error: challengeError });
+    }
+    return await this._verify({
+      factorId: params.factorId,
+      challengeId: challengeData.id,
+      code: params.code
+    });
+  }
+  async _listFactors() {
+    var _a3;
+    const { data: { user }, error: userError } = await this.getUser();
+    if (userError) {
+      return { data: null, error: userError };
+    }
+    const data = {
+      all: [],
+      phone: [],
+      totp: [],
+      webauthn: [],
+      recovery_code: []
+    };
+    for (const factor of (_a3 = user === null || user === undefined ? undefined : user.factors) !== null && _a3 !== undefined ? _a3 : []) {
+      data.all.push(factor);
+      if (factor.status === "verified" && factor.factor_type in data && Array.isArray(data[factor.factor_type])) {
+        data[factor.factor_type].push(factor);
+      }
+    }
+    return {
+      data,
+      error: null
+    };
+  }
+  async _getAuthenticatorAssuranceLevel(jwt2) {
+    var _a3, _b, _c, _d;
+    if (jwt2) {
+      try {
+        const { payload: payload2 } = decodeJWT(jwt2);
+        let currentLevel2 = null;
+        if (payload2.aal) {
+          currentLevel2 = payload2.aal;
+        }
+        let nextLevel2 = currentLevel2;
+        const { data: { user }, error: userError } = await this.getUser(jwt2);
+        if (userError) {
+          return this._returnResult({ data: null, error: userError });
+        }
+        const verifiedFactors2 = (_b = (_a3 = user === null || user === undefined ? undefined : user.factors) === null || _a3 === undefined ? undefined : _a3.filter((factor) => factor.status === "verified")) !== null && _b !== undefined ? _b : [];
+        if (verifiedFactors2.length > 0) {
+          nextLevel2 = "aal2";
+        }
+        const currentAuthenticationMethods2 = payload2.amr || [];
+        return { data: { currentLevel: currentLevel2, nextLevel: nextLevel2, currentAuthenticationMethods: currentAuthenticationMethods2 }, error: null };
+      } catch (error51) {
+        if (isAuthError(error51)) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        throw error51;
+      }
+    }
+    const { data: { session }, error: sessionError } = await this.getSession();
+    if (sessionError) {
+      return this._returnResult({ data: null, error: sessionError });
+    }
+    if (!session) {
+      return {
+        data: { currentLevel: null, nextLevel: null, currentAuthenticationMethods: [] },
+        error: null
+      };
+    }
+    const { payload } = decodeJWT(session.access_token);
+    let currentLevel = null;
+    if (payload.aal) {
+      currentLevel = payload.aal;
+    }
+    let nextLevel = currentLevel;
+    const verifiedFactors = (_d = (_c = session.user.factors) === null || _c === undefined ? undefined : _c.filter((factor) => factor.status === "verified")) !== null && _d !== undefined ? _d : [];
+    if (verifiedFactors.length > 0) {
+      nextLevel = "aal2";
+    }
+    const currentAuthenticationMethods = payload.amr || [];
+    return { data: { currentLevel, nextLevel, currentAuthenticationMethods }, error: null };
+  }
+  async _getRecoveryCodesStatus() {
+    assertRecoveryCodesExperimentalEnabled(this.experimental);
+    try {
+      return await this._useSession(async (result) => {
+        var _a3;
+        const { data: sessionData, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        const { data, error: error51 } = await _request(this.fetch, "GET", `${this.url}/factors/recovery-codes`, {
+          headers: this.headers,
+          jwt: (_a3 = sessionData === null || sessionData === undefined ? undefined : sessionData.session) === null || _a3 === undefined ? undefined : _a3.access_token
+        });
+        if (error51) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        return this._returnResult({ data, error: null });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _generateRecoveryCodes(params) {
+    assertRecoveryCodesExperimentalEnabled(this.experimental);
+    try {
+      return await this._useSession(async (result) => {
+        var _a3;
+        const { data: sessionData, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/factors/recovery-codes`, {
+          body: (params === null || params === undefined ? undefined : params.friendlyName) ? { friendly_name: params.friendlyName } : undefined,
+          headers: this.headers,
+          jwt: (_a3 = sessionData === null || sessionData === undefined ? undefined : sessionData.session) === null || _a3 === undefined ? undefined : _a3.access_token
+        });
+        if (error51) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        return this._returnResult({ data, error: null });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _verifyRecoveryCode(params) {
+    assertRecoveryCodesExperimentalEnabled(this.experimental);
+    const run = async () => {
+      try {
+        return await this._useSession(async (result) => {
+          var _a3;
+          const { data: sessionData, error: sessionError } = result;
+          if (sessionError) {
+            return this._returnResult({ data: null, error: sessionError });
+          }
+          const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/factors/recovery-codes/verify`, {
+            body: { code: params.code },
+            headers: this.headers,
+            jwt: (_a3 = sessionData === null || sessionData === undefined ? undefined : sessionData.session) === null || _a3 === undefined ? undefined : _a3.access_token
+          });
+          if (error51) {
+            return this._returnResult({ data: null, error: error51 });
+          }
+          const session = Object.assign({ expires_at: expiresAt(data.expires_in) }, data);
+          await this._saveSession(session);
+          await this._notifyAllSubscribers("MFA_CHALLENGE_VERIFIED", session);
+          return this._returnResult({ data, error: null });
+        });
+      } catch (error51) {
+        if (isAuthError(error51)) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        throw error51;
+      }
+    };
+    if (this.lock != null) {
+      return this._acquireLock(this.lockAcquireTimeout, run);
+    }
+    return run();
+  }
+  async _regenerateRecoveryCodes() {
+    assertRecoveryCodesExperimentalEnabled(this.experimental);
+    try {
+      return await this._useSession(async (result) => {
+        var _a3;
+        const { data: sessionData, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/factors/recovery-codes/regenerate`, {
+          headers: this.headers,
+          jwt: (_a3 = sessionData === null || sessionData === undefined ? undefined : sessionData.session) === null || _a3 === undefined ? undefined : _a3.access_token
+        });
+        if (error51) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        return this._returnResult({ data, error: null });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _unenrollRecoveryCodes() {
+    assertRecoveryCodesExperimentalEnabled(this.experimental);
+    try {
+      return await this._useSession(async (result) => {
+        var _a3;
+        const { data: sessionData, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        const { data, error: error51 } = await _request(this.fetch, "DELETE", `${this.url}/factors/recovery-codes`, {
+          headers: this.headers,
+          jwt: (_a3 = sessionData === null || sessionData === undefined ? undefined : sessionData.session) === null || _a3 === undefined ? undefined : _a3.access_token
+        });
+        if (error51) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        return this._returnResult({ data, error: null });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _getAuthorizationDetails(authorizationId) {
+    try {
+      return await this._useSession(async (result) => {
+        const { data: { session }, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        if (!session) {
+          return this._returnResult({ data: null, error: new AuthSessionMissingError });
+        }
+        return await _request(this.fetch, "GET", `${this.url}/oauth/authorizations/${authorizationId}`, {
+          headers: this.headers,
+          jwt: session.access_token,
+          xform: (data) => ({ data, error: null })
+        });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _approveAuthorization(authorizationId, options) {
+    try {
+      return await this._useSession(async (result) => {
+        const { data: { session }, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        if (!session) {
+          return this._returnResult({ data: null, error: new AuthSessionMissingError });
+        }
+        const response = await _request(this.fetch, "POST", `${this.url}/oauth/authorizations/${authorizationId}/consent`, {
+          headers: this.headers,
+          jwt: session.access_token,
+          body: { action: "approve" },
+          xform: (data) => ({ data, error: null })
+        });
+        if (response.data && response.data.redirect_url) {
+          if (isBrowser() && !(options === null || options === undefined ? undefined : options.skipBrowserRedirect)) {
+            window.location.assign(response.data.redirect_url);
+          }
+        }
+        return response;
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _denyAuthorization(authorizationId, options) {
+    try {
+      return await this._useSession(async (result) => {
+        const { data: { session }, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        if (!session) {
+          return this._returnResult({ data: null, error: new AuthSessionMissingError });
+        }
+        const response = await _request(this.fetch, "POST", `${this.url}/oauth/authorizations/${authorizationId}/consent`, {
+          headers: this.headers,
+          jwt: session.access_token,
+          body: { action: "deny" },
+          xform: (data) => ({ data, error: null })
+        });
+        if (response.data && response.data.redirect_url) {
+          if (isBrowser() && !(options === null || options === undefined ? undefined : options.skipBrowserRedirect)) {
+            window.location.assign(response.data.redirect_url);
+          }
+        }
+        return response;
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _listOAuthGrants() {
+    try {
+      return await this._useSession(async (result) => {
+        const { data: { session }, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        if (!session) {
+          return this._returnResult({ data: null, error: new AuthSessionMissingError });
+        }
+        return await _request(this.fetch, "GET", `${this.url}/user/oauth/grants`, {
+          headers: this.headers,
+          jwt: session.access_token,
+          xform: (data) => ({ data, error: null })
+        });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _revokeOAuthGrant(options) {
+    try {
+      return await this._useSession(async (result) => {
+        const { data: { session }, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        if (!session) {
+          return this._returnResult({ data: null, error: new AuthSessionMissingError });
+        }
+        await _request(this.fetch, "DELETE", `${this.url}/user/oauth/grants`, {
+          headers: this.headers,
+          jwt: session.access_token,
+          query: { client_id: options.clientId },
+          noResolveJson: true
+        });
+        return { data: {}, error: null };
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async fetchJwk(kid, jwks = { keys: [] }) {
+    let jwk = jwks.keys.find((key) => key.kid === kid);
+    if (jwk) {
+      return jwk;
+    }
+    const now = Date.now();
+    jwk = this.jwks.keys.find((key) => key.kid === kid);
+    if (jwk && this.jwks_cached_at + JWKS_TTL > now) {
+      return jwk;
+    }
+    const { data, error: error51 } = await _request(this.fetch, "GET", `${this.url}/.well-known/jwks.json`, {
+      headers: this.headers
+    });
+    if (error51) {
+      throw error51;
+    }
+    if (!data.keys || data.keys.length === 0) {
+      return null;
+    }
+    this.jwks = data;
+    this.jwks_cached_at = now;
+    jwk = data.keys.find((key) => key.kid === kid);
+    if (!jwk) {
+      return null;
+    }
+    return jwk;
+  }
+  async getClaims(jwt2, options = {}) {
+    try {
+      let token = jwt2;
+      if (!token) {
+        const { data, error: error51 } = await this.getSession();
+        if (error51 || !data.session) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        token = data.session.access_token;
+      }
+      const { header, payload, signature, raw: { header: rawHeader, payload: rawPayload } } = decodeJWT(token);
+      if (!(options === null || options === undefined ? undefined : options.allowExpired)) {
+        try {
+          validateExp(payload.exp);
+        } catch (e) {
+          throw new AuthInvalidJwtError(e instanceof Error ? e.message : "JWT validation failed");
+        }
+      }
+      const signingKey = !header.alg || header.alg.startsWith("HS") || !header.kid || !(("crypto" in globalThis) && ("subtle" in globalThis.crypto)) ? null : await this.fetchJwk(header.kid, (options === null || options === undefined ? undefined : options.keys) ? { keys: options.keys } : options === null || options === undefined ? undefined : options.jwks);
+      if (!signingKey) {
+        const { error: error51 } = await this.getUser(token);
+        if (error51) {
+          throw error51;
+        }
+        return {
+          data: {
+            claims: payload,
+            header,
+            signature
+          },
+          error: null
+        };
+      }
+      const algorithm = getAlgorithm(header.alg);
+      const publicKey = await crypto.subtle.importKey("jwk", signingKey, algorithm, true, [
+        "verify"
+      ]);
+      const isValid = await crypto.subtle.verify(algorithm, publicKey, signature, stringToUint8Array(`${rawHeader}.${rawPayload}`));
+      if (!isValid) {
+        throw new AuthInvalidJwtError("Invalid JWT signature");
+      }
+      return {
+        data: {
+          claims: payload,
+          header,
+          signature
+        },
+        error: null
+      };
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async signInWithPasskey(credentials) {
+    var _a3, _b, _c;
+    assertPasskeyExperimentalEnabled(this.experimental);
+    try {
+      if (!browserSupportsWebAuthn()) {
+        return this._returnResult({
+          data: null,
+          error: new AuthUnknownError("Browser does not support WebAuthn", null)
+        });
+      }
+      const { data: options, error: optionsError } = await this._startPasskeyAuthentication({
+        options: { captchaToken: (_a3 = credentials === null || credentials === undefined ? undefined : credentials.options) === null || _a3 === undefined ? undefined : _a3.captchaToken }
+      });
+      if (optionsError || !options) {
+        return this._returnResult({ data: null, error: optionsError });
+      }
+      const publicKeyOptions = deserializeCredentialRequestOptions(options.options);
+      const signal = (_c = (_b = credentials === null || credentials === undefined ? undefined : credentials.options) === null || _b === undefined ? undefined : _b.signal) !== null && _c !== undefined ? _c : webAuthnAbortService.createNewAbortSignal();
+      const { data: credential, error: credentialError } = await getCredential({
+        publicKey: publicKeyOptions,
+        signal
+      });
+      if (credentialError || !credential) {
+        return this._returnResult({
+          data: null,
+          error: credentialError !== null && credentialError !== undefined ? credentialError : new AuthUnknownError("WebAuthn ceremony failed", null)
+        });
+      }
+      const serialized = serializeCredentialRequestResponse(credential);
+      return this._verifyPasskeyAuthentication({
+        challengeId: options.challenge_id,
+        credential: serialized
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async registerPasskey(credentials) {
+    var _a3, _b;
+    assertPasskeyExperimentalEnabled(this.experimental);
+    try {
+      if (!browserSupportsWebAuthn()) {
+        return this._returnResult({
+          data: null,
+          error: new AuthUnknownError("Browser does not support WebAuthn", null)
+        });
+      }
+      const { data: options, error: optionsError } = await this._startPasskeyRegistration();
+      if (optionsError || !options) {
+        return this._returnResult({ data: null, error: optionsError });
+      }
+      const publicKeyOptions = deserializeCredentialCreationOptions(options.options);
+      const signal = (_b = (_a3 = credentials === null || credentials === undefined ? undefined : credentials.options) === null || _a3 === undefined ? undefined : _a3.signal) !== null && _b !== undefined ? _b : webAuthnAbortService.createNewAbortSignal();
+      const { data: credential, error: credentialError } = await createCredential({
+        publicKey: publicKeyOptions,
+        signal
+      });
+      if (credentialError || !credential) {
+        return this._returnResult({
+          data: null,
+          error: credentialError !== null && credentialError !== undefined ? credentialError : new AuthUnknownError("WebAuthn ceremony failed", null)
+        });
+      }
+      const serialized = serializeCredentialCreationResponse(credential);
+      return this._verifyPasskeyRegistration({
+        challengeId: options.challenge_id,
+        credential: serialized
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _startPasskeyRegistration() {
+    assertPasskeyExperimentalEnabled(this.experimental);
+    try {
+      return await this._useSession(async (result) => {
+        const { data: { session }, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        if (!session) {
+          return this._returnResult({ data: null, error: new AuthSessionMissingError });
+        }
+        const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/passkeys/registration/options`, {
+          headers: this.headers,
+          jwt: session.access_token,
+          body: {}
+        });
+        if (error51) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        return this._returnResult({ data, error: null });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _verifyPasskeyRegistration(params) {
+    assertPasskeyExperimentalEnabled(this.experimental);
+    try {
+      return await this._useSession(async (result) => {
+        const { data: { session }, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        if (!session) {
+          return this._returnResult({ data: null, error: new AuthSessionMissingError });
+        }
+        const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/passkeys/registration/verify`, {
+          headers: this.headers,
+          jwt: session.access_token,
+          body: {
+            challenge_id: params.challengeId,
+            credential: params.credential
+          }
+        });
+        if (error51) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        return this._returnResult({ data, error: null });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _startPasskeyAuthentication(params) {
+    var _a3;
+    assertPasskeyExperimentalEnabled(this.experimental);
+    try {
+      const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/passkeys/authentication/options`, {
+        headers: this.headers,
+        body: {
+          gotrue_meta_security: { captcha_token: (_a3 = params === null || params === undefined ? undefined : params.options) === null || _a3 === undefined ? undefined : _a3.captchaToken }
+        }
+      });
+      if (error51) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      return this._returnResult({ data, error: null });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _verifyPasskeyAuthentication(params) {
+    assertPasskeyExperimentalEnabled(this.experimental);
+    try {
+      const { data, error: error51 } = await _request(this.fetch, "POST", `${this.url}/passkeys/authentication/verify`, {
+        headers: this.headers,
+        body: {
+          challenge_id: params.challengeId,
+          credential: params.credential
+        },
+        xform: _sessionResponse
+      });
+      if (error51) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      if (data.session) {
+        await this._saveSession(data.session);
+        await this._notifyAllSubscribers("SIGNED_IN", data.session);
+      }
+      return this._returnResult({ data, error: null });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _listPasskeys() {
+    assertPasskeyExperimentalEnabled(this.experimental);
+    try {
+      return await this._useSession(async (result) => {
+        const { data: { session }, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        if (!session) {
+          return this._returnResult({ data: null, error: new AuthSessionMissingError });
+        }
+        const { data, error: error51 } = await _request(this.fetch, "GET", `${this.url}/passkeys`, {
+          headers: this.headers,
+          jwt: session.access_token,
+          xform: (data2) => ({ data: data2, error: null })
+        });
+        if (error51) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        return this._returnResult({ data, error: null });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _updatePasskey(params) {
+    assertPasskeyExperimentalEnabled(this.experimental);
+    try {
+      return await this._useSession(async (result) => {
+        const { data: { session }, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        if (!session) {
+          return this._returnResult({ data: null, error: new AuthSessionMissingError });
+        }
+        const { data, error: error51 } = await _request(this.fetch, "PATCH", `${this.url}/passkeys/${params.passkeyId}`, {
+          headers: this.headers,
+          jwt: session.access_token,
+          body: { friendly_name: params.friendlyName }
+        });
+        if (error51) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        return this._returnResult({ data, error: null });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+  async _deletePasskey(params) {
+    assertPasskeyExperimentalEnabled(this.experimental);
+    try {
+      return await this._useSession(async (result) => {
+        const { data: { session }, error: sessionError } = result;
+        if (sessionError) {
+          return this._returnResult({ data: null, error: sessionError });
+        }
+        if (!session) {
+          return this._returnResult({ data: null, error: new AuthSessionMissingError });
+        }
+        const { error: error51 } = await _request(this.fetch, "DELETE", `${this.url}/passkeys/${params.passkeyId}`, {
+          headers: this.headers,
+          jwt: session.access_token,
+          noResolveJson: true
+        });
+        if (error51) {
+          return this._returnResult({ data: null, error: error51 });
+        }
+        return this._returnResult({ data: null, error: null });
+      });
+    } catch (error51) {
+      if (isAuthError(error51)) {
+        return this._returnResult({ data: null, error: error51 });
+      }
+      throw error51;
+    }
+  }
+}
+GoTrueClient.nextInstanceID = {};
+var GoTrueClient_default = GoTrueClient;
+
+// ../node_modules/@supabase/auth-js/dist/module/AuthClient.js
+var AuthClient = GoTrueClient_default;
+var AuthClient_default = AuthClient;
+// ../node_modules/@supabase/supabase-js/dist/index.mjs
+var version6 = "2.116.0";
+var JS_ENV = "";
+var JS_RUNTIME_VERSION;
+if (typeof Deno !== "undefined") {
+  JS_ENV = "deno";
+  JS_RUNTIME_VERSION = (_Deno$version = Deno.version) === null || _Deno$version === undefined ? undefined : _Deno$version.deno;
+} else if (typeof document !== "undefined")
+  JS_ENV = "web";
+else if (typeof navigator !== "undefined" && navigator.product === "ReactNative")
+  JS_ENV = "react-native";
+else {
+  JS_ENV = "node";
+  const _process = globalThis["process"];
+  JS_RUNTIME_VERSION = _process === null || _process === undefined || (_process$version = _process["version"]) === null || _process$version === undefined ? undefined : _process$version.replace(/^v/, "");
+}
+var _Deno$version;
+var _process$version;
+var _runtimeMeta = [`runtime=${JS_ENV}`];
+if (JS_RUNTIME_VERSION)
+  _runtimeMeta.push(`runtime-version=${JS_RUNTIME_VERSION}`);
+var DEFAULT_HEADERS3 = { "X-Client-Info": `supabase-js/${version6}; ${_runtimeMeta.join("; ")}` };
+var DEFAULT_GLOBAL_OPTIONS = { headers: DEFAULT_HEADERS3 };
+var DEFAULT_DB_OPTIONS = { schema: "public" };
+var DEFAULT_AUTH_OPTIONS = {
+  autoRefreshToken: true,
+  persistSession: true,
+  detectSessionInUrl: true,
+  flowType: "implicit"
+};
+var DEFAULT_REALTIME_OPTIONS = {};
+var DEFAULT_TRACE_PROPAGATION_OPTIONS = {
+  enabled: false,
+  respectSamplingDecision: true
+};
+function parseTraceParent(traceparent) {
+  if (!traceparent || typeof traceparent !== "string")
+    return null;
+  const parts = traceparent.split("-");
+  if (parts.length !== 4)
+    return null;
+  const [version$1, traceId, parentId, traceFlags] = parts;
+  if (version$1.length !== 2 || traceId.length !== 32 || parentId.length !== 16 || traceFlags.length !== 2)
+    return null;
+  const hexRegex = /^[0-9a-f]+$/i;
+  if (!hexRegex.test(version$1) || !hexRegex.test(traceId) || !hexRegex.test(parentId) || !hexRegex.test(traceFlags))
+    return null;
+  if (traceId === "00000000000000000000000000000000" || parentId === "0000000000000000")
+    return null;
+  return {
+    version: version$1,
+    traceId,
+    parentId,
+    traceFlags,
+    isSampled: (parseInt(traceFlags, 16) & 1) === 1
+  };
+}
+function shouldPropagateToTarget(targetUrl, targets) {
+  if (!targetUrl || !targets || targets.length === 0)
+    return false;
+  let url2;
+  if (targetUrl instanceof URL)
+    url2 = targetUrl;
+  else
+    try {
+      url2 = new URL(targetUrl);
+    } catch (error51) {
+      return false;
+    }
+  for (const target of targets)
+    try {
+      if (typeof target === "string") {
+        if (matchStringTarget(url2.hostname, target))
+          return true;
+      } else if (target instanceof RegExp) {
+        if (target.test(url2.hostname))
+          return true;
+      } else if (typeof target === "function") {
+        if (target(url2))
+          return true;
+      }
+    } catch (error51) {
+      continue;
+    }
+  return false;
+}
+function matchStringTarget(hostname3, target) {
+  if (target === hostname3)
+    return true;
+  if (target.startsWith("*.")) {
+    const domain2 = target.slice(2);
+    if (hostname3.endsWith(domain2)) {
+      if (hostname3 === domain2 || hostname3.endsWith("." + domain2))
+        return true;
+    }
+  }
+  return false;
+}
+function getDefaultPropagationTargets(supabaseUrl) {
+  const targets = [];
+  try {
+    const url2 = new URL(supabaseUrl);
+    targets.push(url2.hostname);
+  } catch (error51) {}
+  targets.push("*.supabase.co", "*.supabase.in");
+  targets.push("localhost", "127.0.0.1", "[::1]");
+  return targets;
+}
+function _typeof3(o) {
+  "@babel/helpers - typeof";
+  return _typeof3 = typeof Symbol == "function" && typeof Symbol.iterator == "symbol" ? function(o$1) {
+    return typeof o$1;
+  } : function(o$1) {
+    return o$1 && typeof Symbol == "function" && o$1.constructor === Symbol && o$1 !== Symbol.prototype ? "symbol" : typeof o$1;
+  }, _typeof3(o);
+}
+function toPrimitive3(t, r) {
+  if (_typeof3(t) != "object" || !t)
+    return t;
+  var e = t[Symbol.toPrimitive];
+  if (e !== undefined) {
+    var i = e.call(t, r || "default");
+    if (_typeof3(i) != "object")
+      return i;
+    throw new TypeError("@@toPrimitive must return a primitive value.");
+  }
+  return (r === "string" ? String : Number)(t);
+}
+function toPropertyKey3(t) {
+  var i = toPrimitive3(t, "string");
+  return _typeof3(i) == "symbol" ? i : i + "";
+}
+function _defineProperty3(e, r, t) {
+  return (r = toPropertyKey3(r)) in e ? Object.defineProperty(e, r, {
+    value: t,
+    enumerable: true,
+    configurable: true,
+    writable: true
+  }) : e[r] = t, e;
+}
+function ownKeys3(e, r) {
+  var t = Object.keys(e);
+  if (Object.getOwnPropertySymbols) {
+    var o = Object.getOwnPropertySymbols(e);
+    r && (o = o.filter(function(r$1) {
+      return Object.getOwnPropertyDescriptor(e, r$1).enumerable;
+    })), t.push.apply(t, o);
+  }
+  return t;
+}
+function _objectSpread23(e) {
+  for (var r = 1;r < arguments.length; r++) {
+    var t = arguments[r] != null ? arguments[r] : {};
+    r % 2 ? ownKeys3(Object(t), true).forEach(function(r$1) {
+      _defineProperty3(e, r$1, t[r$1]);
+    }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys3(Object(t)).forEach(function(r$1) {
+      Object.defineProperty(e, r$1, Object.getOwnPropertyDescriptor(t, r$1));
+    });
+  }
+  return e;
+}
+var resolveFetch4 = (customFetch) => {
+  if (customFetch)
+    return (...args) => customFetch(...args);
+  return (...args) => fetch(...args);
+};
+var resolveHeadersConstructor = () => {
+  return Headers;
+};
+var isNewApiKey = (key) => key.startsWith("sb_publishable_") || key.startsWith("sb_secret_");
+var TEMP_KEY_PREFIX = "sb_temp_";
+var warnedKeySubtypes = /* @__PURE__ */ new Set;
+var checkApiKeyFormat = (key) => {
+  var _key$match$, _key$match;
+  if (!key.startsWith("sb_") || isNewApiKey(key) || key.startsWith(TEMP_KEY_PREFIX))
+    return;
+  const subtype = (_key$match$ = (_key$match = key.match(/^sb_[a-zA-Z0-9]+_/)) === null || _key$match === undefined ? undefined : _key$match[0]) !== null && _key$match$ !== undefined ? _key$match$ : "unknown";
+  if (warnedKeySubtypes.has(subtype))
+    return;
+  warnedKeySubtypes.add(subtype);
+  console.warn("@supabase/supabase-js: Unrecognized Supabase API key format. The client will proceed and send this key as-is; if you see authentication errors you may need to upgrade @supabase/supabase-js to a version that recognizes this key type.");
+};
+var fetchWithAuth = (supabaseKey, supabaseUrl, getAccessToken, customFetch, tracePropagationOptions, options) => {
+  const fetch$1 = resolveFetch4(customFetch);
+  const HeadersConstructor = resolveHeadersConstructor();
+  const traceEnabled = (tracePropagationOptions === null || tracePropagationOptions === undefined ? undefined : tracePropagationOptions.enabled) === true;
+  const respectSampling = (tracePropagationOptions === null || tracePropagationOptions === undefined ? undefined : tracePropagationOptions.respectSamplingDecision) !== false;
+  const traceTargets = traceEnabled ? getDefaultPropagationTargets(supabaseUrl) : null;
+  const allowKeyAsBearer = !((options === null || options === undefined ? undefined : options.omitApiKeyAsBearer) && isNewApiKey(supabaseKey));
+  return async (input, init) => {
+    const realToken = await getAccessToken();
+    let headers = new HeadersConstructor(init === null || init === undefined ? undefined : init.headers);
+    if (!headers.has("apikey"))
+      headers.set("apikey", supabaseKey);
+    if (!headers.has("Authorization")) {
+      const bearer = realToken !== null && realToken !== undefined ? realToken : allowKeyAsBearer ? supabaseKey : null;
+      if (bearer)
+        headers.set("Authorization", `Bearer ${bearer}`);
+    }
+    if (traceTargets) {
+      const traceHeaders = getTraceHeaders(input, traceTargets, respectSampling);
+      if (traceHeaders) {
+        if (traceHeaders.traceparent && !headers.has("traceparent"))
+          headers.set("traceparent", traceHeaders.traceparent);
+        if (traceHeaders.tracestate && !headers.has("tracestate"))
+          headers.set("tracestate", traceHeaders.tracestate);
+        if (traceHeaders.baggage && !headers.has("baggage"))
+          headers.set("baggage", traceHeaders.baggage);
+      }
+    }
+    return fetch$1(input, _objectSpread23(_objectSpread23({}, init), {}, { headers }));
+  };
+};
+var warnedMissingTracingRuntime = false;
+var warnedNonW3CPropagator = false;
+function getTraceHeaders(input, targets, respectSampling) {
+  const extractTraceContext = getTraceContextExtractor();
+  if (!extractTraceContext) {
+    if (!warnedMissingTracingRuntime) {
+      warnedMissingTracingRuntime = true;
+      console.warn("@supabase/supabase-js: tracePropagation is enabled but the tracing runtime is not loaded, so trace headers will not be attached. Add `import '@supabase/supabase-js/tracing'` at your application entry point (requires the OpenTelemetry API package to be installed). The CDN/UMD build does not support trace propagation.");
+    }
+    return null;
+  }
+  if (!shouldPropagateToTarget(typeof input === "string" ? input : input instanceof URL ? input : input.url, targets))
+    return null;
+  const traceContext = extractTraceContext();
+  if (!traceContext || !traceContext.traceparent) {
+    var _traceContext$carrier;
+    if ((traceContext === null || traceContext === undefined || (_traceContext$carrier = traceContext.carrierKeys) === null || _traceContext$carrier === undefined ? undefined : _traceContext$carrier.length) && !warnedNonW3CPropagator) {
+      warnedNonW3CPropagator = true;
+      const sentryHint = traceContext.carrierKeys.includes("sentry-trace") ? " Sentry detected: set `propagateTraceparent: true` in Sentry.init() to emit it." : " Configure your tracing SDK to emit W3C trace context on outgoing requests.";
+      console.warn(`@supabase/supabase-js: tracePropagation is enabled and a tracing SDK is active, but its propagator wrote [${traceContext.carrierKeys.join(", ")}] and no W3C traceparent header, so trace headers will not be attached.` + sentryHint);
+    }
+    return null;
+  }
+  if (respectSampling) {
+    const parsed = parseTraceParent(traceContext.traceparent);
+    if (parsed && !parsed.isSampled)
+      return { traceparent: traceContext.traceparent };
+  }
+  return traceContext;
+}
+function normalizeTracePropagation(value) {
+  return typeof value === "boolean" ? { enabled: value } : value;
+}
+function ensureTrailingSlash(url2) {
+  return url2.endsWith("/") ? url2 : url2 + "/";
+}
+var warnedTopLevelSchema = false;
+function checkTopLevelSchemaOption(options) {
+  if (warnedTopLevelSchema)
+    return;
+  if (typeof options !== "object" || options === null || !("schema" in options) || options.schema === undefined)
+    return;
+  warnedTopLevelSchema = true;
+  console.warn(`@supabase/supabase-js: The "schema" option must be nested under "db", e.g. createClient(url, key, { db: { schema: 'myschema' } }). A top-level "schema" is ignored and queries go to the default schema.`);
+}
+function applySettingDefaults(options, defaults) {
+  var _DEFAULT_GLOBAL_OPTIO, _globalOptions$header, _ref, _tracePropagationOpti, _ref2, _tracePropagationOpti2;
+  const { db: dbOptions, auth: authOptions, realtime: realtimeOptions, global: globalOptions } = options;
+  const { db: DEFAULT_DB_OPTIONS$1, auth: DEFAULT_AUTH_OPTIONS$1, realtime: DEFAULT_REALTIME_OPTIONS$1, global: DEFAULT_GLOBAL_OPTIONS$1 } = defaults;
+  const tracePropagationOptions = normalizeTracePropagation(options.tracePropagation);
+  const DEFAULT_TRACE_PROPAGATION_OPTIONS$1 = normalizeTracePropagation(defaults.tracePropagation);
+  const result = {
+    db: _objectSpread23(_objectSpread23({}, DEFAULT_DB_OPTIONS$1), dbOptions),
+    auth: _objectSpread23(_objectSpread23({}, DEFAULT_AUTH_OPTIONS$1), authOptions),
+    realtime: _objectSpread23(_objectSpread23({}, DEFAULT_REALTIME_OPTIONS$1), realtimeOptions),
+    storage: {},
+    global: _objectSpread23(_objectSpread23(_objectSpread23({}, DEFAULT_GLOBAL_OPTIONS$1), globalOptions), {}, { headers: _objectSpread23(_objectSpread23({}, (_DEFAULT_GLOBAL_OPTIO = DEFAULT_GLOBAL_OPTIONS$1 === null || DEFAULT_GLOBAL_OPTIONS$1 === undefined ? undefined : DEFAULT_GLOBAL_OPTIONS$1.headers) !== null && _DEFAULT_GLOBAL_OPTIO !== undefined ? _DEFAULT_GLOBAL_OPTIO : {}), (_globalOptions$header = globalOptions === null || globalOptions === undefined ? undefined : globalOptions.headers) !== null && _globalOptions$header !== undefined ? _globalOptions$header : {}) }),
+    tracePropagation: {
+      enabled: (_ref = (_tracePropagationOpti = tracePropagationOptions === null || tracePropagationOptions === undefined ? undefined : tracePropagationOptions.enabled) !== null && _tracePropagationOpti !== undefined ? _tracePropagationOpti : DEFAULT_TRACE_PROPAGATION_OPTIONS$1 === null || DEFAULT_TRACE_PROPAGATION_OPTIONS$1 === undefined ? undefined : DEFAULT_TRACE_PROPAGATION_OPTIONS$1.enabled) !== null && _ref !== undefined ? _ref : false,
+      respectSamplingDecision: (_ref2 = (_tracePropagationOpti2 = tracePropagationOptions === null || tracePropagationOptions === undefined ? undefined : tracePropagationOptions.respectSamplingDecision) !== null && _tracePropagationOpti2 !== undefined ? _tracePropagationOpti2 : DEFAULT_TRACE_PROPAGATION_OPTIONS$1 === null || DEFAULT_TRACE_PROPAGATION_OPTIONS$1 === undefined ? undefined : DEFAULT_TRACE_PROPAGATION_OPTIONS$1.respectSamplingDecision) !== null && _ref2 !== undefined ? _ref2 : true
+    },
+    accessToken: async () => ""
+  };
+  if (options.accessToken)
+    result.accessToken = options.accessToken;
+  else
+    delete result.accessToken;
+  return result;
+}
+function validateSupabaseUrl(supabaseUrl) {
+  const trimmedUrl = supabaseUrl === null || supabaseUrl === undefined ? undefined : supabaseUrl.trim();
+  if (!trimmedUrl)
+    throw new Error("supabaseUrl is required.");
+  if (!trimmedUrl.match(/^https?:\/\//i))
+    throw new Error("Invalid supabaseUrl: Must be a valid HTTP or HTTPS URL.");
+  try {
+    return new URL(ensureTrailingSlash(trimmedUrl));
+  } catch (_unused) {
+    throw Error("Invalid supabaseUrl: Provided URL is malformed.");
+  }
+}
+var SupabaseAuthClient = class extends AuthClient_default {
+  constructor(options) {
+    super(options);
+  }
+};
+var SupabaseClient = class {
+  constructor(supabaseUrl, supabaseKey, options) {
+    var _settings$auth$storag, _settings$global$head;
+    this.supabaseUrl = supabaseUrl;
+    this.supabaseKey = supabaseKey;
+    const baseUrl = validateSupabaseUrl(supabaseUrl);
+    if (!supabaseKey)
+      throw new Error("supabaseKey is required.");
+    checkApiKeyFormat(supabaseKey);
+    checkTopLevelSchemaOption(options);
+    this.realtimeUrl = new URL("realtime/v1", baseUrl);
+    this.realtimeUrl.protocol = this.realtimeUrl.protocol.replace("http", "ws");
+    this.authUrl = new URL("auth/v1", baseUrl);
+    this.storageUrl = new URL("storage/v1", baseUrl);
+    this.functionsUrl = new URL("functions/v1", baseUrl);
+    const defaultStorageKey = `sb-${baseUrl.hostname.split(".")[0]}-auth-token`;
+    const DEFAULTS = {
+      db: DEFAULT_DB_OPTIONS,
+      realtime: DEFAULT_REALTIME_OPTIONS,
+      auth: _objectSpread23(_objectSpread23({}, DEFAULT_AUTH_OPTIONS), {}, { storageKey: defaultStorageKey }),
+      global: DEFAULT_GLOBAL_OPTIONS,
+      tracePropagation: DEFAULT_TRACE_PROPAGATION_OPTIONS
+    };
+    const settings = applySettingDefaults(options !== null && options !== undefined ? options : {}, DEFAULTS);
+    this.settings = settings;
+    this.storageKey = (_settings$auth$storag = settings.auth.storageKey) !== null && _settings$auth$storag !== undefined ? _settings$auth$storag : "";
+    this.headers = (_settings$global$head = settings.global.headers) !== null && _settings$global$head !== undefined ? _settings$global$head : {};
+    if (!settings.accessToken) {
+      var _settings$auth;
+      this.auth = this._initSupabaseAuthClient((_settings$auth = settings.auth) !== null && _settings$auth !== undefined ? _settings$auth : {}, this.headers, settings.global.fetch);
+    } else {
+      this.accessToken = settings.accessToken;
+      this.auth = new Proxy({}, { get: (_, prop) => {
+        throw new Error(`@supabase/supabase-js: Supabase Client is configured with the accessToken option, accessing supabase.auth.${String(prop)} is not possible`);
+      } });
+    }
+    this.fetch = fetchWithAuth(supabaseKey, supabaseUrl, this._getSessionToken.bind(this), settings.global.fetch, settings.tracePropagation);
+    this.functionsFetch = fetchWithAuth(supabaseKey, supabaseUrl, this._getSessionToken.bind(this), settings.global.fetch, settings.tracePropagation, { omitApiKeyAsBearer: true });
+    this.realtime = this._initRealtimeClient(_objectSpread23({
+      headers: this.headers,
+      accessToken: this._getAccessToken.bind(this),
+      fetch: this.fetch
+    }, settings.realtime));
+    if (this.accessToken)
+      Promise.resolve(this.accessToken()).then((token) => this.realtime.setAuth(token)).catch((e) => console.warn("Failed to set initial Realtime auth token:", e));
+    this.rest = new PostgrestClient(new URL("rest/v1", baseUrl).href, {
+      headers: this.headers,
+      schema: settings.db.schema,
+      fetch: this.fetch,
+      timeout: settings.db.timeout,
+      urlLengthLimit: settings.db.urlLengthLimit,
+      retry: settings.db.retry
+    });
+    this.storage = new StorageClient(this.storageUrl.href, this.headers, this.fetch, options === null || options === undefined ? undefined : options.storage);
+    if (!settings.accessToken)
+      this._listenForAuthEvents();
+  }
+  get functions() {
+    return new FunctionsClient(this.functionsUrl.href, {
+      headers: this.headers,
+      customFetch: this.functionsFetch
+    });
+  }
+  from(relation) {
+    return this.rest.from(relation);
+  }
+  schema(schema) {
+    return this.rest.schema(schema);
+  }
+  getOpenApiSpec() {
+    return this.rest.getOpenApiSpec();
+  }
+  rpc(fn, args = {}, options = {
+    head: false,
+    get: false,
+    count: undefined
+  }) {
+    return this.rest.rpc(fn, args, options);
+  }
+  channel(name, opts = { config: {} }) {
+    return this.realtime.channel(name, opts);
+  }
+  getChannels() {
+    return this.realtime.getChannels();
+  }
+  removeChannel(channel) {
+    return this.realtime.removeChannel(channel);
+  }
+  removeAllChannels() {
+    return this.realtime.removeAllChannels();
+  }
+  async _getSessionToken() {
+    var _this = this;
+    var _data$session$access_, _data$session;
+    if (_this.accessToken)
+      return await _this.accessToken();
+    const { data } = await _this.auth.getSession();
+    return (_data$session$access_ = (_data$session = data.session) === null || _data$session === undefined ? undefined : _data$session.access_token) !== null && _data$session$access_ !== undefined ? _data$session$access_ : null;
+  }
+  async _getAccessToken() {
+    var _this2 = this;
+    var _await$this$_getSessi;
+    return (_await$this$_getSessi = await _this2._getSessionToken()) !== null && _await$this$_getSessi !== undefined ? _await$this$_getSessi : _this2.supabaseKey;
+  }
+  _initSupabaseAuthClient({ autoRefreshToken, persistSession, detectSessionInUrl, storage, userStorage, storageKey, flowType, lock, debug, throwOnError, experimental, lockAcquireTimeout, skipAutoInitialize }, headers, fetch$1) {
+    const authHeaders = {
+      Authorization: `Bearer ${this.supabaseKey}`,
+      apikey: `${this.supabaseKey}`
+    };
+    return new SupabaseAuthClient({
+      url: this.authUrl.href,
+      headers: _objectSpread23(_objectSpread23({}, authHeaders), headers),
+      storageKey,
+      autoRefreshToken,
+      persistSession,
+      detectSessionInUrl,
+      storage,
+      userStorage,
+      flowType,
+      lock,
+      debug,
+      throwOnError,
+      experimental,
+      fetch: fetch$1,
+      lockAcquireTimeout,
+      skipAutoInitialize,
+      hasCustomAuthorizationHeader: Object.keys(this.headers).some((key) => key.toLowerCase() === "authorization")
+    });
+  }
+  _initRealtimeClient(options) {
+    return new RealtimeClient(this.realtimeUrl.href, _objectSpread23(_objectSpread23({}, options), {}, { params: _objectSpread23(_objectSpread23({}, { apikey: this.supabaseKey }), options === null || options === undefined ? undefined : options.params) }));
+  }
+  _listenForAuthEvents() {
+    return this.auth.onAuthStateChange((event, session) => {
+      this._handleTokenChanged(event, "CLIENT", session === null || session === undefined ? undefined : session.access_token);
+    });
+  }
+  _handleTokenChanged(event, source, token) {
+    if ((event === "TOKEN_REFRESHED" || event === "SIGNED_IN" || event === "INITIAL_SESSION") && this.changedAccessToken !== token) {
+      this.changedAccessToken = token;
+      this.realtime.setAuth(token);
+    } else if (event === "SIGNED_OUT") {
+      this.realtime.setAuth();
+      if (source == "STORAGE")
+        this.auth.signOut();
+      this.changedAccessToken = undefined;
+    }
+  }
+};
+var createClient = (supabaseUrl, supabaseKey, options) => {
+  return new SupabaseClient(supabaseUrl, supabaseKey, options);
+};
+function shouldShowDeprecationWarning() {
+  if (typeof window !== "undefined" || globalThis["Deno"] !== undefined)
+    return false;
+  const _process = globalThis["process"];
+  if (!_process)
+    return false;
+  const processVersion = _process["version"];
+  if (processVersion === undefined || processVersion === null)
+    return false;
+  const versionMatch = processVersion.match(/^v(\d+)\./);
+  if (!versionMatch)
+    return false;
+  return parseInt(versionMatch[1], 10) <= 20;
+}
+if (shouldShowDeprecationWarning())
+  console.warn("\u26A0\uFE0F  Node.js 20 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 22 or later. For more information, visit: https://github.com/orgs/supabase/discussions/45715");
+
+// src/storage.ts
+var STORAGE_BUCKETS = {
+  product: "product-images",
+  banner: "banners",
+  avatar: "avatars",
+  store: "site-assets",
+  sitelogo: "site-assets"
+};
+var STORAGE_PUBLIC_URL_PREFIX = "/storage/v1/object/public/";
+var cachedClient = null;
+function getStorageClient() {
+  const url2 = process.env.SUPABASE_URL;
+  if (!url2) {
+    throw new Error("Supabase storage is not configured: SUPABASE_URL is missing from the environment.");
+  }
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) {
+    throw new Error("Supabase storage is not configured: SUPABASE_SERVICE_ROLE_KEY is missing from the environment.");
+  }
+  if (!cachedClient) {
+    cachedClient = createClient(url2, key, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+  }
+  return cachedClient;
+}
+async function deleteFromBucket(bucket, path, client) {
+  const supabase = client ?? getStorageClient();
+  const { error: error51 } = await supabase.storage.from(bucket).remove([path]);
+  if (error51) {
+    throw new Error(`Supabase storage delete failed (${bucket}/${path}): ${error51.message}`);
+  }
+}
+function parseStoredUploadUrl(storedUrl) {
+  try {
+    const u = new URL(storedUrl);
+    const idx = u.pathname.indexOf(STORAGE_PUBLIC_URL_PREFIX);
+    if (idx >= 0) {
+      const rest = u.pathname.slice(idx + STORAGE_PUBLIC_URL_PREFIX.length);
+      const slash = rest.indexOf("/");
+      if (slash > 0) {
+        return {
+          kind: "supabase",
+          bucket: rest.slice(0, slash),
+          path: decodeURIComponent(rest.slice(slash + 1))
+        };
+      }
+    }
+  } catch {}
+  const filename = storedUrl.split("/").pop() ?? "";
+  return { kind: "legacy", filename };
+}
+var UUID_RE = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+var IMG_EXT_RE = "(jpg|png|webp|gif)";
+var UPLOAD_FILENAME_PATTERNS = {
+  product: new RegExp(`^${UUID_RE}\\.${IMG_EXT_RE}$`),
+  banner: new RegExp(`^banner-${UUID_RE}\\.${IMG_EXT_RE}$`),
+  avatar: new RegExp(`^avatar-${UUID_RE}\\.${IMG_EXT_RE}$`),
+  store: new RegExp(`^store-${UUID_RE}\\.${IMG_EXT_RE}$`),
+  sitelogo: new RegExp(`^sitelogo-${UUID_RE}\\.${IMG_EXT_RE}$`)
+};
+function isExpectedUploadUrl(storedUrl, kind) {
+  const bucket = STORAGE_BUCKETS[kind];
+  const filenameRe = UPLOAD_FILENAME_PATTERNS[kind];
+  const legacy = storedUrl.match(/^\/uploads\/(.+)$/);
+  if (legacy?.[1])
+    return filenameRe.test(legacy[1]);
+  const supabaseUrl = process.env.SUPABASE_URL;
+  if (!supabaseUrl)
+    return false;
+  let expectedHost;
+  let u;
+  try {
+    expectedHost = new URL(supabaseUrl).hostname;
+    u = new URL(storedUrl);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:")
+    return false;
+  if (u.hostname !== expectedHost)
+    return false;
+  const prefix = `${STORAGE_PUBLIC_URL_PREFIX}${bucket}/`;
+  if (!u.pathname.startsWith(prefix))
+    return false;
+  const filename = decodeURIComponent(u.pathname.slice(prefix.length));
+  if (!filename || filename.includes("/"))
+    return false;
+  return filenameRe.test(filename);
+}
+
 // ../node_modules/nodemailer/dist/esm/mailer/index.js
 import { EventEmitter } from "events";
 
@@ -16604,7 +29367,7 @@ var delimiter = "-";
 var regexPunycode = /^xn--/;
 var regexNonASCII = /[^\0-\x7F]/;
 var regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g;
-var errors3 = {
+var errors4 = {
   overflow: "Overflow: input needs wider integers to process",
   "not-basic": "Illegal input >= 0x80 (not a basic code point)",
   "invalid-input": "Invalid input"
@@ -16613,7 +29376,7 @@ var baseMinusTMin = base - tMin;
 var floor = Math.floor;
 var stringFromCharCode = String.fromCharCode;
 function error51(type) {
-  throw new RangeError(errors3[type]);
+  throw new RangeError(errors4[type]);
 }
 function map2(array2, callback) {
   const result = [];
@@ -17075,7 +29838,7 @@ class Cookies {
 
 // ../node_modules/nodemailer/dist/esm/package-info.js
 var name = "nodemailer";
-var version3 = "10.0.10";
+var version7 = "10.0.10";
 var homepage = "https://nodemailer.com/";
 
 // ../node_modules/nodemailer/dist/esm/fetch/index.js
@@ -17178,7 +29941,7 @@ function nmfetch(url2, options) {
   const handler = parsed.protocol === "https:" ? https : http;
   const headers = {
     "accept-encoding": "gzip,deflate",
-    "user-agent": "nodemailer/" + version3
+    "user-agent": "nodemailer/" + version7
   };
   Object.keys(options.headers || {}).forEach((key) => {
     if (isProtoKey(key.toLowerCase().trim())) {
@@ -17904,8 +30667,8 @@ function createDefaultLogger(levels) {
       }
     }
     message = util.format(message, ...args);
-    message.split(/\r?\n/).forEach((line) => {
-      console.log("[%s] %s %s", new Date().toISOString().substr(0, 19).replace(/T/, " "), levelNames.get(level), prefix + line);
+    message.split(/\r?\n/).forEach((line2) => {
+      console.log("[%s] %s %s", new Date().toISOString().substr(0, 19).replace(/T/, " "), levelNames.get(level), prefix + line2);
     });
   };
   const logger = {};
@@ -20155,60 +32918,60 @@ function wrap2(str, lineLength) {
   }
   let pos = 0;
   const len = str.length;
-  let match, code, line;
+  let match, code, line2;
   const lineMargin = Math.floor(lineLength / 3);
   let result = "";
   while (pos < len) {
-    line = str.substr(pos, lineLength);
-    if (match = line.match(/\r\n/)) {
-      line = line.substr(0, match.index + match[0].length);
-      result += line;
-      pos += line.length;
+    line2 = str.substr(pos, lineLength);
+    if (match = line2.match(/\r\n/)) {
+      line2 = line2.substr(0, match.index + match[0].length);
+      result += line2;
+      pos += line2.length;
       continue;
     }
-    if (line.substr(-1) === `
+    if (line2.substr(-1) === `
 `) {
-      result += line;
-      pos += line.length;
+      result += line2;
+      pos += line2.length;
       continue;
     }
-    if (match = line.substr(-lineMargin).match(/\n.*?$/)) {
-      line = line.substr(0, line.length - (match[0].length - 1));
-      result += line;
-      pos += line.length;
+    if (match = line2.substr(-lineMargin).match(/\n.*?$/)) {
+      line2 = line2.substr(0, line2.length - (match[0].length - 1));
+      result += line2;
+      pos += line2.length;
       continue;
     }
-    if (line.length > lineLength - lineMargin && (match = line.substr(-lineMargin).match(/[ \t.,!?][^ \t.,!?]*$/))) {
-      line = line.substr(0, line.length - (match[0].length - 1));
-    } else if (line.match(/[=][\da-f]{0,2}$/i)) {
-      if (match = line.match(/[=][\da-f]{0,1}$/i)) {
-        line = line.substr(0, line.length - match[0].length);
+    if (line2.length > lineLength - lineMargin && (match = line2.substr(-lineMargin).match(/[ \t.,!?][^ \t.,!?]*$/))) {
+      line2 = line2.substr(0, line2.length - (match[0].length - 1));
+    } else if (line2.match(/[=][\da-f]{0,2}$/i)) {
+      if (match = line2.match(/[=][\da-f]{0,1}$/i)) {
+        line2 = line2.substr(0, line2.length - match[0].length);
       }
-      while (line.length > 3 && line.length < len - pos && !line.match(/^(?:=[\da-f]{2}){1,4}$/i) && (match = line.match(/[=][\da-f]{2}$/gi))) {
+      while (line2.length > 3 && line2.length < len - pos && !line2.match(/^(?:=[\da-f]{2}){1,4}$/i) && (match = line2.match(/[=][\da-f]{2}$/gi))) {
         code = parseInt(match[0].substr(1, 2), 16);
         if (code < 128) {
           break;
         }
-        line = line.substr(0, line.length - 3);
+        line2 = line2.substr(0, line2.length - 3);
         if (code >= 192) {
           break;
         }
       }
     }
-    if (pos + line.length < len && line.substr(-1) !== `
+    if (pos + line2.length < len && line2.substr(-1) !== `
 `) {
-      if (line.length === lineLength && line.match(/[=][\da-f]{2}$/i)) {
-        line = line.substr(0, line.length - 3);
-      } else if (line.length === lineLength) {
-        line = line.substr(0, line.length - 1);
+      if (line2.length === lineLength && line2.match(/[=][\da-f]{2}$/i)) {
+        line2 = line2.substr(0, line2.length - 3);
+      } else if (line2.length === lineLength) {
+        line2 = line2.substr(0, line2.length - 1);
       }
-      pos += line.length;
-      line += `=\r
+      pos += line2.length;
+      line2 += `=\r
 `;
     } else {
-      pos += line.length;
+      pos += line2.length;
     }
-    result += line;
+    result += line2;
   }
   return result;
 }
@@ -20386,7 +33149,7 @@ function buildHeaderParam(key, data, maxLength) {
   const list = [];
   let encodedStr = typeof data === "string" ? data : (data || "").toString();
   let chr;
-  let line;
+  let line2;
   let startPos = 0;
   let i, len;
   maxLength = maxLength || 50;
@@ -20425,7 +33188,7 @@ function buildHeaderParam(key, data, maxLength) {
       }
       encodedStr = encodedStrArr;
     }
-    line = "utf-8''";
+    line2 = "utf-8''";
     let encoded = true;
     startPos = 0;
     for (i = 0, len = encodedStr.length;i < len; i++) {
@@ -20435,27 +33198,27 @@ function buildHeaderParam(key, data, maxLength) {
       } else {
         chr = chr === " " ? chr : safeEncodeURIComponent(chr);
         if (chr !== encodedStr[i]) {
-          if ((safeEncodeURIComponent(line) + chr).length >= maxLength) {
+          if ((safeEncodeURIComponent(line2) + chr).length >= maxLength) {
             list.push({
-              line,
+              line: line2,
               encoded
             });
-            line = "";
+            line2 = "";
             encoded = true;
           } else {
             encoded = true;
             i = startPos;
-            line = "";
+            line2 = "";
             continue;
           }
         }
       }
-      if ((line + chr).length >= maxLength) {
+      if ((line2 + chr).length >= maxLength) {
         list.push({
-          line,
+          line: line2,
           encoded
         });
-        line = chr = encodedStr[i] === " " ? " " : safeEncodeURIComponent(encodedStr[i]);
+        line2 = chr = encodedStr[i] === " " ? " " : safeEncodeURIComponent(encodedStr[i]);
         if (chr === encodedStr[i]) {
           encoded = false;
           startPos = i - 1;
@@ -20463,12 +33226,12 @@ function buildHeaderParam(key, data, maxLength) {
           encoded = true;
         }
       } else {
-        line += chr;
+        line2 += chr;
       }
     }
-    if (line) {
+    if (line2) {
       list.push({
-        line,
+        line: line2,
         encoded
       });
     }
@@ -20491,7 +33254,7 @@ function parseHeaderValue(str) {
   let key = false;
   let value = "";
   let type = "value";
-  let quote = false;
+  let quote2 = false;
   let escaped = false;
   let chr;
   for (let i = 0, len = str.length;i < len; i++) {
@@ -20510,11 +33273,11 @@ function parseHeaderValue(str) {
       } else if (chr === "\\") {
         escaped = true;
         continue;
-      } else if (quote && chr === quote) {
-        quote = false;
-      } else if (!quote && chr === '"') {
-        quote = chr;
-      } else if (!quote && chr === ";") {
+      } else if (quote2 && chr === quote2) {
+        quote2 = false;
+      } else if (!quote2 && chr === '"') {
+        quote2 = chr;
+      } else if (!quote2 && chr === ";") {
         if (key === false) {
           response.value = value.trim();
         } else {
@@ -20592,25 +33355,25 @@ function foldLines(str, lineLength, afterSpace) {
   let pos = 0;
   const len = str.length;
   let result = "";
-  let line, match;
+  let line2, match;
   while (pos < len) {
-    line = str.substr(pos, lineLength);
-    if (line.length < lineLength) {
-      result += line;
+    line2 = str.substr(pos, lineLength);
+    if (line2.length < lineLength) {
+      result += line2;
       break;
     }
-    if (match = line.match(/^[^\n\r]*(\r?\n|\r)/)) {
-      line = match[0];
-      result += line;
-      pos += line.length;
+    if (match = line2.match(/^[^\n\r]*(\r?\n|\r)/)) {
+      line2 = match[0];
+      result += line2;
+      pos += line2.length;
       continue;
-    } else if ((match = line.match(/(\s+)[^\s]*$/)) && match[0].length - (afterSpace ? (match[1] || "").length : 0) < line.length) {
-      line = line.substr(0, line.length - (match[0].length - (afterSpace ? (match[1] || "").length : 0)));
-    } else if (match = str.substr(pos + line.length).match(/^[^\s]+(\s*)/)) {
-      line = line + match[0].substr(0, match[0].length - (!afterSpace ? (match[1] || "").length : 0));
+    } else if ((match = line2.match(/(\s+)[^\s]*$/)) && match[0].length - (afterSpace ? (match[1] || "").length : 0) < line2.length) {
+      line2 = line2.substr(0, line2.length - (match[0].length - (afterSpace ? (match[1] || "").length : 0)));
+    } else if (match = str.substr(pos + line2.length).match(/^[^\s]+(\s*)/)) {
+      line2 = line2 + match[0].substr(0, match[0].length - (!afterSpace ? (match[1] || "").length : 0));
     }
-    result += line;
-    pos += line.length;
+    result += line2;
+    pos += line2.length;
     if (pos < len) {
       result += `\r
 `;
@@ -22579,9 +35342,9 @@ class MessageParser extends Transform6 {
         lines.push(rawLine);
       }
     }
-    return lines.filter((line) => /[^ \t\r]/.test(line)).map((line) => ({
-      key: line.substr(0, line.indexOf(":")).replace(/^[ \t]+|[ \t]+$/g, "").toLowerCase(),
-      line
+    return lines.filter((line2) => /[^ \t\r]/.test(line2)).map((line2) => ({
+      key: line2.substr(0, line2.indexOf(":")).replace(/^[ \t]+|[ \t]+$/g, "").toLowerCase(),
+      line: line2
     }));
   }
 }
@@ -22747,9 +35510,9 @@ function relaxedHeaders(headers, fieldNames, skipFields) {
     includedFields.add(field.trim());
   });
   for (let i = headers.length - 1;i >= 0; i--) {
-    const line = headers[i];
-    if (includedFields.has(line.key) && !headerFields.has(line.key)) {
-      headerFields.set(line.key, relaxedHeaderLine(line.line));
+    const line2 = headers[i];
+    if (includedFields.has(line2.key) && !headerFields.has(line2.key)) {
+      headerFields.set(line2.key, relaxedHeaderLine(line2.line));
     }
   }
   const headersList = [];
@@ -22767,8 +35530,8 @@ function relaxedHeaders(headers, fieldNames, skipFields) {
     fieldNames: fields.join(":")
   };
 }
-function relaxedHeaderLine(line) {
-  return line.substr(line.indexOf(":") + 1).replace(/\r?\n/g, "").replace(/[ \t]+/g, " ").replace(/^ | $/g, "");
+function relaxedHeaderLine(line2) {
+  return line2.substr(line2.indexOf(":") + 1).replace(/\r?\n/g, "").replace(/[ \t]+/g, " ").replace(/^ | $/g, "");
 }
 
 // ../node_modules/nodemailer/dist/esm/dkim/index.js
@@ -23490,7 +36253,7 @@ class Mail extends EventEmitter {
     return promise2;
   }
   getVersionString() {
-    return util2.format("%s (%s; +%s; %s/%s)", name, version3, homepage, this.transporter.name, this.transporter.version);
+    return util2.format("%s (%s; +%s; %s/%s)", name, version7, homepage, this.transporter.name, this.transporter.version);
   }
   _processPlugins(step, mail, callback) {
     step = (step || "").toString();
@@ -23764,8 +36527,8 @@ function isPartialResponse(str) {
   return isPartialLine(str.slice(str.lastIndexOf(`
 `) + 1));
 }
-function isPartialLine(line) {
-  return /^\d+-/.test(line);
+function isPartialLine(line2) {
+  return /^\d+-/.test(line2);
 }
 
 class SMTPConnection extends EventEmitter2 {
@@ -23795,7 +36558,7 @@ class SMTPConnection extends EventEmitter2 {
         this.customAuth.set(mapKey, this.options.customAuth[key]);
       }
     }
-    this.version = version3;
+    this.version = version7;
     this.authenticated = false;
     this.destroyed = false;
     this.secure = !!this.secureConnection;
@@ -24640,7 +37403,7 @@ class SMTPConnection extends EventEmitter2 {
       this._sendCommand("HELO " + this.name);
       return;
     }
-    this._ehloLines = str.split(/\r?\n/).map((line) => line.replace(/^\d+[ -]/, "").trim()).filter((line) => line).slice(1);
+    this._ehloLines = str.split(/\r?\n/).map((line2) => line2.replace(/^\d+[ -]/, "").trim()).filter((line2) => line2).slice(1);
     if (!this.secure && !this.options.ignoreTLS && (/[ -]STARTTLS\b/im.test(str) || this.options.requireTLS)) {
       this._sendCommand("STARTTLS");
       this._responseActions.push(this._actionSTARTTLS);
@@ -26122,7 +38885,7 @@ class SMTPPool extends EventEmitter4 {
       component: this.options.component || "smtp-pool"
     });
     this.name = "SMTP (pool)";
-    this.version = version3 + "[client:" + version3 + "]";
+    this.version = version7 + "[client:" + version7 + "]";
     this._rateLimit = {
       counter: 0,
       timeout: null,
@@ -26520,7 +39283,7 @@ class SMTPTransport extends EventEmitter5 {
       component: this.options.component || "smtp-transport"
     });
     this.name = "SMTP";
-    this.version = version3 + "[client:" + version3 + "]";
+    this.version = version7 + "[client:" + version7 + "]";
     if (this.options.auth) {
       this.auth = this.getAuth({});
     }
@@ -26797,7 +39560,7 @@ class SendmailTransport {
     this._spawn = spawn;
     this.options = options;
     this.name = "Sendmail";
-    this.version = version3;
+    this.version = version7;
     this.path = "sendmail";
     this.args = false;
     this.logger = getLogger(this.options, {
@@ -26925,7 +39688,7 @@ class StreamTransport {
     options = options || {};
     this.options = options;
     this.name = "StreamTransport";
-    this.version = version3;
+    this.version = version7;
     this.logger = getLogger(this.options, {
       component: this.options.component || "stream-transport"
     });
@@ -27008,7 +39771,7 @@ class JSONTransport {
     options = options || {};
     this.options = options;
     this.name = "JSONTransport";
-    this.version = version3;
+    this.version = version7;
     this.logger = getLogger(this.options, {
       component: this.options.component || "json-transport"
     });
@@ -27068,7 +39831,7 @@ class SESTransport extends EventEmitter6 {
     this.options = options;
     this.ses = this.options.SES;
     this.name = "SESTransport";
-    this.version = version3;
+    this.version = version7;
     this.logger = getLogger(this.options, {
       component: this.options.component || "ses-transport"
     });
@@ -27287,7 +40050,7 @@ function createTestAccount(apiUrl, callback) {
   const requestHeaders = {};
   const requestBody = {
     requestor: name,
-    version: version3
+    version: version7
   };
   if (ETHEREAL_API_KEY) {
     requestHeaders.Authorization = "Bearer " + ETHEREAL_API_KEY;
@@ -27367,18 +40130,69 @@ function captureEnabled() {
   return process.env.EMAIL_TEST_CAPTURE === "1";
 }
 function emailConfigured() {
-  return captureEnabled() || !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  return getSmtpConfig().then((cfg) => captureEnabled() || cfg !== null);
+}
+var dbProvider = null;
+function envSmtpConfig() {
+  const host = (process.env.SMTP_HOST ?? "").trim();
+  const username = (process.env.SMTP_USER ?? "").trim();
+  const password = process.env.SMTP_PASS ?? "";
+  if (!host || !username || !password)
+    return null;
+  const port = Number(process.env.SMTP_PORT ?? 587);
+  return {
+    host,
+    port: Number.isFinite(port) && port >= 1 && port <= 65535 ? Math.round(port) : 587,
+    username,
+    password,
+    from: (process.env.SMTP_FROM ?? "").trim() || username,
+    source: "env",
+    version: "env"
+  };
+}
+async function dbSmtpConfig() {
+  if (!dbProvider)
+    return null;
+  try {
+    const db = dbProvider();
+    const row = (await db.select().from(smtpSettings).where(eq(smtpSettings.id, 1)).limit(1))[0];
+    const host = (row?.host ?? "").trim();
+    const username = (row?.username ?? "").trim();
+    const password = row?.password ?? "";
+    if (!host || !username || !password)
+      return null;
+    const port = row?.port ?? 587;
+    return {
+      host,
+      port: Number.isFinite(port) && port >= 1 && port <= 65535 ? Math.round(port) : 587,
+      username,
+      password,
+      from: (row?.fromAddress ?? "").trim() || username,
+      source: "db",
+      version: String(row?.updatedAt?.getTime() ?? 0)
+    };
+  } catch {
+    return null;
+  }
+}
+async function getSmtpConfig() {
+  return envSmtpConfig() ?? await dbSmtpConfig();
 }
 var transporter = null;
-function getTransporter() {
-  if (!transporter) {
-    const port = Number(process.env.SMTP_PORT ?? 587);
+var transporterKey = null;
+function transporterCacheKey(cfg) {
+  return [cfg.source, cfg.host, cfg.port, cfg.username, cfg.password, cfg.from, cfg.version].join("\x00");
+}
+function getTransporter(cfg) {
+  const key = transporterCacheKey(cfg);
+  if (!transporter || transporterKey !== key) {
     transporter = nodemailer_default.createTransport({
-      host: process.env.SMTP_HOST,
-      port,
-      secure: port === 465,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+      host: cfg.host,
+      port: cfg.port,
+      secure: cfg.port === 465,
+      auth: { user: cfg.username, pass: cfg.password }
     });
+    transporterKey = key;
   }
   return transporter;
 }
@@ -27387,13 +40201,14 @@ async function sendEmail(msg) {
     captured.push({ to: msg.to, subject: msg.subject, text: msg.text, html: msg.html, at: new Date().toISOString() });
     return { sent: true, captured: true };
   }
-  if (!emailConfigured()) {
+  const cfg = await getSmtpConfig();
+  if (!cfg) {
     console.warn(`[email] not configured \u2014 email to ${msg.to} ("${msg.subject}") was not sent`);
     return { sent: false, error: "Email is not configured." };
   }
   try {
-    await getTransporter().sendMail({
-      from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
+    await getTransporter(cfg).sendMail({
+      from: cfg.from,
       to: msg.to,
       subject: msg.subject,
       text: msg.text,
@@ -27673,14 +40488,14 @@ function adminEmailAddress() {
 // src/actions.ts
 async function audit(ctx, actorType, actorId, action, entityType = "", entityId = "", detail = "") {
   try {
-    const db = ctx.db();
+    const db = fullDb(ctx);
     await db.insert(auditLogs).values({ actorType, actorId, action, entityType, entityId, detail, createdAt: new Date });
   } catch (e) {
     console.error(`[audit] failed to record ${action}:`, e instanceof Error ? e.message : e);
   }
 }
 async function revokeOtherSessions(ctx, userType, userId, exceptToken) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   if (exceptToken) {
     const rows = await db.select({ token: sessions.token }).from(sessions).where(and(eq(sessions.userType, userType), eq(sessions.userId, userId)));
     for (const r of rows) {
@@ -27703,17 +40518,28 @@ var sellerAuthFields = {
   seller_key: keyField.optional()
 };
 var imageUrlField = exports_external.string().trim().max(500).refine((u) => /^https?:\/\/.+/.test(u), "Image URL must start with http:// or https://.");
-var storeAssetUrlField = exports_external.string().trim().max(120).regex(/^\/uploads\/store-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|gif)$/, "Store images must be uploaded through the studio uploader.");
-function deleteUploadFile(url2) {
+var storeAssetUrlField = exports_external.string().trim().max(300).refine((u) => isExpectedUploadUrl(u, "store"), "Store images must be uploaded through the studio uploader.");
+var bannerImageUrlField = exports_external.string().trim().max(300).refine((u) => isExpectedUploadUrl(u, "banner"), "Advertisement images must be uploaded through the advertisement uploader.");
+var bannerLinkField = exports_external.string().trim().max(200).refine((u) => /^(#\/|https?:\/\/)/.test(u), "Advertisement link must be a #/ route or an http(s) URL.");
+async function deleteStoredUpload(url2) {
   if (!url2)
     return;
-  const fname = url2.split("/").pop() ?? "";
-  if (!/^((banner|store)-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|gif)$/.test(fname))
+  const ref = parseStoredUploadUrl(url2);
+  if (ref.kind === "supabase") {
+    const kind = Object.keys(STORAGE_BUCKETS).find((k) => STORAGE_BUCKETS[k] === ref.bucket);
+    if (!kind || !UPLOAD_FILENAME_PATTERNS[kind].test(ref.path))
+      return;
+    await deleteFromBucket(ref.bucket, ref.path).catch(() => {});
+    return;
+  }
+  const fname = ref.filename;
+  const legacyRe = /^((banner|store|avatar|sitelogo)-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|gif)$/;
+  if (!legacyRe.test(fname))
     return;
   const dir = resolve3(process.env.UPLOADS_DIR ?? "./data/uploads");
-  unlink(join(dir, fname)).catch(() => {});
+  await unlink(join(dir, fname)).catch(() => {});
 }
-var productShape = exports_external.object({ id: exports_external.number(), store_id: exports_external.number(), seller_code: exports_external.string(), store_name: exports_external.string(), store_location: exports_external.string(), name: exports_external.string(), category: exports_external.string(), description: exports_external.string(), price_paisa: exports_external.number(), delivery_fee_paisa: exports_external.number(), stock: exports_external.number(), is_active: exports_external.boolean(), rating: exports_external.number().nullable(), review_count: exports_external.number(), created_at: exports_external.string(), brand: exports_external.string().nullable(), original_price_paisa: exports_external.number().nullable(), discount_pct: exports_external.number(), image_url: exports_external.string().nullable(), images: exports_external.array(exports_external.string()), low_stock: exports_external.boolean(), sku: exports_external.string().nullable() });
+var productShape = exports_external.object({ id: exports_external.number(), store_id: exports_external.number(), seller_code: exports_external.string(), store_name: exports_external.string(), store_location: exports_external.string(), name: exports_external.string(), category: exports_external.string(), description: exports_external.string(), price_paisa: exports_external.number(), delivery_fee_paisa: exports_external.number(), stock: exports_external.number(), is_active: exports_external.boolean(), approval_status: exports_external.string().optional(), rating: exports_external.number().nullable(), review_count: exports_external.number(), created_at: exports_external.string(), brand: exports_external.string().nullable(), original_price_paisa: exports_external.number().nullable(), discount_pct: exports_external.number(), image_url: exports_external.string().nullable(), images: exports_external.array(exports_external.string()), low_stock: exports_external.boolean(), sku: exports_external.string().nullable() });
 var variantShape = exports_external.object({ id: exports_external.number(), label: exports_external.string(), sku: exports_external.string().nullable(), price_paisa: exports_external.number().nullable(), stock: exports_external.number(), is_active: exports_external.boolean() });
 var variantIdField = exports_external.number().int().min(0).optional().default(0);
 var specShape = exports_external.object({ id: exports_external.number(), label: exports_external.string(), value: exports_external.string() });
@@ -27740,7 +40566,7 @@ async function hashKey(value) {
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 async function requireSeller(ctx, code, key) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const store = (await db.select().from(storeSettings).where(eq(storeSettings.sellerCode, code.toUpperCase())).limit(1))[0];
   if (!store)
     throw new Error("Seller code or access key is incorrect.");
@@ -27756,23 +40582,23 @@ async function requireSeller(ctx, code, key) {
 }
 var SESSION_DAYS = 30;
 async function createSession(ctx, userType, userId) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const token = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 3600 * 1000);
-  await db.insert(sessions).values({ token, userType, userId, expiresAt });
+  const expiresAt2 = new Date(Date.now() + SESSION_DAYS * 24 * 3600 * 1000);
+  await db.insert(sessions).values({ token, userType, userId, expiresAt: expiresAt2 });
   return token;
 }
-async function requireAuth(ctx, token, ...types) {
+async function requireAuth(ctx, token, ...types2) {
   if (!token)
     throw new Error("Please sign in first.");
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const session = (await db.select().from(sessions).where(eq(sessions.token, token)).limit(1))[0];
   if (!session || session.expiresAt.getTime() < Date.now()) {
     if (session)
       await db.delete(sessions).where(eq(sessions.token, token));
     throw new Error("Your session has expired. Please sign in again.");
   }
-  if (!types.includes(session.userType))
+  if (!types2.includes(session.userType))
     throw new Error("You are not allowed to do that.");
   return { type: session.userType, id: session.userId };
 }
@@ -27781,7 +40607,7 @@ async function resolveSeller(ctx, args) {
     return requireSeller(ctx, args.seller_code, args.seller_key);
   if (args.authToken) {
     const auth = await requireAuth(ctx, args.authToken, "seller");
-    const db = ctx.db();
+    const db = fullDb(ctx);
     const store = (await db.select().from(storeSettings).where(eq(storeSettings.id, Number(auth.id))).limit(1))[0];
     if (!store)
       throw new Error("Seller account not found.");
@@ -27811,7 +40637,7 @@ async function orderExtras(ctx, orderIds) {
   const out = new Map;
   if (!orderIds.length)
     return out;
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const [reasons, refunds2] = await Promise.all([
     db.select({ orderId: returnRequests.orderId, reason: returnRequests.reason }).from(returnRequests).where(inArray(returnRequests.orderId, orderIds)),
     db.select({ orderId: refunds.orderId, status: refunds.status }).from(refunds).where(inArray(refunds.orderId, orderIds))
@@ -27824,29 +40650,35 @@ async function orderExtras(ctx, orderIds) {
 }
 var SHIPPING_DEFAULTS = { express_fee_paisa: 12000, standard_enabled: true, express_enabled: true, pickup_enabled: true };
 async function shippingConfig(ctx) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const rows = await db.select().from(platformSettings);
-  const get = (k) => rows.find((r) => r.key === k)?.value;
+  const get2 = (k) => rows.find((r) => r.key === k)?.value;
   const bool = (v, dflt) => v == null ? dflt : v === "1" || v.toLowerCase() === "true";
-  const fee = Number(get("shipping_express_fee_paisa"));
+  const fee = Number(get2("shipping_express_fee_paisa"));
   return {
     express_fee_paisa: Number.isFinite(fee) && fee >= 0 && fee <= 1e7 ? Math.round(fee) : SHIPPING_DEFAULTS.express_fee_paisa,
-    standard_enabled: bool(get("shipping_standard_enabled"), true),
-    express_enabled: bool(get("shipping_express_enabled"), true),
-    pickup_enabled: bool(get("shipping_pickup_enabled"), true)
+    standard_enabled: bool(get2("shipping_standard_enabled"), true),
+    express_enabled: bool(get2("shipping_express_enabled"), true),
+    pickup_enabled: bool(get2("shipping_pickup_enabled"), true)
   };
+}
+async function siteLogoUrl(ctx) {
+  const db = fullDb(ctx);
+  const row = (await db.select({ value: platformSettings.value }).from(platformSettings).where(eq(platformSettings.key, "site_logo_url")).limit(1))[0];
+  const v = (row?.value ?? "").trim();
+  return v ? v : null;
 }
 async function buyerContact(ctx, userId) {
   if (!userId)
     return null;
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const user = (await db.select({ email: users.email, name: users.name, notify: users.notifyOrderEmails }).from(users).where(eq(users.id, userId)).limit(1))[0];
   if (!user?.email)
     return null;
   return { email: user.email, name: user.name, notify: user.notify !== false };
 }
 async function sellerContact(ctx, storeId) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const store = (await db.select({ email: storeSettings.email, name: storeSettings.storeName }).from(storeSettings).where(eq(storeSettings.id, storeId)).limit(1))[0];
   if (!store?.email)
     return null;
@@ -27919,7 +40751,7 @@ function aggregatePaymentStatus(statuses) {
   return "paid";
 }
 async function loadOrderGroup(ctx, groupId) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const group = (await db.select().from(orderGroups).where(eq(orderGroups.id, groupId)).limit(1))[0];
   if (!group)
     return null;
@@ -27965,8 +40797,8 @@ function groupResponseOf(view) {
     status: "confirmation_needed"
   };
 }
-function redeemCouponTx(tx, couponId, identity, subtotalPaisa) {
-  const coupon = tx.select().from(coupons).where(eq(coupons.id, couponId)).limit(1).prepare().get();
+async function redeemCouponTx(tx, couponId, identity, subtotalPaisa) {
+  const coupon = (await tx.select().from(coupons).where(eq(coupons.id, couponId)).limit(1).for("update"))[0];
   if (!coupon)
     throw new Error("This coupon is no longer available.");
   if (!coupon.isActive)
@@ -27976,12 +40808,12 @@ function redeemCouponTx(tx, couponId, identity, subtotalPaisa) {
   if (subtotalPaisa < coupon.minOrderPaisa)
     throw new Error(`This coupon needs a minimum order of ${formatRs(coupon.minOrderPaisa)}.`);
   if (coupon.maxUses != null) {
-    const uses = tx.select({ id: couponUsages.id }).from(couponUsages).where(eq(couponUsages.couponId, coupon.id)).prepare().all();
+    const uses = await tx.select({ id: couponUsages.id }).from(couponUsages).where(eq(couponUsages.couponId, coupon.id));
     if (uses.length >= coupon.maxUses)
       throw new Error("This coupon has reached its usage limit.");
   }
   if (coupon.perUserLimit > 0) {
-    const mine = identity.userId ? tx.select({ id: couponUsages.id }).from(couponUsages).where(and(eq(couponUsages.couponId, coupon.id), eq(couponUsages.userId, identity.userId))).prepare().all() : tx.select({ id: couponUsages.id }).from(couponUsages).where(and(eq(couponUsages.couponId, coupon.id), eq(couponUsages.guestPhone, identity.guestPhone ?? ""))).prepare().all();
+    const mine = identity.userId ? await tx.select({ id: couponUsages.id }).from(couponUsages).where(and(eq(couponUsages.couponId, coupon.id), eq(couponUsages.userId, identity.userId))) : await tx.select({ id: couponUsages.id }).from(couponUsages).where(and(eq(couponUsages.couponId, coupon.id), eq(couponUsages.guestPhone, identity.guestPhone ?? "")));
     if (mine.length >= coupon.perUserLimit)
       throw new Error("This coupon has already been used the maximum number of times for this account.");
   }
@@ -27991,10 +40823,10 @@ function redeemCouponTx(tx, couponId, identity, subtotalPaisa) {
     discount = Math.min(discount, coupon.maxDiscountPaisa);
   return { discount, freeShipping, code: coupon.code };
 }
-function cancelFulfilmentsTx(tx, orderIds, actorType, actorId) {
+async function cancelFulfilmentsTx(tx, orderIds, actorType, actorId) {
   const now = new Date;
   for (const oid of orderIds) {
-    const current = tx.select().from(orders).where(eq(orders.id, oid)).limit(1).prepare().get();
+    const current = (await tx.select().from(orders).where(eq(orders.id, oid)).limit(1).for("update"))[0];
     if (!current)
       throw new Error("That order was not found.");
     if (current.status !== "confirmation_needed" && current.status !== "confirmed") {
@@ -28003,23 +40835,37 @@ function cancelFulfilmentsTx(tx, orderIds, actorType, actorId) {
   }
   for (const oid of orderIds) {
     restoreStockTx(tx, oid, "order_cancelled", actorType, actorId);
-    tx.update(orders).set({ status: "cancelled", updatedAt: now }).where(eq(orders.id, oid)).prepare().run();
+    await tx.update(orders).set({ status: "cancelled", updatedAt: now }).where(eq(orders.id, oid));
   }
-  const paymentRows = tx.select().from(payments).where(inArray(payments.orderId, orderIds)).prepare().all();
+  const paymentRows = await tx.select().from(payments).where(inArray(payments.orderId, orderIds));
   for (const p of paymentRows) {
     if (p.status === "pending" || p.status === "processing" || p.status === "failed") {
-      tx.update(payments).set({ status: "cancelled", updatedAt: now }).where(eq(payments.id, p.id)).prepare().run();
-      tx.update(orders).set({ paymentStatus: "cancelled", updatedAt: now }).where(eq(orders.id, p.orderId)).prepare().run();
+      await tx.update(payments).set({ status: "cancelled", updatedAt: now }).where(eq(payments.id, p.id));
+      await tx.update(orders).set({ paymentStatus: "cancelled", updatedAt: now }).where(eq(orders.id, p.orderId));
     }
   }
 }
 async function productRows(ctx, storeId) {
-  const db = ctx.db();
-  const [products2, reviews2, stores, images] = await Promise.all([
-    storeId ? db.select().from(products).where(eq(products.storeId, storeId)).orderBy(desc(products.createdAt)) : db.select().from(products).orderBy(desc(products.createdAt)),
-    db.select().from(reviews),
-    db.select().from(storeSettings),
-    db.select().from(productImages).orderBy(productImages.sortOrder, productImages.id)
+  const db = fullDb(ctx);
+  const products2 = storeId ? await db.select().from(products).where(eq(products.storeId, storeId)).orderBy(desc(products.createdAt)) : await db.select().from(products).orderBy(desc(products.createdAt));
+  const ids = products2.map((p) => p.id);
+  const idChunks = [];
+  for (let i = 0;i < ids.length; i += 500)
+    idChunks.push(ids.slice(i, i + 500));
+  const [reviews2, stores, images] = await Promise.all([
+    (async () => {
+      const out = [];
+      for (const c of idChunks)
+        out.push(...await db.select().from(reviews).where(inArray(reviews.productId, c)));
+      return out;
+    })(),
+    storeId ? await db.select().from(storeSettings).where(eq(storeSettings.id, storeId)) : await db.select().from(storeSettings),
+    (async () => {
+      const out = [];
+      for (const c of idChunks)
+        out.push(...await db.select().from(productImages).where(inArray(productImages.productId, c)).orderBy(productImages.sortOrder, productImages.id));
+      return out;
+    })()
   ]);
   const imagesByProduct = new Map;
   for (const im of images) {
@@ -28027,42 +40873,49 @@ async function productRows(ctx, storeId) {
     list.push(im.url);
     imagesByProduct.set(im.productId, list);
   }
+  const reviewsByProduct = new Map;
+  for (const r of reviews2) {
+    const list = reviewsByProduct.get(r.productId) ?? [];
+    list.push(r);
+    reviewsByProduct.set(r.productId, list);
+  }
+  const storeById = new Map(stores.map((s) => [s.id, s]));
   return products2.map((p) => {
-    const rs2 = reviews2.filter((r) => r.productId === p.id), store = stores.find((s) => s.id === p.storeId);
+    const rs2 = reviewsByProduct.get(p.id) ?? [], store = storeById.get(p.storeId);
     const original = p.originalPricePaisa;
-    return { id: p.id, store_id: p.storeId, seller_code: store?.sellerCode ?? "", store_name: store?.storeName ?? "Seller", store_location: store?.location ?? "", name: p.name, category: p.category, description: p.description, price_paisa: p.pricePaisa, delivery_fee_paisa: p.deliveryFeePaisa, stock: p.stock, is_active: p.isActive, rating: rs2.length ? rs2.reduce((n, r) => n + r.rating, 0) / rs2.length : null, review_count: rs2.length, created_at: p.createdAt.toISOString(), brand: p.brand ?? null, original_price_paisa: original ?? null, discount_pct: original && original > p.pricePaisa ? Math.round((original - p.pricePaisa) / original * 100) : 0, image_url: p.imageUrl ?? null, images: imagesByProduct.get(p.id) ?? [], low_stock: p.stock > 0 && p.stock <= (p.lowStockThreshold ?? 5), sku: p.sku ?? null };
+    return { id: p.id, store_id: p.storeId, seller_code: store?.sellerCode ?? "", store_name: store?.storeName ?? "Seller", store_location: store?.location ?? "", name: p.name, category: p.category, description: p.description, price_paisa: p.pricePaisa, delivery_fee_paisa: p.deliveryFeePaisa, stock: p.stock, is_active: p.isActive, approval_status: p.approvalStatus ?? "approved", rating: rs2.length ? rs2.reduce((n, r) => n + r.rating, 0) / rs2.length : null, review_count: rs2.length, created_at: p.createdAt.toISOString(), brand: p.brand ?? null, original_price_paisa: original ?? null, discount_pct: original && original > p.pricePaisa ? Math.round((original - p.pricePaisa) / original * 100) : 0, image_url: p.imageUrl ?? null, images: imagesByProduct.get(p.id) ?? [], low_stock: p.stock > 0 && p.stock <= (p.lowStockThreshold ?? 5), sku: p.sku ?? null };
   });
 }
 function fullDb(ctx) {
   return ctx.db();
 }
 async function activeStoreIds(ctx) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const stores = await db.select({ id: storeSettings.id }).from(storeSettings).where(eq(storeSettings.status, "active"));
   return new Set(stores.map((s) => s.id));
 }
 function publicOnly(products2, actives) {
-  return products2.filter((p) => p.is_active && actives.has(p.store_id));
+  return products2.filter((p) => p.is_active && (p.approval_status ?? "approved") === "approved" && actives.has(p.store_id));
 }
 async function activeVariants(ctx, productId) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   return db.select().from(productVariants).where(and(eq(productVariants.productId, productId), eq(productVariants.isActive, true))).orderBy(productVariants.sortOrder, productVariants.id);
 }
 async function activeSpecs(ctx, productId) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   return db.select().from(productSpecifications).where(eq(productSpecifications.productId, productId)).orderBy(productSpecifications.sortOrder, productSpecifications.id);
 }
 async function requireVariant(ctx, productId, variantId) {
   if (!variantId)
     return null;
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const v = (await db.select().from(productVariants).where(eq(productVariants.id, variantId)).limit(1))[0];
   if (!v || v.productId !== productId || !v.isActive)
     throw new Error("That product option is no longer available.");
   return v;
 }
 async function assertStoreTakingOrders(ctx, storeId) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const store = (await db.select({ name: storeSettings.storeName, vacation: storeSettings.vacationMode }).from(storeSettings).where(eq(storeSettings.id, storeId)).limit(1))[0];
   if (store?.vacation)
     throw new Error(`${store.name} is on a short break and not taking orders right now. Please check back later.`);
@@ -28071,11 +40924,21 @@ function linePricing(product, variant) {
   return { unitPrice: variant?.pricePaisa ?? product.pricePaisa, stock: variant ? variant.stock : product.stock };
 }
 async function notifyUser(ctx, userId, n) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   await db.insert(notifications).values({ userId, type: n.type, title: n.title, body: n.body, link: n.link ?? null, createdAt: new Date });
 }
-function recordMovementTx(tx, m) {
-  tx.insert(stockMovements).values({
+async function notifySeller(ctx, storeId, n) {
+  await notifyUser(ctx, `seller:${storeId}`, n);
+}
+async function notifyAdminUser(ctx, n) {
+  await notifyUser(ctx, "admin", n);
+}
+var TAX_NOTE = "No separate tax is charged on this marketplace.";
+function isSellableProduct(p, actives) {
+  return p.isActive && (p.approvalStatus ?? "approved") === "approved" && actives.has(p.storeId);
+}
+async function recordMovementTx(tx, m) {
+  await tx.insert(stockMovements).values({
     productId: m.productId,
     variantId: m.variantId,
     change: m.change,
@@ -28085,30 +40948,30 @@ function recordMovementTx(tx, m) {
     actorType: m.actorType ?? "",
     actorId: m.actorId ?? "",
     createdAt: new Date
-  }).prepare().run();
+  });
 }
-function restoreStockTx(tx, orderId, reason, actorType, actorId) {
-  const items = tx.select().from(orderItems).where(eq(orderItems.orderId, orderId)).prepare().all();
+async function restoreStockTx(tx, orderId, reason, actorType, actorId) {
+  const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId));
   for (const item of items) {
     if (item.variantId) {
-      const v = tx.select().from(productVariants).where(eq(productVariants.id, item.variantId)).limit(1).prepare().get();
+      const v = (await tx.select().from(productVariants).where(eq(productVariants.id, item.variantId)).limit(1).for("update"))[0];
       if (!v)
         continue;
       const after = v.stock + item.quantity;
-      tx.update(productVariants).set({ stock: after }).where(eq(productVariants.id, v.id)).prepare().run();
-      recordMovementTx(tx, { productId: item.productId, variantId: v.id, change: item.quantity, stockAfter: after, reason, orderId, actorType, actorId });
+      await tx.update(productVariants).set({ stock: after }).where(eq(productVariants.id, v.id));
+      await recordMovementTx(tx, { productId: item.productId, variantId: v.id, change: item.quantity, stockAfter: after, reason, orderId, actorType, actorId });
     } else {
-      const product = tx.select().from(products).where(eq(products.id, item.productId)).limit(1).prepare().get();
+      const product = (await tx.select().from(products).where(eq(products.id, item.productId)).limit(1).for("update"))[0];
       if (!product)
         continue;
       const after = product.stock + item.quantity;
-      tx.update(products).set({ stock: after, updatedAt: new Date }).where(eq(products.id, product.id)).prepare().run();
-      recordMovementTx(tx, { productId: item.productId, variantId: 0, change: item.quantity, stockAfter: after, reason, orderId, actorType, actorId });
+      await tx.update(products).set({ stock: after, updatedAt: new Date }).where(eq(products.id, product.id));
+      await recordMovementTx(tx, { productId: item.productId, variantId: 0, change: item.quantity, stockAfter: after, reason, orderId, actorType, actorId });
     }
   }
 }
 async function loadMovements(ctx, productIds, limit) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const rows = await db.select().from(stockMovements).where(inArray(stockMovements.productId, productIds)).orderBy(desc(stockMovements.id)).limit(limit);
   if (!rows.length)
     return [];
@@ -28142,14 +41005,24 @@ function orderStatusLabel(status) {
 async function buyerIdOf(ctx, token) {
   if (!token)
     return null;
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const session = (await db.select().from(sessions).where(eq(sessions.token, token)).limit(1))[0];
   if (!session || session.expiresAt.getTime() < Date.now() || session.userType !== "buyer")
     return null;
   return session.userId;
 }
+async function sellerStoreIdOf(ctx, token) {
+  if (!token)
+    return null;
+  const db = fullDb(ctx);
+  const session = (await db.select().from(sessions).where(eq(sessions.token, token)).limit(1))[0];
+  if (!session || session.expiresAt.getTime() < Date.now() || session.userType !== "seller")
+    return null;
+  const store = (await db.select({ id: storeSettings.id }).from(storeSettings).where(eq(storeSettings.id, Number(session.userId))).limit(1))[0];
+  return store?.id ?? null;
+}
 async function evaluateCoupon(ctx, code, userId, subtotalPaisa, guestPhone) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const fail = (message) => ({ valid: false, discount_paisa: 0, free_shipping: false, message });
   const normalized2 = code.trim().toUpperCase();
   if (!normalized2)
@@ -28193,7 +41066,7 @@ function dayKey(d) {
 }
 async function recordFunnelEvent(ctx, event, userId, productId, dedupeMs = 30 * 60 * 1000) {
   try {
-    const db = ctx.db();
+    const db = fullDb(ctx);
     const since = new Date(Date.now() - dedupeMs);
     const conds = [eq(funnelEvents.event, event), gte(funnelEvents.createdAt, since)];
     conds.push(userId ? eq(funnelEvents.userId, userId) : isNull(funnelEvents.userId));
@@ -28210,7 +41083,7 @@ async function recordFunnelEvent(ctx, event, userId, productId, dedupeMs = 30 * 
   }
 }
 async function recordProductView(ctx, productId, userId) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   if (userId) {
     const since = new Date(Date.now() - 30 * 60 * 1000);
     const existing = (await db.select({ id: productViews.id }).from(productViews).where(and(eq(productViews.productId, productId), eq(productViews.userId, userId), gte(productViews.createdAt, since))).limit(1))[0];
@@ -28226,7 +41099,7 @@ async function recordProductView(ctx, productId, userId) {
 async function loadCart(ctx, userId) {
   if (!userId)
     return { items: [], subtotal_paisa: 0 };
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const cart = (await db.select().from(carts).where(eq(carts.userId, userId)).limit(1))[0];
   if (!cart)
     return { items: [], subtotal_paisa: 0 };
@@ -28257,7 +41130,7 @@ async function loadCart(ctx, userId) {
   return { items, subtotal_paisa: subtotal };
 }
 async function popularityCounts(ctx, sinceMs) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const [orders2, items] = await Promise.all([
     sinceMs != null ? db.select({ id: orders.id, status: orders.status }).from(orders).where(gte(orders.createdAt, new Date(sinceMs))) : db.select({ id: orders.id, status: orders.status }).from(orders),
     db.select({ orderId: orderItems.orderId, productId: orderItems.productId, quantity: orderItems.quantity }).from(orderItems)
@@ -28271,7 +41144,7 @@ async function popularityCounts(ctx, sinceMs) {
   return counts;
 }
 async function recommendedFor(ctx, userId, pubs, trending) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const wlRows = await db.select({ productId: wishlistItems.productId }).from(wishlistItems).innerJoin(wishlists, eq(wishlistItems.wishlistId, wishlists.id)).where(eq(wishlists.userId, userId));
   const rvRows = await db.select({ productId: recentlyViewed.productId }).from(recentlyViewed).where(eq(recentlyViewed.userId, userId));
   const userOrders = await db.select({ id: orders.id }).from(orders).where(eq(orders.userId, userId));
@@ -28347,8 +41220,8 @@ async function transitionOrderStatus(ctx, order, next, actor = { type: "seller",
     }
   }
   const cfg = await moneyConfig(ctx);
-  db.transaction((tx) => {
-    const current = tx.select().from(orders).where(eq(orders.id, order.id)).limit(1).prepare().get();
+  await db.transaction(async (tx) => {
+    const current = (await tx.select().from(orders).where(eq(orders.id, order.id)).limit(1).for("update"))[0];
     if (!current)
       throw new Error("Order not found.");
     if (current.status === next)
@@ -28356,11 +41229,11 @@ async function transitionOrderStatus(ctx, order, next, actor = { type: "seller",
     if (!ORDER_TRANSITIONS[current.status]?.includes(next))
       throw new Error("That order status change is not allowed.");
     if (next === "cancelled") {
-      restoreStockTx(tx, current.id, "order_cancelled", actor.type, actor.id);
+      await restoreStockTx(tx, current.id, "order_cancelled", actor.type, actor.id);
     }
     const now = new Date;
-    tx.update(orders).set({ status: next, updatedAt: now, ...next === "delivered" ? { deliveredAt: now } : {} }).where(eq(orders.id, current.id)).prepare().run();
-    const payment = tx.select().from(payments).where(eq(payments.orderId, current.id)).limit(1).prepare().get();
+    await tx.update(orders).set({ status: next, updatedAt: now, ...next === "delivered" ? { deliveredAt: now } : {} }).where(eq(orders.id, current.id));
+    const payment = (await tx.select().from(payments).where(eq(payments.orderId, current.id)).limit(1).for("update"))[0];
     if (payment) {
       let paymentNext = payment.status;
       if (next === "delivered" && payment.provider === "cod" && payment.status === "pending")
@@ -28370,11 +41243,11 @@ async function transitionOrderStatus(ctx, order, next, actor = { type: "seller",
       else if (next === "refunded")
         paymentNext = "refunded";
       if (paymentNext !== payment.status) {
-        tx.update(payments).set({ status: paymentNext, updatedAt: now }).where(eq(payments.id, payment.id)).prepare().run();
-        tx.update(orders).set({ paymentStatus: paymentNext === "paid" ? "paid" : paymentNext === "refunded" ? "refunded" : paymentNext === "cancelled" ? "cancelled" : current.paymentStatus, updatedAt: now }).where(eq(orders.id, current.id)).prepare().run();
+        await tx.update(payments).set({ status: paymentNext, updatedAt: now }).where(eq(payments.id, payment.id));
+        await tx.update(orders).set({ paymentStatus: paymentNext === "paid" ? "paid" : paymentNext === "refunded" ? "refunded" : paymentNext === "cancelled" ? "cancelled" : current.paymentStatus, updatedAt: now }).where(eq(orders.id, current.id));
       }
       if (payment && payment.status !== "paid" && paymentNext === "paid") {
-        accrueSaleCommissionTx(tx, current.id, cfg.commission_default_percent);
+        await accrueSaleCommissionTx(tx, current.id, cfg.commission_default_percent);
       }
     }
   });
@@ -28390,8 +41263,8 @@ async function transitionOrderStatus(ctx, order, next, actor = { type: "seller",
 async function adminCancelOrderCore(ctx, order, actor) {
   const db = fullDb(ctx);
   const subs = order.groupId ? await db.select({ id: orders.id }).from(orders).where(eq(orders.groupId, order.groupId)) : [{ id: order.id }];
-  db.transaction((tx) => {
-    cancelFulfilmentsTx(tx, subs.map((s) => s.id), actor.type, actor.id);
+  await db.transaction(async (tx) => {
+    await cancelFulfilmentsTx(tx, subs.map((s) => s.id), actor.type, actor.id);
   });
   if (order.userId) {
     await notifyUser(ctx, order.userId, { type: "order_status", title: `Order ${order.orderCode} cancelled`, body: `Your order ${order.orderCode} was cancelled by the marketplace team. No payment is due.`, link: "#/orders" });
@@ -28401,7 +41274,7 @@ async function adminCancelOrderCore(ctx, order, actor) {
   ctx.invalidateQueries();
 }
 async function recordRefundRequest(ctx, storeId, orderId) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const order = (await db.select().from(orders).where(and(eq(orders.id, orderId), eq(orders.storeId, storeId))).limit(1))[0];
   if (!order)
     throw new Error("Order not found.");
@@ -28461,17 +41334,17 @@ async function recordRefundRequest(ctx, storeId, orderId) {
 }
 var MONEY_DEFAULTS = { commission_default_percent: 5, payout_available_after_days: 7, payout_min_paisa: 50000 };
 async function moneyConfig(ctx) {
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const rows = await db.select().from(platformSettings);
-  const get = (k) => rows.find((r) => r.key === k)?.value;
+  const get2 = (k) => rows.find((r) => r.key === k)?.value;
   const int2 = (v, dflt, min, max) => {
     const n = Number(v);
     return v != null && Number.isInteger(n) && n >= min && n <= max ? n : dflt;
   };
   return {
-    commission_default_percent: int2(get("commission_default_percent"), MONEY_DEFAULTS.commission_default_percent, 0, 90),
-    payout_available_after_days: int2(get("payout_available_after_days"), MONEY_DEFAULTS.payout_available_after_days, 0, 90),
-    payout_min_paisa: int2(get("payout_min_paisa"), MONEY_DEFAULTS.payout_min_paisa, 0, 1e8)
+    commission_default_percent: int2(get2("commission_default_percent"), MONEY_DEFAULTS.commission_default_percent, 0, 90),
+    payout_available_after_days: int2(get2("payout_available_after_days"), MONEY_DEFAULTS.payout_available_after_days, 0, 90),
+    payout_min_paisa: int2(get2("payout_min_paisa"), MONEY_DEFAULTS.payout_min_paisa, 0, 1e8)
   };
 }
 function resolveRuleForLine(rules, storeId, productId, category, defaultPercent) {
@@ -28494,13 +41367,13 @@ function resolveRuleForLine(rules, storeId, productId, category, defaultPercent)
     return { percent: plat.percent, ruleId: plat.id, source: named(plat, "platform rule") };
   return { percent: defaultPercent, ruleId: null, source: `${defaultPercent}% platform default` };
 }
-function ledgerBalanceTx(tx, storeId) {
-  const last = tx.select({ b: sellerLedger.balanceAfterPaisa }).from(sellerLedger).where(eq(sellerLedger.storeId, storeId)).orderBy(desc(sellerLedger.id)).limit(1).prepare().get();
+async function ledgerBalanceTx(tx, storeId) {
+  const last = (await tx.select({ b: sellerLedger.balanceAfterPaisa }).from(sellerLedger).where(eq(sellerLedger.storeId, storeId)).orderBy(desc(sellerLedger.id)).limit(1).for("update"))[0];
   return last?.b ?? 0;
 }
-function insertLedgerTx(tx, storeId, row) {
-  const after = ledgerBalanceTx(tx, storeId) + row.amountPaisa;
-  tx.insert(sellerLedger).values({
+async function insertLedgerTx(tx, storeId, row) {
+  const after = await ledgerBalanceTx(tx, storeId) + row.amountPaisa;
+  await tx.insert(sellerLedger).values({
     storeId,
     orderId: row.orderId ?? null,
     type: row.type,
@@ -28511,41 +41384,41 @@ function insertLedgerTx(tx, storeId, row) {
     ledgerKey: row.ledgerKey ?? null,
     note: row.note,
     createdAt: new Date
-  }).onConflictDoNothing({ target: sellerLedger.ledgerKey }).prepare().run();
+  }).onConflictDoNothing({ target: sellerLedger.ledgerKey });
 }
-function accrueSaleCommissionTx(tx, orderId, defaultPercent) {
-  const done = tx.select({ id: sellerLedger.id }).from(sellerLedger).where(eq(sellerLedger.ledgerKey, `sale:${orderId}`)).limit(1).prepare().get();
+async function accrueSaleCommissionTx(tx, orderId, defaultPercent) {
+  const done = (await tx.select({ id: sellerLedger.id }).from(sellerLedger).where(eq(sellerLedger.ledgerKey, `sale:${orderId}`)).limit(1))[0];
   if (done)
     return;
-  const order = tx.select().from(orders).where(eq(orders.id, orderId)).limit(1).prepare().get();
+  const order = (await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1).for("update"))[0];
   if (!order || order.paymentStatus !== "paid")
     return;
-  const items = tx.select().from(orderItems).where(eq(orderItems.orderId, orderId)).prepare().all();
+  const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId));
   const productIds = [...new Set(items.map((i) => i.productId))];
-  const products2 = productIds.length ? tx.select().from(products).where(inArray(products.id, productIds)).prepare().all() : [];
+  const products2 = productIds.length ? await tx.select().from(products).where(inArray(products.id, productIds)) : [];
   const byId = new Map(products2.map((p) => [p.id, p]));
-  const rules = tx.select().from(commissionRules).where(eq(commissionRules.isActive, true)).prepare().all();
+  const rules = await tx.select().from(commissionRules).where(eq(commissionRules.isActive, true));
   let commission = 0;
   const parts = [];
   const ruleIds = new Set;
   for (const item of items) {
     const product = byId.get(item.productId);
-    const line = item.unitPricePaisa * item.quantity;
+    const line2 = item.unitPricePaisa * item.quantity;
     const r = resolveRuleForLine(rules, order.storeId, item.productId, product?.category ?? "", defaultPercent);
-    const cut = Math.round(line * r.percent / 100);
+    const cut = Math.round(line2 * r.percent / 100);
     commission += cut;
     if (r.ruleId != null)
       ruleIds.add(r.ruleId);
-    parts.push(`${formatRs(line)} @ ${r.source} \u2192 ${formatRs(cut)}`);
+    parts.push(`${formatRs(line2)} @ ${r.source} \u2192 ${formatRs(cut)}`);
   }
-  insertLedgerTx(tx, order.storeId, {
+  await insertLedgerTx(tx, order.storeId, {
     orderId,
     type: "sale",
     amountPaisa: order.subtotalPaisa,
     ledgerKey: `sale:${orderId}`,
     note: `Sale ${order.orderCode}: ${items.length} line(s), ${formatRs(order.subtotalPaisa)} gross of goods (delivery fee excluded).`
   });
-  insertLedgerTx(tx, order.storeId, {
+  await insertLedgerTx(tx, order.storeId, {
     orderId,
     type: "commission",
     amountPaisa: -commission,
@@ -28554,14 +41427,14 @@ function accrueSaleCommissionTx(tx, orderId, defaultPercent) {
     note: `Commission on ${order.orderCode}: ${parts.join("; ") || "no order lines"}.`
   });
 }
-function reverseCommissionTx(tx, orderId, orderCode) {
-  const sale = tx.select().from(sellerLedger).where(eq(sellerLedger.ledgerKey, `sale:${orderId}`)).limit(1).prepare().get();
-  const comm = tx.select().from(sellerLedger).where(eq(sellerLedger.ledgerKey, `commission:${orderId}`)).limit(1).prepare().get();
+async function reverseCommissionTx(tx, orderId, orderCode) {
+  const sale = (await tx.select().from(sellerLedger).where(eq(sellerLedger.ledgerKey, `sale:${orderId}`)).limit(1).for("update"))[0];
+  const comm = (await tx.select().from(sellerLedger).where(eq(sellerLedger.ledgerKey, `commission:${orderId}`)).limit(1).for("update"))[0];
   if (!sale && !comm)
     return;
   const storeId = (sale ?? comm).storeId;
   if (sale) {
-    insertLedgerTx(tx, storeId, {
+    await insertLedgerTx(tx, storeId, {
       orderId,
       type: "refund",
       amountPaisa: -sale.amountPaisa,
@@ -28570,7 +41443,7 @@ function reverseCommissionTx(tx, orderId, orderCode) {
     });
   }
   if (comm) {
-    insertLedgerTx(tx, storeId, {
+    await insertLedgerTx(tx, storeId, {
       orderId,
       type: "commission",
       amountPaisa: -comm.amountPaisa,
@@ -28582,7 +41455,7 @@ function reverseCommissionTx(tx, orderId, orderCode) {
 }
 async function sellerBalances(ctx, storeId) {
   const cfg = await moneyConfig(ctx);
-  const db = ctx.db();
+  const db = fullDb(ctx);
   const [rows, orders2, payouts] = await Promise.all([
     db.select().from(sellerLedger).where(eq(sellerLedger.storeId, storeId)).orderBy(desc(sellerLedger.id)).limit(1e4),
     db.select({ id: orders.id, status: orders.status, deliveredAt: orders.deliveredAt }).from(orders).where(eq(orders.storeId, storeId)),
@@ -28625,16 +41498,111 @@ function maskAccountNumber(raw) {
     return "\u2022\u2022\u2022\u2022";
   return `\u2022\u2022\u2022\u2022${digits.slice(-4)}`;
 }
+async function ensureGroupInvoice(ctx, groupId) {
+  const db = fullDb(ctx);
+  let lastErr = null;
+  for (let attempt = 0;attempt < 3; attempt++) {
+    try {
+      return db.transaction(async (tx) => {
+        const existing = (await tx.select().from(invoices).where(eq(invoices.groupId, groupId)).limit(1))[0];
+        if (existing)
+          return { id: existing.id, invoiceNo: existing.invoiceNo, issuedAt: existing.issuedAt };
+        const key = `INV-${new Date().getFullYear()}`;
+        let row = (await tx.select().from(invoiceCounters).where(eq(invoiceCounters.key, key)).limit(1).for("update"))[0];
+        if (!row) {
+          await tx.insert(invoiceCounters).values({ key, last: 0 });
+          row = { key, last: 0 };
+        }
+        const next = row.last + 1;
+        await tx.update(invoiceCounters).set({ last: next }).where(eq(invoiceCounters.key, key));
+        const invoiceNo = `${key}-${String(next).padStart(6, "0")}`;
+        const now = new Date;
+        const inserted = await tx.insert(invoices).values({ invoiceNo, orderId: null, groupId, issuedAt: now, createdAt: now }).returning({ id: invoices.id });
+        const inv = inserted[0];
+        if (!inv)
+          throw new Error("The invoice could not be created.");
+        return { id: inv.id, invoiceNo, issuedAt: now };
+      });
+    } catch (e) {
+      lastErr = e;
+      if (!(e instanceof Error) || !/UNIQUE constraint failed/i.test(e.message))
+        throw e;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("The invoice could not be created.");
+}
+function parseCsv(text2) {
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0;i < text2.length; i++) {
+    const c = text2[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text2[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else
+          inQuotes = false;
+      } else
+        field += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field);
+      field = "";
+    } else if (c === `
+`) {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+    } else if (c === "\r") {} else {
+      field += c;
+    }
+  }
+  if (field !== "" || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
 var Actions = {
   getStorefront: defineAction({
     request: exports_external.object({}),
     response: exports_external.object({ seller_count: exports_external.number(), products: exports_external.array(productShape) }),
     async handler(ctx) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const stores = await db.select({ id: storeSettings.id, status: storeSettings.status }).from(storeSettings);
       const activeIds = new Set(stores.filter((s) => s.status === "active").map((s) => s.id));
       const products2 = (await productRows(ctx)).filter((p) => p.is_active && activeIds.has(p.store_id));
       return { seller_count: activeIds.size, products: products2 };
+    }
+  }),
+  getPublicCategories: defineAction({
+    request: exports_external.object({}),
+    response: exports_external.object({
+      categories: exports_external.array(exports_external.object({
+        id: exports_external.number(),
+        name: exports_external.string(),
+        slug: exports_external.string(),
+        seo_title: exports_external.string().nullable(),
+        seo_description: exports_external.string().nullable(),
+        intro_content: exports_external.string().nullable()
+      }))
+    }),
+    async handler(ctx) {
+      const db = fullDb(ctx);
+      const rows = await db.select().from(categories).where(eq(categories.isActive, true)).orderBy(categories.name);
+      return {
+        categories: rows.map((c) => ({
+          id: c.id,
+          name: c.name,
+          slug: c.slug,
+          seo_title: c.seoTitle ?? null,
+          seo_description: c.seoDescription ?? null,
+          intro_content: c.introContent ?? null
+        }))
+      };
     }
   }),
   getStore: defineAction({
@@ -28655,12 +41623,12 @@ var Actions = {
       products: exports_external.array(productShape)
     }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const code = args.seller_code.toUpperCase();
       const store = (await db.select().from(storeSettings).where(eq(storeSettings.sellerCode, code)).limit(1))[0];
       if (!store || store.status !== "active")
         throw new Error("That store is not available.");
-      const pubs = publicOnly(await productRows(ctx), await activeStoreIds(ctx)).filter((p) => p.store_id === store.id);
+      const pubs = publicOnly(await productRows(ctx, store.id), await activeStoreIds(ctx));
       const reviewRows = pubs.length ? await db.select().from(reviews).where(inArray(reviews.productId, pubs.map((p) => p.id))) : [];
       return {
         seller_code: store.sellerCode,
@@ -28683,7 +41651,7 @@ var Actions = {
     request: exports_external.object({ name: exports_external.string().trim().min(2).max(80), phone: exports_external.string().trim().min(7).max(20), email: emailField.optional(), password: passwordField }),
     response: exports_external.object({ token: exports_external.string(), user: userShape }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const phone = args.phone.trim();
       const email3 = args.email?.trim() ? args.email.trim().toLowerCase() : null;
       if ((await db.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1)).length)
@@ -28718,7 +41686,7 @@ var Actions = {
     request: exports_external.object({ phone: exports_external.string().trim().min(7).max(20), password: exports_external.string().min(1).max(120) }),
     response: exports_external.object({ token: exports_external.string(), user: userShape }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const user = (await db.select().from(users).where(eq(users.phone, args.phone.trim())).limit(1))[0];
       if (!user || !await Bun.password.verify(args.password, user.passwordHash))
         throw new Error("Mobile number or password is incorrect.");
@@ -28730,14 +41698,14 @@ var Actions = {
   }),
   getMe: defineAction({
     request: exports_external.object({ authToken: authTokenField }),
-    response: exports_external.object({ user: userShape }),
+    response: exports_external.object({ user: userShape.extend({ avatar_url: exports_external.string().nullable() }) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const user = (await db.select().from(users).where(eq(users.id, auth.id)).limit(1))[0];
       if (!user)
         throw new Error("Account not found.");
-      return { user: { id: user.id, name: user.name, phone: user.phone, email: user.email } };
+      return { user: { id: user.id, name: user.name, phone: user.phone, email: user.email, avatar_url: user.avatarUrl ?? null } };
     }
   }),
   logout: defineAction({
@@ -28745,7 +41713,7 @@ var Actions = {
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       if (args.authToken) {
-        const db = ctx.db();
+        const db = fullDb(ctx);
         await db.delete(sessions).where(eq(sessions.token, args.authToken));
       }
       return { ok: true };
@@ -28756,7 +41724,7 @@ var Actions = {
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const user = (await db.select().from(users).where(eq(users.id, auth.id)).limit(1))[0];
       if (!user || !await Bun.password.verify(args.old_password, user.passwordHash))
         throw new Error("The current password is incorrect.");
@@ -28770,7 +41738,7 @@ var Actions = {
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       if (!store.passwordHash || !await Bun.password.verify(args.old_password, store.passwordHash))
         throw new Error("The current password is incorrect.");
       await db.update(storeSettings).set({ passwordHash: await Bun.password.hash(args.new_password, { algorithm: "bcrypt", cost: 10 }), updatedAt: new Date }).where(eq(storeSettings.id, store.id));
@@ -28782,7 +41750,7 @@ var Actions = {
     request: exports_external.object({ user_type: exports_external.enum(["buyer", "seller", "admin"]), identifier: exports_external.string().trim().min(3).max(120) }),
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const ident = args.identifier.trim().toLowerCase();
       let userId = null, email3 = null, name2 = "there";
       if (args.user_type === "buyer") {
@@ -28807,7 +41775,7 @@ var Actions = {
           name2 = a.name;
         }
       }
-      if (userId && email3 && emailConfigured()) {
+      if (userId && email3 && await emailConfigured()) {
         const token = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
         const tokenHash = await hashKey(token);
         await db.insert(passwordResetTokens).values({
@@ -28832,7 +41800,7 @@ var Actions = {
     request: exports_external.object({ user_type: exports_external.enum(["buyer", "seller", "admin"]), token: exports_external.string().min(8).max(200), new_password: passwordField }),
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const tokenHash = await hashKey(args.token);
       const row = (await db.select().from(passwordResetTokens).where(eq(passwordResetTokens.tokenHash, tokenHash)).limit(1))[0];
       if (!row || row.userType !== args.user_type || row.usedAt || row.expiresAt.getTime() < Date.now()) {
@@ -28856,7 +41824,7 @@ var Actions = {
     request: exports_external.object({ token: exports_external.string().min(8).max(200) }),
     response: exports_external.object({ ok: exports_external.literal(true), already_verified: exports_external.boolean() }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const row = (await db.select().from(buyerEmailVerifications).where(eq(buyerEmailVerifications.tokenHash, await hashKey(args.token))).limit(1))[0];
       const user = row ? (await db.select({ email: users.email, verified: users.emailVerified }).from(users).where(eq(users.id, row.userId)).limit(1))[0] : undefined;
       if (!row || !user || row.expiresAt.getTime() < Date.now())
@@ -28878,7 +41846,7 @@ var Actions = {
     response: exports_external.object({ ok: exports_external.literal(true), email_sent: exports_external.boolean() }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const user = (await db.select({ email: users.email, name: users.name, verified: users.emailVerified }).from(users).where(eq(users.id, auth.id)).limit(1))[0];
       if (!user)
         throw new Error("Account not found.");
@@ -28894,7 +41862,7 @@ var Actions = {
         createdAt: new Date
       });
       let emailSent = false;
-      if (emailConfigured()) {
+      if (await emailConfigured()) {
         const { publicBaseUrl: publicBaseUrl2 } = await Promise.resolve().then(() => exports_payments);
         const link = `${publicBaseUrl2()}/#/verify-buyer?token=${token}`;
         const sent = await sendEmail(buyerVerificationEmail(user.email, user.name, link));
@@ -28912,7 +41880,7 @@ var Actions = {
     response: exports_external.object({ order_update_emails: exports_external.boolean(), email_verified: exports_external.boolean(), email: exports_external.string().nullable() }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const user = (await db.select({ notify: users.notifyOrderEmails, verified: users.emailVerified, email: users.email }).from(users).where(eq(users.id, auth.id)).limit(1))[0];
       if (!user)
         throw new Error("Account not found.");
@@ -28924,7 +41892,7 @@ var Actions = {
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       await db.update(users).set({ notifyOrderEmails: args.order_update_emails, updatedAt: new Date }).where(eq(users.id, auth.id));
       ctx.invalidateQueries();
       return { ok: true };
@@ -28935,7 +41903,7 @@ var Actions = {
     response: exports_external.object({ orders: exports_external.array(orderShape) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const orders2 = await db.select().from(orders).where(eq(orders.userId, auth.id)).orderBy(desc(orders.createdAt)).limit(100);
       const items = orders2.length ? await db.select().from(orderItems).where(inArray(orderItems.orderId, orders2.map((o) => o.id))) : [];
       const groupIds = [...new Set(orders2.map((o) => o.groupId).filter((g) => g != null))];
@@ -28950,7 +41918,7 @@ var Actions = {
     response: exports_external.object({ groups: exports_external.array(orderGroupShape) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const groups = await db.select().from(orderGroups).where(eq(orderGroups.userId, auth.id)).orderBy(desc(orderGroups.createdAt)).limit(50);
       const views = [];
       for (const g of groups) {
@@ -28965,7 +41933,7 @@ var Actions = {
     request: exports_external.object({ store_name: exports_external.string().trim().min(2).max(60), tagline: exports_external.string().trim().min(3).max(120), location: exports_external.string().trim().min(2).max(80), phone: exports_external.string().trim().min(7).max(20), email: emailField, password: passwordField, seller_key: keyField }),
     response: exports_external.object({ seller_code: exports_external.string(), email_sent: exports_external.boolean() }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const email3 = args.email.trim().toLowerCase();
       if ((await db.select({ id: storeSettings.id }).from(storeSettings).where(eq(storeSettings.email, email3)).limit(1)).length)
         throw new Error("That email is already registered as a seller.");
@@ -28982,7 +41950,7 @@ var Actions = {
         createdAt: new Date
       });
       let emailSent = false;
-      if (emailConfigured()) {
+      if (await emailConfigured()) {
         const { publicBaseUrl: publicBaseUrl2 } = await Promise.resolve().then(() => exports_payments);
         const link = `${publicBaseUrl2()}/#/verify-seller?token=${token}`;
         const sent = await sendEmail(sellerVerificationEmail(email3, args.store_name.trim(), link));
@@ -29009,7 +41977,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ token: exports_external.string().min(8).max(200) }),
     response: exports_external.object({ ok: exports_external.literal(true), seller_code: exports_external.string(), already_verified: exports_external.boolean() }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const row = (await db.select().from(sellerEmailVerifications).where(eq(sellerEmailVerifications.tokenHash, await hashKey(args.token))).limit(1))[0];
       const store = row ? (await db.select({ code: storeSettings.sellerCode, verified: storeSettings.emailVerified }).from(storeSettings).where(eq(storeSettings.id, row.storeId)).limit(1))[0] : undefined;
       if (!row || !store || row.expiresAt.getTime() < Date.now())
@@ -29035,7 +42003,7 @@ Review it in the admin panel under Sellers.`);
         return { ok: true, email_sent: false };
       if (!store.email)
         throw new Error("This seller account has no email address on file.");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const token = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
       await db.insert(sellerEmailVerifications).values({
         tokenHash: await hashKey(token),
@@ -29044,7 +42012,7 @@ Review it in the admin panel under Sellers.`);
         createdAt: new Date
       });
       let emailSent = false;
-      if (emailConfigured()) {
+      if (await emailConfigured()) {
         const { publicBaseUrl: publicBaseUrl2 } = await Promise.resolve().then(() => exports_payments);
         const link = `${publicBaseUrl2()}/#/verify-seller?token=${token}`;
         const sent = await sendEmail(sellerVerificationEmail(store.email, store.storeName, link));
@@ -29061,7 +42029,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ email: emailField, password: exports_external.string().min(1).max(120) }),
     response: exports_external.object({ token: exports_external.string(), seller: exports_external.object({ seller_code: exports_external.string(), store_name: exports_external.string(), status: sellerStatus, email_verified: exports_external.boolean() }) }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const store = (await db.select().from(storeSettings).where(eq(storeSettings.email, args.email.trim().toLowerCase())).limit(1))[0];
       if (!store?.passwordHash || !await Bun.password.verify(args.password, store.passwordHash))
         throw new Error("Email or password is incorrect.");
@@ -29090,7 +42058,7 @@ Review it in the admin panel under Sellers.`);
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       await db.update(storeSettings).set({
         storeName: args.store_name ?? store.storeName,
         tagline: args.tagline ?? store.tagline,
@@ -29110,19 +42078,19 @@ Review it in the admin panel under Sellers.`);
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db();
-      const pick2 = (incoming, current, kind) => {
+      const db = fullDb(ctx);
+      const pick2 = async (incoming, current, kind) => {
         if (incoming === undefined)
           return current;
         const url2 = incoming?.trim() || null;
-        if (url2 && !/^\/uploads\/store-[0-9a-f-]+\.(jpg|png|webp|gif)$/.test(url2))
+        if (url2 && !isExpectedUploadUrl(url2, "store"))
           throw new Error(`The ${kind} image must be uploaded through the studio uploader.`);
-        if (current && current !== url2 && current.startsWith("/uploads/"))
-          deleteUploadFile(current);
+        if (current && current !== url2)
+          await deleteStoredUpload(current);
         return url2;
       };
-      const logoUrl = pick2(args.logo_url, store.logoUrl ?? null, "logo");
-      const bannerUrl = pick2(args.banner_url, store.bannerUrl ?? null, "banner");
+      const logoUrl = await pick2(args.logo_url, store.logoUrl ?? null, "logo");
+      const bannerUrl = await pick2(args.banner_url, store.bannerUrl ?? null, "banner");
       await db.update(storeSettings).set({ logoUrl, bannerUrl, updatedAt: new Date }).where(eq(storeSettings.id, store.id));
       await audit(ctx, "seller", String(store.id), "store_assets_updated", "store", String(store.id), `logo=${logoUrl ? "set" : "none"} banner=${bannerUrl ? "set" : "none"}`);
       ctx.invalidateQueries();
@@ -29137,7 +42105,7 @@ Review it in the admin panel under Sellers.`);
       assertSellerCanSell(store);
       if (args.original_price_paisa != null && args.original_price_paisa <= args.price_paisa)
         throw new Error("The original price must be higher than the selling price.");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const sku = normalizeSku(args.sku);
       if (sku) {
         const clash = (await db.select({ id: products.id }).from(products).where(and(eq(products.storeId, store.id), eq(products.sku, sku))).limit(1))[0];
@@ -29145,7 +42113,8 @@ Review it in the admin panel under Sellers.`);
           throw new Error(`The SKU "${sku}" is already used by another product in this shop.`);
       }
       const isActive = store.status === "active" && args.is_active;
-      const result = await db.insert(products).values({ storeId: store.id, name: args.name, category: args.category, description: args.description, pricePaisa: args.price_paisa, deliveryFeePaisa: args.delivery_fee_paisa, stock: args.stock, brand: args.brand?.trim() || null, originalPricePaisa: args.original_price_paisa ?? null, imageUrl: args.image_url ?? null, lowStockThreshold: args.low_stock_threshold ?? 5, sku, isActive, updatedAt: new Date }).returning({ id: products.id });
+      const approvalStatus = store.status === "active" ? "approved" : "pending";
+      const result = await db.insert(products).values({ storeId: store.id, name: args.name, category: args.category, description: args.description, pricePaisa: args.price_paisa, deliveryFeePaisa: args.delivery_fee_paisa, stock: args.stock, brand: args.brand?.trim() || null, originalPricePaisa: args.original_price_paisa ?? null, imageUrl: args.image_url ?? null, lowStockThreshold: args.low_stock_threshold ?? 5, sku, isActive, approvalStatus, updatedAt: new Date }).returning({ id: products.id });
       const row = result[0];
       if (!row)
         throw new Error("The product could not be saved.");
@@ -29162,7 +42131,7 @@ Review it in the admin panel under Sellers.`);
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const before = (await db.select().from(products).where(and(eq(products.id, args.id), eq(products.storeId, store.id))).limit(1))[0];
       if (!before)
         throw new Error("Product not found.");
@@ -29204,7 +42173,7 @@ Review it in the admin panel under Sellers.`);
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: products.id, name: products.name }).from(products).where(and(eq(products.id, args.id), eq(products.storeId, store.id))).limit(1))[0];
       if (!product)
         throw new Error("Product not found.");
@@ -29217,7 +42186,7 @@ Review it in the admin panel under Sellers.`);
       }
       const imageRows = await db.select({ url: productImages.url }).from(productImages).where(eq(productImages.productId, args.id));
       for (const im of imageRows)
-        deleteUploadFile(im.url);
+        await deleteStoredUpload(im.url);
       await db.delete(productImages).where(eq(productImages.productId, args.id));
       await db.delete(productVariants).where(eq(productVariants.productId, args.id));
       await db.delete(productSpecifications).where(eq(productSpecifications.productId, args.id));
@@ -29237,7 +42206,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ variants: exports_external.array(exports_external.object({ id: exports_external.number(), label: exports_external.string(), sku: exports_external.string().nullable(), price_paisa: exports_external.number().nullable(), stock: exports_external.number(), sort_order: exports_external.number(), is_active: exports_external.boolean() })) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: products.id }).from(products).where(and(eq(products.id, args.product_id), eq(products.storeId, store.id))).limit(1))[0];
       if (!product)
         throw new Error("Product not found.");
@@ -29251,7 +42220,7 @@ Review it in the admin panel under Sellers.`);
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: products.id }).from(products).where(and(eq(products.id, args.product_id), eq(products.storeId, store.id))).limit(1))[0];
       if (!product)
         throw new Error("Product not found.");
@@ -29279,7 +42248,7 @@ Review it in the admin panel under Sellers.`);
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const variant = (await db.select().from(productVariants).where(eq(productVariants.id, args.id)).limit(1))[0];
       const product = variant ? (await db.select({ id: products.id }).from(products).where(and(eq(products.id, variant.productId), eq(products.storeId, store.id))).limit(1))[0] : undefined;
       if (!variant || !product)
@@ -29305,7 +42274,7 @@ Review it in the admin panel under Sellers.`);
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const variant = (await db.select().from(productVariants).where(eq(productVariants.id, args.id)).limit(1))[0];
       const product = variant ? (await db.select({ id: products.id }).from(products).where(and(eq(products.id, variant.productId), eq(products.storeId, store.id))).limit(1))[0] : undefined;
       if (!variant || !product)
@@ -29321,7 +42290,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ movements: exports_external.array(stockMovementShape) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const mine = await db.select({ id: products.id }).from(products).where(eq(products.storeId, store.id));
       const mineIds = new Set(mine.map((p) => p.id));
       if (args.product_id && !mineIds.has(args.product_id))
@@ -29337,7 +42306,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ movements: exports_external.array(stockMovementShape) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       let scope;
       if (args.product_id) {
         scope = [args.product_id];
@@ -29357,7 +42326,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ specs: exports_external.array(specShape) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: products.id }).from(products).where(and(eq(products.id, args.product_id), eq(products.storeId, store.id))).limit(1))[0];
       if (!product)
         throw new Error("Product not found.");
@@ -29370,7 +42339,7 @@ Review it in the admin panel under Sellers.`);
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: products.id }).from(products).where(and(eq(products.id, args.product_id), eq(products.storeId, store.id))).limit(1))[0];
       if (!product)
         throw new Error("Product not found.");
@@ -29388,7 +42357,7 @@ Review it in the admin panel under Sellers.`);
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const spec = (await db.select().from(productSpecifications).where(eq(productSpecifications.id, args.id)).limit(1))[0];
       const product = spec ? (await db.select({ id: products.id }).from(products).where(and(eq(products.id, spec.productId), eq(products.storeId, store.id))).limit(1))[0] : undefined;
       if (!spec || !product)
@@ -29404,7 +42373,7 @@ Review it in the admin panel under Sellers.`);
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const spec = (await db.select().from(productSpecifications).where(eq(productSpecifications.id, args.id)).limit(1))[0];
       const product = spec ? (await db.select({ id: products.id }).from(products).where(and(eq(products.id, spec.productId), eq(products.storeId, store.id))).limit(1))[0] : undefined;
       if (!spec || !product)
@@ -29472,7 +42441,7 @@ Review it in the admin panel under Sellers.`);
       let groupSubtotal = 0;
       for (const item of args.items) {
         const product = preview.find((p) => p.id === item.product_id);
-        if (!product || !product.isActive || !actives.has(product.storeId))
+        if (!product || !isSellableProduct(product, actives))
           throw new Error("One of these products is no longer available.");
         const variant = await requireVariant(ctx, product.id, item.variant_id);
         const { unitPrice, stock } = linePricing(product, variant);
@@ -29497,12 +42466,12 @@ Review it in the admin panel under Sellers.`);
         throw new Error("Store pickup is not available right now.");
       if (args.delivery_method === "standard" && !ship.standard_enabled)
         throw new Error("Standard delivery is not available right now.");
-      const outcome = db.transaction((tx) => {
-        const rows = tx.select().from(products).where(inArray(products.id, ids)).prepare().all();
-        const variantRows = tx.select().from(productVariants).where(inArray(productVariants.productId, ids)).prepare().all();
+      const outcome = await db.transaction(async (tx) => {
+        const rows = await tx.select().from(products).where(inArray(products.id, ids)).for("update");
+        const variantRows = await tx.select().from(productVariants).where(inArray(productVariants.productId, ids)).for("update");
         const normalized2 = args.items.map((item) => {
           const product = rows.find((p) => p.id === item.product_id);
-          if (!product || !product.isActive || !actives.has(product.storeId))
+          if (!product || !isSellableProduct(product, actives))
             throw new Error("One of these products is no longer available.");
           const variant = item.variant_id ? variantRows.find((v) => v.id === item.variant_id) ?? null : null;
           if (item.variant_id && (!variant || variant.productId !== item.product_id || !variant.isActive))
@@ -29515,20 +42484,20 @@ Review it in the admin panel under Sellers.`);
         if (!normalized2.length)
           throw new Error("The order could not be created.");
         if (idemKey) {
-          const prior = tx.select().from(checkoutIdempotency).where(eq(checkoutIdempotency.key, idemKey)).limit(1).prepare().get();
+          const prior = (await tx.select().from(checkoutIdempotency).where(eq(checkoutIdempotency.key, idemKey)).limit(1))[0];
           const groupId = idemReplayOf(prior);
           if (groupId != null)
             return { replay: true, groupId };
         }
         const sellerIds = [...new Set(normalized2.map((x) => x.product.storeId))];
         for (const sid of sellerIds) {
-          const txStore = tx.select({ name: storeSettings.storeName, vacation: storeSettings.vacationMode }).from(storeSettings).where(eq(storeSettings.id, sid)).limit(1).prepare().get();
+          const txStore = (await tx.select({ name: storeSettings.storeName, vacation: storeSettings.vacationMode }).from(storeSettings).where(eq(storeSettings.id, sid)).limit(1))[0];
           if (txStore?.vacation)
             throw new Error(`${txStore.name} is on a short break and not taking orders right now. Please check back later.`);
         }
         let discount = 0, freeShipping = false, couponCode = null;
         if (couponId != null) {
-          const redeemed = redeemCouponTx(tx, couponId, { userId, guestPhone }, groupSubtotal);
+          const redeemed = await redeemCouponTx(tx, couponId, { userId, guestPhone }, groupSubtotal);
           discount = redeemed.discount;
           freeShipping = redeemed.freeShipping;
           couponCode = redeemed.code;
@@ -29550,7 +42519,7 @@ Review it in the admin panel under Sellers.`);
         });
         const groupDelivery = perSeller.reduce((s, x) => s + x.delivery, 0);
         const groupTotal = perSeller.reduce((s, x) => s + x.total, 0);
-        const g = tx.insert(orderGroups).values({
+        const g = await tx.insert(orderGroups).values({
           groupCode,
           userId,
           customerName: args.customer_name,
@@ -29565,7 +42534,7 @@ Review it in the admin panel under Sellers.`);
           deliveryMethod: args.delivery_method,
           note: args.note,
           createdAt: now
-        }).returning({ id: orderGroups.id }).prepare().all();
+        }).returning({ id: orderGroups.id });
         const groupRow = g[0];
         if (!groupRow)
           throw new Error("The order could not be created.");
@@ -29573,7 +42542,7 @@ Review it in the admin panel under Sellers.`);
         const lowStockHits = [];
         for (const s of perSeller) {
           const orderCode = `NP-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`;
-          const inserted = tx.insert(orders).values({
+          const inserted = await tx.insert(orders).values({
             storeId: s.storeId,
             groupId: groupRow.id,
             userId,
@@ -29594,31 +42563,31 @@ Review it in the admin panel under Sellers.`);
             status: "confirmation_needed",
             createdAt: now,
             updatedAt: now
-          }).returning({ id: orders.id }).prepare().all();
+          }).returning({ id: orders.id });
           const orderRow = inserted[0];
           if (!orderRow)
             throw new Error("The order could not be created.");
-          tx.insert(orderItems).values(s.lines.map(({ product, variant, quantity, unitPrice }) => ({ orderId: orderRow.id, productId: product.id, productName: product.name, quantity, unitPricePaisa: unitPrice, variantId: variant?.id ?? 0, variantLabel: variant?.label ?? null }))).prepare().run();
+          await tx.insert(orderItems).values(s.lines.map(({ product, variant, quantity, unitPrice }) => ({ orderId: orderRow.id, productId: product.id, productName: product.name, quantity, unitPricePaisa: unitPrice, variantId: variant?.id ?? 0, variantLabel: variant?.label ?? null })));
           for (const { product, variant, quantity } of s.lines) {
             const threshold = product.lowStockThreshold ?? 5;
             if (variant) {
               const before = variant.stock;
               const after = before - quantity;
-              tx.update(productVariants).set({ stock: after }).where(eq(productVariants.id, variant.id)).prepare().run();
-              recordMovementTx(tx, { productId: product.id, variantId: variant.id, change: -quantity, stockAfter: after, reason: "order_placed", orderId: orderRow.id, actorType: userId ? "buyer" : "guest", actorId: userId ?? "" });
+              await tx.update(productVariants).set({ stock: after }).where(eq(productVariants.id, variant.id));
+              await recordMovementTx(tx, { productId: product.id, variantId: variant.id, change: -quantity, stockAfter: after, reason: "order_placed", orderId: orderRow.id, actorType: userId ? "buyer" : "guest", actorId: userId ?? "" });
               if (before > threshold && after <= threshold)
                 lowStockHits.push({ storeId: s.storeId, name: product.name, variantLabel: variant.label, stock: after });
             } else {
               const before = product.stock;
               const after = before - quantity;
-              tx.update(products).set({ stock: after, updatedAt: now }).where(eq(products.id, product.id)).prepare().run();
-              recordMovementTx(tx, { productId: product.id, variantId: 0, change: -quantity, stockAfter: after, reason: "order_placed", orderId: orderRow.id, actorType: userId ? "buyer" : "guest", actorId: userId ?? "" });
+              await tx.update(products).set({ stock: after, updatedAt: now }).where(eq(products.id, product.id));
+              await recordMovementTx(tx, { productId: product.id, variantId: 0, change: -quantity, stockAfter: after, reason: "order_placed", orderId: orderRow.id, actorType: userId ? "buyer" : "guest", actorId: userId ?? "" });
               if (before > threshold && after <= threshold)
                 lowStockHits.push({ storeId: s.storeId, name: product.name, variantLabel: null, stock: after });
             }
           }
           if (args.payment_method === "cod") {
-            tx.insert(payments).values({ orderId: orderRow.id, groupId: groupRow.id, provider: "cod", amountPaisa: s.total, status: "pending", createdAt: now, updatedAt: now }).prepare().run();
+            await tx.insert(payments).values({ orderId: orderRow.id, groupId: groupRow.id, provider: "cod", amountPaisa: s.total, status: "pending", createdAt: now, updatedAt: now });
           }
           created.push({ orderId: orderRow.id, orderCode });
         }
@@ -29626,23 +42595,23 @@ Review it in the admin panel under Sellers.`);
           const first = created[0];
           if (!first)
             throw new Error("The order could not be created.");
-          tx.insert(payments).values({ orderId: first.orderId, groupId: groupRow.id, provider: args.payment_method, amountPaisa: groupTotal, status: "pending", createdAt: now, updatedAt: now }).prepare().run();
+          await tx.insert(payments).values({ orderId: first.orderId, groupId: groupRow.id, provider: args.payment_method, amountPaisa: groupTotal, status: "pending", createdAt: now, updatedAt: now });
         }
         if (couponId != null) {
           const first = created[0];
           if (!first)
             throw new Error("The order could not be created.");
-          tx.insert(couponUsages).values({ couponId, userId, guestPhone, orderId: first.orderId, groupId: groupRow.id, usedAt: now }).prepare().run();
+          await tx.insert(couponUsages).values({ couponId, userId, guestPhone, orderId: first.orderId, groupId: groupRow.id, usedAt: now });
         }
         if (userId) {
-          const cart = tx.select().from(carts).where(eq(carts.userId, userId)).limit(1).prepare().get();
+          const cart = (await tx.select().from(carts).where(eq(carts.userId, userId)).limit(1).for("update"))[0];
           if (cart)
-            tx.delete(cartItems).where(eq(cartItems.cartId, cart.id)).prepare().run();
-          tx.insert(notifications).values({ userId, type: "order_placed", title: `Order ${groupCode} placed`, body: `Thanks ${args.customer_name}! Your order of ${formatRs(groupTotal)} is awaiting confirmation.`, link: "#/orders", createdAt: now }).prepare().run();
+            await tx.delete(cartItems).where(eq(cartItems.cartId, cart.id));
+          await tx.insert(notifications).values({ userId, type: "order_placed", title: `Order ${groupCode} placed`, body: `Thanks ${args.customer_name}! Your order of ${formatRs(groupTotal)} is awaiting confirmation.`, link: "#/orders", createdAt: now });
         }
         if (idemKey) {
-          tx.insert(checkoutIdempotency).values({ key: idemKey, groupId: groupRow.id, userId: idemOwnerId, guestPhone: idemGuestPhone, payload: idemPayload, createdAt: now }).prepare().run();
-          tx.delete(checkoutIdempotency).where(lt(checkoutIdempotency.createdAt, new Date(Date.now() - 7 * 86400 * 1000))).prepare().run();
+          await tx.insert(checkoutIdempotency).values({ key: idemKey, groupId: groupRow.id, userId: idemOwnerId, guestPhone: idemGuestPhone, payload: idemPayload, createdAt: now });
+          await tx.delete(checkoutIdempotency).where(lt(checkoutIdempotency.createdAt, new Date(Date.now() - 7 * 86400 * 1000)));
         }
         return { replay: false, groupId: groupRow.id, lowStockHits };
       });
@@ -29681,6 +42650,11 @@ Review it in the admin panel under Sellers.`);
           await emailSellerMsg(ctx, storeId, (to, storeName) => lowStockEmail(to, storeName, items));
         }
       }
+      try {
+        await ensureGroupInvoice(ctx, outcome.groupId);
+      } catch (e) {
+        console.error(`[invoices] failed to create invoice for group ${outcome.groupId}:`, e instanceof Error ? e.message : e);
+      }
       return groupResponseOf(view);
     }
   }),
@@ -29689,7 +42663,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ orders: exports_external.array(orderShape) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const orders2 = await db.select().from(orders).where(eq(orders.storeId, store.id)).orderBy(desc(orders.createdAt)).limit(args.limit);
       const items = orders2.length ? await db.select().from(orderItems).where(inArray(orderItems.orderId, orders2.map((o) => o.id))) : [];
       const groupIds = [...new Set(orders2.map((o) => o.groupId).filter((g) => g != null))];
@@ -29703,7 +42677,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ order_code: exports_external.string().trim().min(4), phone: exports_external.string().trim().min(7), authToken: authTokenField }),
     response: exports_external.object({ order: orderShape.nullable(), group: orderGroupShape.nullable() }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const code = args.order_code.toUpperCase();
       const phone = args.phone.trim();
       const group = (await db.select().from(orderGroups).where(and(eq(orderGroups.groupCode, code), eq(orderGroups.phone, phone))).limit(1))[0];
@@ -29734,7 +42708,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ authToken: authTokenField, order_id: exports_external.number().int().positive().optional(), order_code: exports_external.string().trim().min(4).max(40).optional(), group_code: exports_external.string().trim().min(4).max(40).optional(), phone: exports_external.string().trim().min(7).max(20).optional() }),
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const buyerId = await buyerIdOf(ctx, args.authToken);
       let group;
       let order;
@@ -29778,8 +42752,8 @@ Review it in the admin panel under Sellers.`);
       }
       if (!orderIds.length)
         throw new Error("That order was not found.");
-      fullDb(ctx).transaction((tx) => {
-        cancelFulfilmentsTx(tx, orderIds, buyerId ? "buyer" : "guest", buyerId ?? args.phone ?? "");
+      await fullDb(ctx).transaction(async (tx) => {
+        await cancelFulfilmentsTx(tx, orderIds, buyerId ? "buyer" : "guest", buyerId ?? args.phone ?? "");
       });
       if (notifyUserId) {
         await notifyUser(ctx, notifyUserId, { type: "order_status", title: `Order ${displayCode} cancelled`, body: `Your order ${displayCode} was cancelled. No payment is due.`, link: "#/orders" });
@@ -29801,7 +42775,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const order = (await db.select().from(orders).where(and(eq(orders.id, args.order_id), eq(orders.storeId, store.id))).limit(1))[0];
       if (!order)
         throw new Error("Order not found.");
@@ -29814,7 +42788,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ product_id: exports_external.number().int().positive() }),
     response: exports_external.object({ reviews: exports_external.array(exports_external.object({ id: exports_external.number(), reviewer_name: exports_external.string(), rating: exports_external.number(), body: exports_external.string(), created_at: exports_external.string() })) }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = await db.select().from(reviews).where(eq(reviews.productId, args.product_id)).orderBy(desc(reviews.createdAt));
       return { reviews: rows.map((r) => ({ id: r.id, reviewer_name: r.reviewerName, rating: r.rating, body: r.body, created_at: r.createdAt.toISOString() })) };
     }
@@ -29823,7 +42797,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ order_code: exports_external.string().trim().min(4), phone: exports_external.string().trim().min(7), product_id: exports_external.number().int().positive(), rating: exports_external.number().int().min(1).max(5), body: exports_external.string().trim().min(3).max(500) }),
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const order = (await db.select().from(orders).where(and(eq(orders.orderCode, args.order_code.toUpperCase()), eq(orders.phone, args.phone), eq(orders.status, "delivered"))).limit(1))[0];
       if (!order)
         throw new Error("Only delivered orders can leave a verified review.");
@@ -29838,6 +42812,10 @@ Review it in the admin panel under Sellers.`);
       } catch {
         throw new Error("You have already reviewed this product from this order.");
       }
+      const product = (await db.select({ id: products.id, name: products.name, storeId: products.storeId }).from(products).where(eq(products.id, args.product_id)).limit(1))[0];
+      if (product) {
+        await notifySeller(ctx, product.storeId, { type: "new_review", title: `New review for ${product.name}`, body: `${order.customerName} rated it ${args.rating}/5: ${args.body.slice(0, 120)}`, link: `#/product/${product.id}` });
+      }
       ctx.invalidateQueries();
       return { ok: true };
     }
@@ -29846,7 +42824,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ order_code: exports_external.string().trim().min(4), phone: exports_external.string().trim().min(7), kind: exports_external.string().trim().min(2).max(60), detail: exports_external.string().trim().min(8).max(700) }),
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const order = (await db.select().from(orders).where(and(eq(orders.orderCode, args.order_code.toUpperCase()), eq(orders.phone, args.phone))).limit(1))[0];
       if (!order)
         throw new Error("We could not match that order and phone number.");
@@ -29860,7 +42838,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ issues: exports_external.array(exports_external.object({ id: exports_external.number(), order_code: exports_external.string(), kind: exports_external.string(), detail: exports_external.string(), status: exports_external.enum(["open", "resolved"]), created_at: exports_external.string() })) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const orders2 = await db.select({ id: orders.id, code: orders.orderCode }).from(orders).where(eq(orders.storeId, store.id));
       const orderIds = orders2.map((o) => o.id);
       if (!orderIds.length)
@@ -29874,7 +42852,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const issue2 = (await db.select().from(buyerIssues).where(eq(buyerIssues.id, args.issue_id)).limit(1))[0];
       if (!issue2)
         throw new Error("Issue not found.");
@@ -29893,7 +42871,7 @@ Review it in the admin panel under Sellers.`);
       const store = await resolveSeller(ctx, args);
       if (args.confirmation !== store.storeName)
         throw new Error("Store name confirmation did not match.");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       await db.delete(sessions).where(and(eq(sessions.userType, "seller"), eq(sessions.userId, String(store.id))));
       await db.delete(sellerLedger).where(eq(sellerLedger.storeId, store.id));
       await db.delete(sellerPayouts).where(eq(sellerPayouts.storeId, store.id));
@@ -29927,7 +42905,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ email: emailField, password: exports_external.string().min(1).max(120) }),
     response: exports_external.object({ token: exports_external.string(), admin: exports_external.object({ name: exports_external.string(), email: exports_external.string() }) }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const admin = (await db.select().from(admins).where(eq(admins.email, args.email.trim().toLowerCase())).limit(1))[0];
       if (!admin || !await Bun.password.verify(args.password, admin.passwordHash))
         throw new Error("Email or password is incorrect.");
@@ -29940,7 +42918,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ sellers: exports_external.number(), products: exports_external.number(), orders: exports_external.number(), users: exports_external.number(), revenue_paisa: exports_external.number(), pending_sellers: exports_external.number(), open_issues: exports_external.number(), refunded_orders: exports_external.number(), open_tickets: exports_external.number(), open_review_reports: exports_external.number() }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const [sellers, products2, orders2, users2, issues, tickets, reports] = await Promise.all([
         db.select({ id: storeSettings.id, status: storeSettings.status }).from(storeSettings),
         db.select({ id: products.id }).from(products),
@@ -29969,13 +42947,15 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ sellers: exports_external.array(exports_external.object({ id: exports_external.number(), seller_code: exports_external.string(), store_name: exports_external.string(), location: exports_external.string(), phone: exports_external.string(), email: exports_external.string().nullable(), status: sellerStatus, email_verified: exports_external.boolean(), product_count: exports_external.number(), order_count: exports_external.number(), created_at: exports_external.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const q = args.q?.trim();
-      const [sellers, products2, orders2] = await Promise.all([
-        q ? await db.select().from(storeSettings).where(or(like(storeSettings.storeName, `%${q}%`), like(storeSettings.sellerCode, `%${q}%`), like(storeSettings.email, `%${q}%`))).orderBy(desc(storeSettings.createdAt)) : await db.select().from(storeSettings).orderBy(desc(storeSettings.createdAt)),
-        db.select({ id: products.id, storeId: products.storeId }).from(products),
-        db.select({ id: orders.id, storeId: orders.storeId }).from(orders)
+      const [sellers, productCounts, orderCounts] = await Promise.all([
+        q ? await db.select().from(storeSettings).where(or(ilike(storeSettings.storeName, `%${q}%`), ilike(storeSettings.sellerCode, `%${q}%`), ilike(storeSettings.email, `%${q}%`))).orderBy(desc(storeSettings.createdAt)) : await db.select().from(storeSettings).orderBy(desc(storeSettings.createdAt)),
+        db.select({ storeId: products.storeId, n: count() }).from(products).groupBy(products.storeId),
+        db.select({ storeId: orders.storeId, n: count() }).from(orders).groupBy(orders.storeId)
       ]);
+      const productCountByStore = new Map(productCounts.map((r) => [r.storeId, r.n]));
+      const orderCountByStore = new Map(orderCounts.map((r) => [r.storeId, r.n]));
       return {
         sellers: sellers.map((s) => ({
           id: s.id,
@@ -29986,8 +42966,8 @@ Review it in the admin panel under Sellers.`);
           email: s.email,
           status: s.status,
           email_verified: !!s.emailVerified,
-          product_count: products2.filter((p) => p.storeId === s.id).length,
-          order_count: orders2.filter((o) => o.storeId === s.id).length,
+          product_count: productCountByStore.get(s.id) ?? 0,
+          order_count: orderCountByStore.get(s.id) ?? 0,
           created_at: s.createdAt.toISOString()
         }))
       };
@@ -29998,7 +42978,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const store = (await db.select({ id: storeSettings.id, status: storeSettings.status, emailVerified: storeSettings.emailVerified }).from(storeSettings).where(eq(storeSettings.id, args.seller_id)).limit(1))[0];
       if (!store)
         throw new Error("Seller not found.");
@@ -30020,6 +43000,13 @@ Review it in the admin panel under Sellers.`);
       if (args.status !== "pending") {
         const event = args.status === "active" && store.status === "suspended" ? "reactivated" : args.status;
         await emailSellerMsg(ctx, args.seller_id, (to, storeName) => sellerAccountStatusEmail(to, storeName, event));
+        const statusBody = {
+          under_review: "Your seller application is now under review. We will let you know the decision soon.",
+          active: store.status === "suspended" ? "Your seller account has been reactivated \u2014 you can sell again." : "Your seller application was approved. Welcome to Nepal Shop \u2014 you can now list and sell products.",
+          suspended: "Your seller account has been suspended. Please contact support for details.",
+          rejected: "Your seller application was not approved. Please contact support if you have questions."
+        };
+        await notifySeller(ctx, args.seller_id, { type: "seller_status", title: `Seller account: ${args.status}`, body: statusBody[args.status] ?? `Your seller account status changed to ${args.status}.`, link: null });
       }
       await audit(ctx, "admin", auth.id, "seller_status_changed", "store", String(args.seller_id), `${store.status} \u2192 ${args.status}`);
       ctx.invalidateQueries();
@@ -30028,10 +43015,10 @@ Review it in the admin panel under Sellers.`);
   }),
   adminListProducts: defineAction({
     request: exports_external.object({ authToken: authTokenField, seller_id: exports_external.number().int().positive().optional(), q: exports_external.string().trim().max(80).optional(), moderation: exports_external.boolean().optional() }),
-    response: exports_external.object({ products: exports_external.array(exports_external.object({ id: exports_external.number(), name: exports_external.string(), category: exports_external.string(), price_paisa: exports_external.number(), stock: exports_external.number(), is_active: exports_external.boolean(), store_name: exports_external.string(), seller_code: exports_external.string(), seller_status: sellerStatus })) }),
+    response: exports_external.object({ products: exports_external.array(exports_external.object({ id: exports_external.number(), name: exports_external.string(), category: exports_external.string(), price_paisa: exports_external.number(), stock: exports_external.number(), is_active: exports_external.boolean(), approval_status: exports_external.string(), store_name: exports_external.string(), seller_code: exports_external.string(), seller_status: sellerStatus })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const stores = await db.select().from(storeSettings);
       const storeById = new Map(stores.map((s) => [s.id, s]));
       const q = args.q?.trim().toLowerCase();
@@ -30039,12 +43026,12 @@ Review it in the admin panel under Sellers.`);
       if (q)
         products2 = products2.filter((p) => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
       if (args.moderation) {
-        products2 = products2.filter((p) => !p.isActive || storeById.get(p.storeId)?.status !== "active");
+        products2 = products2.filter((p) => p.approvalStatus === "pending" || !p.isActive || storeById.get(p.storeId)?.status !== "active");
       }
       return {
         products: products2.map((p) => {
           const store = storeById.get(p.storeId);
-          return { id: p.id, name: p.name, category: p.category, price_paisa: p.pricePaisa, stock: p.stock, is_active: p.isActive, store_name: store?.storeName ?? "Seller", seller_code: store?.sellerCode ?? "", seller_status: store?.status ?? "active" };
+          return { id: p.id, name: p.name, category: p.category, price_paisa: p.pricePaisa, stock: p.stock, is_active: p.isActive, approval_status: p.approvalStatus ?? "approved", store_name: store?.storeName ?? "Seller", seller_code: store?.sellerCode ?? "", seller_status: store?.status ?? "active" };
         })
       };
     }
@@ -30054,7 +43041,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: products.id, name: products.name, storeId: products.storeId }).from(products).where(eq(products.id, args.product_id)).limit(1))[0];
       if (!product)
         throw new Error("Product not found.");
@@ -30070,10 +43057,11 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ orders: exports_external.array(orderShape.extend({ store_name: exports_external.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
-      const [orders2, items, stores, groups] = await Promise.all([
-        args.status ? await db.select().from(orders).where(eq(orders.status, args.status)).orderBy(desc(orders.createdAt)).limit(100) : await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(100),
-        db.select().from(orderItems),
+      const db = fullDb(ctx);
+      const orders2 = args.status ? await db.select().from(orders).where(eq(orders.status, args.status)).orderBy(desc(orders.createdAt)).limit(100) : await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(100);
+      const orderIds = orders2.map((o) => o.id);
+      const [items, stores, groups] = await Promise.all([
+        orderIds.length ? db.select().from(orderItems).where(inArray(orderItems.orderId, orderIds)) : [],
         db.select({ id: storeSettings.id, name: storeSettings.storeName }).from(storeSettings),
         db.select({ id: orderGroups.id, code: orderGroups.groupCode }).from(orderGroups)
       ]);
@@ -30086,7 +43074,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ groups: exports_external.array(orderGroupShape) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = await db.select().from(orderGroups).orderBy(desc(orderGroups.createdAt)).limit(args.limit);
       const views = [];
       for (const g of rows) {
@@ -30102,7 +43090,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ group: orderGroupShape.nullable() }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       let groupId = args.group_id ?? null;
       if (groupId == null && args.group_code) {
         groupId = (await db.select({ id: orderGroups.id }).from(orderGroups).where(eq(orderGroups.groupCode, args.group_code.toUpperCase())).limit(1))[0]?.id ?? null;
@@ -30118,7 +43106,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ issues: exports_external.array(exports_external.object({ id: exports_external.number(), order_code: exports_external.string(), store_name: exports_external.string(), kind: exports_external.string(), detail: exports_external.string(), status: exports_external.enum(["open", "resolved"]), created_at: exports_external.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const [issues, orders2, stores] = await Promise.all([
         db.select().from(buyerIssues).orderBy(desc(buyerIssues.createdAt)).limit(200),
         db.select({ id: orders.id, code: orders.orderCode, storeId: orders.storeId }).from(orders),
@@ -30137,7 +43125,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const issue2 = (await db.select({ id: buyerIssues.id }).from(buyerIssues).where(eq(buyerIssues.id, args.issue_id)).limit(1))[0];
       if (!issue2)
         throw new Error("Issue not found.");
@@ -30152,14 +43140,15 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ users: exports_external.array(exports_external.object({ id: exports_external.string(), name: exports_external.string(), phone: exports_external.string(), email: exports_external.string().nullable(), status: exports_external.enum(["active", "suspended"]), order_count: exports_external.number(), created_at: exports_external.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const q = args.q?.trim();
-      const [users2, orders2] = await Promise.all([
-        q ? await db.select().from(users).where(or(like(users.name, `%${q}%`), like(users.phone, `%${q}%`), like(users.email, `%${q}%`))).orderBy(desc(users.createdAt)).limit(200) : await db.select().from(users).orderBy(desc(users.createdAt)).limit(200),
-        db.select({ id: orders.id, userId: orders.userId }).from(orders)
+      const [users2, orderCounts] = await Promise.all([
+        q ? await db.select().from(users).where(or(ilike(users.name, `%${q}%`), ilike(users.phone, `%${q}%`), ilike(users.email, `%${q}%`))).orderBy(desc(users.createdAt)).limit(200) : await db.select().from(users).orderBy(desc(users.createdAt)).limit(200),
+        db.select({ userId: orders.userId, n: count() }).from(orders).groupBy(orders.userId)
       ]);
+      const orderCountByUser = new Map(orderCounts.map((r) => [r.userId, r.n]));
       return {
-        users: users2.map((u) => ({ id: u.id, name: u.name, phone: u.phone, email: u.email, status: u.status, order_count: orders2.filter((o) => o.userId === u.id).length, created_at: u.createdAt.toISOString() }))
+        users: users2.map((u) => ({ id: u.id, name: u.name, phone: u.phone, email: u.email, status: u.status, order_count: orderCountByUser.get(u.id) ?? 0, created_at: u.createdAt.toISOString() }))
       };
     }
   }),
@@ -30168,7 +43157,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const admin = (await db.select().from(admins).where(eq(admins.id, auth.id)).limit(1))[0];
       if (!admin || !await Bun.password.verify(args.old_password, admin.passwordHash))
         throw new Error("The current password is incorrect.");
@@ -30183,8 +43172,8 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ entries: exports_external.array(exports_external.object({ id: exports_external.number(), actor_type: exports_external.string(), actor_id: exports_external.string(), action: exports_external.string(), entity_type: exports_external.string(), entity_id: exports_external.string(), detail: exports_external.string(), created_at: exports_external.string() })), total: exports_external.number() }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
-      const total = (await db.select({ id: auditLogs.id }).from(auditLogs)).length;
+      const db = fullDb(ctx);
+      const total = (await db.select({ n: count() }).from(auditLogs))[0]?.n ?? 0;
       const rows = await db.select().from(auditLogs).orderBy(desc(auditLogs.id)).limit(args.limit).offset(args.offset);
       return { entries: rows.map((r) => ({ id: r.id, actor_type: r.actorType, actor_id: r.actorId, action: r.action, entity_type: r.entityType, entity_id: r.entityId, detail: r.detail, created_at: r.createdAt.toISOString() })), total };
     }
@@ -30194,7 +43183,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const user = (await db.select({ id: users.id, status: users.status, name: users.name }).from(users).where(eq(users.id, args.user_id)).limit(1))[0];
       if (!user)
         throw new Error("Buyer not found.");
@@ -30217,7 +43206,7 @@ Review it in the admin panel under Sellers.`);
     }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const user = (await db.select().from(users).where(eq(users.id, args.user_id)).limit(1))[0];
       if (!user)
         throw new Error("Buyer not found.");
@@ -30241,7 +43230,7 @@ Review it in the admin panel under Sellers.`);
     }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const store = (await db.select().from(storeSettings).where(eq(storeSettings.id, args.seller_id)).limit(1))[0];
       if (!store)
         throw new Error("Seller not found.");
@@ -30280,7 +43269,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const order = (await db.select().from(orders).where(eq(orders.id, args.order_id)).limit(1))[0];
       if (!order)
         throw new Error("Order not found.");
@@ -30295,7 +43284,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const order = (await db.select().from(orders).where(eq(orders.id, args.order_id)).limit(1))[0];
       if (!order)
         throw new Error("Order not found.");
@@ -30309,12 +43298,14 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ payments: exports_external.array(exports_external.object({ id: exports_external.number(), order_code: exports_external.string(), group_code: exports_external.string().nullable(), store_name: exports_external.string(), provider: paymentMethodEnum, amount_paisa: exports_external.number(), status: paymentStatusEnum, created_at: exports_external.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
-      const [payments2, orders2, stores, groups] = await Promise.all([
-        args.status ? await db.select().from(payments).where(eq(payments.status, args.status)).orderBy(desc(payments.createdAt)).limit(200) : await db.select().from(payments).orderBy(desc(payments.createdAt)).limit(200),
-        db.select({ id: orders.id, code: orders.orderCode, storeId: orders.storeId }).from(orders),
+      const db = fullDb(ctx);
+      const payments2 = args.status ? await db.select().from(payments).where(eq(payments.status, args.status)).orderBy(desc(payments.createdAt)).limit(200) : await db.select().from(payments).orderBy(desc(payments.createdAt)).limit(200);
+      const paymentOrderIds = [...new Set(payments2.map((p) => p.orderId))];
+      const paymentGroupIds = [...new Set(payments2.map((p) => p.groupId).filter((g) => g != null))];
+      const [orders2, stores, groups] = await Promise.all([
+        paymentOrderIds.length ? db.select({ id: orders.id, code: orders.orderCode, storeId: orders.storeId }).from(orders).where(inArray(orders.id, paymentOrderIds)) : [],
         db.select({ id: storeSettings.id, name: storeSettings.storeName }).from(storeSettings),
-        db.select({ id: orderGroups.id, code: orderGroups.groupCode }).from(orderGroups)
+        paymentGroupIds.length ? db.select({ id: orderGroups.id, code: orderGroups.groupCode }).from(orderGroups).where(inArray(orderGroups.id, paymentGroupIds)) : []
       ]);
       return {
         payments: payments2.map((p) => {
@@ -30329,7 +43320,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ reports: exports_external.array(exports_external.object({ id: exports_external.number(), review_id: exports_external.number(), reason: exports_external.string(), detail: exports_external.string(), reporter_name: exports_external.string(), status: exports_external.enum(["open", "resolved"]), created_at: exports_external.string(), review: exports_external.object({ reviewer_name: exports_external.string(), rating: exports_external.number(), body: exports_external.string(), product_name: exports_external.string(), store_name: exports_external.string() }).nullable() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const [reports, reviews2, products2, stores] = await Promise.all([
         args.status ? await db.select().from(reviewReports).where(eq(reviewReports.status, args.status)).orderBy(desc(reviewReports.createdAt)).limit(200) : await db.select().from(reviewReports).orderBy(desc(reviewReports.createdAt)).limit(200),
         db.select().from(reviews),
@@ -30359,7 +43350,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const report = (await db.select().from(reviewReports).where(eq(reviewReports.id, args.report_id)).limit(1))[0];
       if (!report)
         throw new Error("Report not found.");
@@ -30379,7 +43370,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const review = (await db.select({ id: reviews.id, body: reviews.body }).from(reviews).where(eq(reviews.id, args.review_id)).limit(1))[0];
       if (!review)
         throw new Error("Review not found.");
@@ -30393,7 +43384,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ review_id: exports_external.number().int().positive(), reason: exports_external.enum(["spam", "abuse", "fake", "other"]), detail: exports_external.string().trim().min(8).max(500), reporter_name: exports_external.string().trim().min(2).max(60) }),
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const review = (await db.select({ id: reviews.id }).from(reviews).where(eq(reviews.id, args.review_id)).limit(1))[0];
       if (!review)
         throw new Error("Review not found.");
@@ -30418,11 +43409,11 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ cart: cartShape }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const product = (await db.select().from(products).where(eq(products.id, args.product_id)).limit(1))[0];
       if (!product)
         throw new Error("That product was not found.");
-      if (!product.isActive || !(await activeStoreIds(ctx)).has(product.storeId))
+      if (!isSellableProduct(product, await activeStoreIds(ctx)))
         throw new Error("That product is no longer available.");
       await assertStoreTakingOrders(ctx, product.storeId);
       const variant = await requireVariant(ctx, product.id, args.variant_id);
@@ -30464,7 +43455,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ cart: cartShape }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const cart = (await db.select().from(carts).where(eq(carts.userId, auth.id)).limit(1))[0];
       const item = cart ? (await db.select().from(cartItems).where(and(eq(cartItems.cartId, cart.id), eq(cartItems.productId, args.product_id), eq(cartItems.variantId, args.variant_id))).limit(1))[0] : undefined;
       if (!cart || !item)
@@ -30473,7 +43464,7 @@ Review it in the admin panel under Sellers.`);
         await db.delete(cartItems).where(eq(cartItems.id, item.id));
       } else {
         const product = (await db.select().from(products).where(eq(products.id, args.product_id)).limit(1))[0];
-        if (!product || !product.isActive)
+        if (!product || !product.isActive || (product.approvalStatus ?? "approved") !== "approved")
           throw new Error("That product is no longer available.");
         const variant = await requireVariant(ctx, product.id, args.variant_id);
         const { stock } = linePricing(product, variant);
@@ -30491,7 +43482,7 @@ Review it in the admin panel under Sellers.`);
     async handler(ctx, args) {
       const userId = await buyerIdOf(ctx, args.authToken);
       if (userId) {
-        const db = ctx.db();
+        const db = fullDb(ctx);
         const cart = (await db.select().from(carts).where(eq(carts.userId, userId)).limit(1))[0];
         if (cart) {
           await db.delete(cartItems).where(eq(cartItems.cartId, cart.id));
@@ -30507,7 +43498,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ cart: cartShape }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const actives = await activeStoreIds(ctx);
       let cart = (await db.select().from(carts).where(eq(carts.userId, auth.id)).limit(1))[0];
       if (!cart && args.items.length) {
@@ -30546,7 +43537,7 @@ Review it in the admin panel under Sellers.`);
       const userId = await buyerIdOf(ctx, args.authToken);
       if (!userId)
         return { addresses: [] };
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = await db.select().from(addresses).where(eq(addresses.userId, userId)).orderBy(desc(addresses.isDefault), desc(addresses.createdAt));
       return { addresses: rows.map((a) => ({ id: a.id, label: a.label, full_name: a.fullName, phone: a.phone, province: a.province, district: a.district, municipality: a.municipality, ward: a.ward, landmark: a.landmark, note: a.note, is_default: a.isDefault })) };
     }
@@ -30556,7 +43547,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ id: exports_external.number() }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const values = { userId: auth.id, label: args.label?.trim() || "Home", fullName: args.full_name.trim(), phone: args.phone.trim(), province: args.province.trim(), district: args.district.trim(), municipality: args.municipality.trim(), ward: args.ward?.trim() || null, landmark: args.landmark?.trim() || null, note: args.note?.trim() || null };
       if (args.id) {
         const existing = (await db.select().from(addresses).where(and(eq(addresses.id, args.id), eq(addresses.userId, auth.id))).limit(1))[0];
@@ -30580,7 +43571,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const existing = (await db.select().from(addresses).where(and(eq(addresses.id, args.id), eq(addresses.userId, auth.id))).limit(1))[0];
       if (!existing)
         throw new Error("That address was not found.");
@@ -30599,7 +43590,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const existing = (await db.select({ id: addresses.id }).from(addresses).where(and(eq(addresses.id, args.id), eq(addresses.userId, auth.id))).limit(1))[0];
       if (!existing)
         throw new Error("That address was not found.");
@@ -30616,7 +43607,7 @@ Review it in the admin panel under Sellers.`);
       const userId = await buyerIdOf(ctx, args.authToken);
       if (!userId)
         return { items: [] };
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const wl = (await db.select().from(wishlists).where(eq(wishlists.userId, userId)).limit(1))[0];
       if (!wl)
         return { items: [] };
@@ -30637,7 +43628,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ wishlisted: exports_external.boolean() }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const product = (await db.select().from(products).where(eq(products.id, args.product_id)).limit(1))[0];
       if (!product || !product.isActive || !(await activeStoreIds(ctx)).has(product.storeId))
         throw new Error("That product is not available right now.");
@@ -30673,7 +43664,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ coupons: exports_external.array(exports_external.object({ id: exports_external.number(), code: exports_external.string(), kind: exports_external.enum(["percent", "fixed", "free_shipping"]), value: exports_external.number(), min_order_paisa: exports_external.number(), max_discount_paisa: exports_external.number().nullable(), max_uses: exports_external.number().nullable(), per_user_limit: exports_external.number(), expires_at: exports_external.string().nullable(), is_active: exports_external.boolean(), created_at: exports_external.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = await db.select().from(coupons).orderBy(desc(coupons.createdAt));
       return { coupons: rows.map((c) => ({ id: c.id, code: c.code, kind: c.kind, value: c.value, min_order_paisa: c.minOrderPaisa, max_discount_paisa: c.maxDiscountPaisa ?? null, max_uses: c.maxUses, per_user_limit: c.perUserLimit, expires_at: c.expiresAt ? c.expiresAt.toISOString() : null, is_active: c.isActive, created_at: c.createdAt.toISOString() })) };
     }
@@ -30692,17 +43683,17 @@ Review it in the admin panel under Sellers.`);
       if (args.kind === "free_shipping")
         value = 0;
       const maxDiscountPaisa = args.kind === "percent" ? args.max_discount_paisa ?? null : null;
-      let expiresAt = null;
+      let expiresAt2 = null;
       if (args.expires_at) {
-        expiresAt = new Date(args.expires_at);
-        if (Number.isNaN(expiresAt.getTime()))
+        expiresAt2 = new Date(args.expires_at);
+        if (Number.isNaN(expiresAt2.getTime()))
           throw new Error("That expiry date is not valid.");
       }
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const clash = (await db.select({ id: coupons.id }).from(coupons).where(eq(coupons.code, code)).limit(1))[0];
       if (clash && clash.id !== args.id)
         throw new Error(`The code "${code}" is already in use.`);
-      const values = { code, kind: args.kind, value, minOrderPaisa: args.min_order_paisa ?? 0, maxDiscountPaisa, maxUses: args.max_uses ?? null, perUserLimit: args.per_user_limit ?? 1, expiresAt, isActive: args.is_active ?? true };
+      const values = { code, kind: args.kind, value, minOrderPaisa: args.min_order_paisa ?? 0, maxDiscountPaisa, maxUses: args.max_uses ?? null, perUserLimit: args.per_user_limit ?? 1, expiresAt: expiresAt2, isActive: args.is_active ?? true };
       if (args.id) {
         const existing = (await db.select({ id: coupons.id }).from(coupons).where(eq(coupons.id, args.id)).limit(1))[0];
         if (!existing)
@@ -30724,7 +43715,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const existing = (await db.select({ id: coupons.id }).from(coupons).where(eq(coupons.id, args.id)).limit(1))[0];
       if (!existing)
         throw new Error("Coupon not found.");
@@ -30737,7 +43728,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ authToken: authTokenField, order_id: exports_external.number().int().positive().optional(), group_id: exports_external.number().int().positive().optional(), provider: exports_external.enum(["esewa", "khalti"]), phone: exports_external.string().trim().min(7).max(20).optional() }),
     response: exports_external.object({ provider: exports_external.enum(["esewa", "khalti"]), payment_url: exports_external.string(), params: exports_external.record(exports_external.string(), exports_external.string()).optional(), pidx: exports_external.string().optional(), order_code: exports_external.string(), group_id: exports_external.number().nullable() }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       let view = args.group_id ? await loadOrderGroup(ctx, args.group_id) : null;
       if (!view && args.order_id) {
         const order = (await db.select().from(orders).where(eq(orders.id, args.order_id)).limit(1))[0];
@@ -30796,7 +43787,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ order_id: exports_external.number().int().positive().optional(), group_id: exports_external.number().int().positive().optional(), data: exports_external.string().min(8), authToken: authTokenField, phone: exports_external.string().trim().min(7).max(20).optional() }),
     response: exports_external.object({ ok: exports_external.literal(true), order_code: exports_external.string(), group_id: exports_external.number().nullable() }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       let view = args.group_id ? await loadOrderGroup(ctx, args.group_id) : null;
       if (!view && args.order_id) {
         const order = (await db.select().from(orders).where(eq(orders.id, args.order_id)).limit(1))[0];
@@ -30817,9 +43808,9 @@ Review it in the admin panel under Sellers.`);
       const fail = async (message) => {
         await assertGroupCaller(ctx, view, args.authToken, args.phone);
         const now2 = new Date;
-        fullDb(ctx).transaction((tx) => {
-          tx.update(payments).set({ status: "failed", updatedAt: now2 }).where(eq(payments.id, payment.id)).prepare().run();
-          tx.update(orders).set({ paymentStatus: "failed", updatedAt: now2 }).where(eq(orders.groupId, view.id)).prepare().run();
+        await fullDb(ctx).transaction(async (tx) => {
+          await tx.update(payments).set({ status: "failed", updatedAt: now2 }).where(eq(payments.id, payment.id));
+          await tx.update(orders).set({ paymentStatus: "failed", updatedAt: now2 }).where(eq(orders.groupId, view.id));
         });
         if (view.user_id)
           await notifyUser(ctx, view.user_id, { type: "payment", title: `Payment failed for ${view.group_code}`, body: message, link: "#/orders" });
@@ -30841,11 +43832,11 @@ Review it in the admin panel under Sellers.`);
         return fail("eSewa did not confirm this payment. No money was taken.");
       const now = new Date;
       const cfg = await moneyConfig(ctx);
-      fullDb(ctx).transaction((tx) => {
-        tx.update(payments).set({ status: "paid", transactionId: p.transaction_code ?? null, payloadJson: args.data, updatedAt: now }).where(eq(payments.id, payment.id)).prepare().run();
+      await fullDb(ctx).transaction(async (tx) => {
+        await tx.update(payments).set({ status: "paid", transactionId: p.transaction_code ?? null, payloadJson: args.data, updatedAt: now }).where(eq(payments.id, payment.id));
         for (const o of view.orders) {
-          tx.update(orders).set({ paymentStatus: "paid", status: o.status === "confirmation_needed" ? "confirmed" : o.status, updatedAt: now }).where(eq(orders.id, o.id)).prepare().run();
-          accrueSaleCommissionTx(tx, o.id, cfg.commission_default_percent);
+          await tx.update(orders).set({ paymentStatus: "paid", status: o.status === "confirmation_needed" ? "confirmed" : o.status, updatedAt: now }).where(eq(orders.id, o.id));
+          await accrueSaleCommissionTx(tx, o.id, cfg.commission_default_percent);
         }
       });
       if (view.user_id)
@@ -30859,7 +43850,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ order_id: exports_external.number().int().positive().optional(), group_id: exports_external.number().int().positive().optional(), pidx: exports_external.string().trim().min(4).max(120), authToken: authTokenField, phone: exports_external.string().trim().min(7).max(20).optional() }),
     response: exports_external.object({ ok: exports_external.literal(true), order_code: exports_external.string(), group_id: exports_external.number().nullable() }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       let view = args.group_id ? await loadOrderGroup(ctx, args.group_id) : null;
       if (!view && args.order_id) {
         const order = (await db.select().from(orders).where(eq(orders.id, args.order_id)).limit(1))[0];
@@ -30884,9 +43875,9 @@ Review it in the admin panel under Sellers.`);
       const fail = async (message) => {
         await assertGroupCaller(ctx, view, args.authToken, args.phone);
         const now = new Date;
-        fullDb(ctx).transaction((tx) => {
-          tx.update(payments).set({ status: "failed", updatedAt: now }).where(eq(payments.id, payment.id)).prepare().run();
-          tx.update(orders).set({ paymentStatus: "failed", updatedAt: now }).where(eq(orders.groupId, view.id)).prepare().run();
+        await fullDb(ctx).transaction(async (tx) => {
+          await tx.update(payments).set({ status: "failed", updatedAt: now }).where(eq(payments.id, payment.id));
+          await tx.update(orders).set({ paymentStatus: "failed", updatedAt: now }).where(eq(orders.groupId, view.id));
         });
         if (view.user_id)
           await notifyUser(ctx, view.user_id, { type: "payment", title: `Payment failed for ${view.group_code}`, body: message, link: "#/orders" });
@@ -30901,11 +43892,11 @@ Review it in the admin panel under Sellers.`);
         }
         const now = new Date;
         const cfg = await moneyConfig(ctx);
-        fullDb(ctx).transaction((tx) => {
-          tx.update(payments).set({ status: "paid", transactionId: args.pidx.trim(), payloadJson: JSON.stringify({ status, amount_paisa: amountPaisa }), updatedAt: now }).where(eq(payments.id, payment.id)).prepare().run();
+        await fullDb(ctx).transaction(async (tx) => {
+          await tx.update(payments).set({ status: "paid", transactionId: args.pidx.trim(), payloadJson: JSON.stringify({ status, amount_paisa: amountPaisa }), updatedAt: now }).where(eq(payments.id, payment.id));
           for (const o of view.orders) {
-            tx.update(orders).set({ paymentStatus: "paid", status: o.status === "confirmation_needed" ? "confirmed" : o.status, updatedAt: now }).where(eq(orders.id, o.id)).prepare().run();
-            accrueSaleCommissionTx(tx, o.id, cfg.commission_default_percent);
+            await tx.update(orders).set({ paymentStatus: "paid", status: o.status === "confirmation_needed" ? "confirmed" : o.status, updatedAt: now }).where(eq(orders.id, o.id));
+            await accrueSaleCommissionTx(tx, o.id, cfg.commission_default_percent);
           }
         });
         if (view.user_id)
@@ -30923,7 +43914,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ order_id: exports_external.number().int().positive().optional(), group_id: exports_external.number().int().positive().optional(), authToken: authTokenField, phone: exports_external.string().trim().min(7).max(20).optional() }),
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       let view = args.group_id ? await loadOrderGroup(ctx, args.group_id) : null;
       if (!view && args.order_id) {
         const order = (await db.select().from(orders).where(eq(orders.id, args.order_id)).limit(1))[0];
@@ -30945,8 +43936,8 @@ Review it in the admin panel under Sellers.`);
       if (payment.status === "refunded" || payment.status === "cancelled")
         throw new Error("This payment is already settled.");
       const orderIds = view.orders.map((o) => o.id);
-      fullDb(ctx).transaction((tx) => {
-        cancelFulfilmentsTx(tx, orderIds, view.user_id ? "buyer" : "guest", view.user_id ?? args.phone ?? "guest");
+      await fullDb(ctx).transaction(async (tx) => {
+        await cancelFulfilmentsTx(tx, orderIds, view.user_id ? "buyer" : "guest", view.user_id ?? args.phone ?? "guest");
       });
       if (view.user_id) {
         await notifyUser(ctx, view.user_id, { type: "order_status", title: `Order ${view.group_code} released`, body: `The unpaid order ${view.group_code} was released and its items returned to stock. You can check out again whenever you are ready.`, link: "#/orders" });
@@ -30963,7 +43954,7 @@ Review it in the admin panel under Sellers.`);
       const userId = await buyerIdOf(ctx, args.authToken);
       if (!userId)
         return { notifications: [], unread_count: 0 };
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(args.limit);
       const unreadRows = await db.select({ id: notifications.id }).from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
       return {
@@ -30977,7 +43968,7 @@ Review it in the admin panel under Sellers.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const existing = (await db.select({ id: notifications.id }).from(notifications).where(and(eq(notifications.id, args.id), eq(notifications.userId, auth.id))).limit(1))[0];
       if (!existing)
         throw new Error("Notification not found.");
@@ -30991,7 +43982,7 @@ Review it in the admin panel under Sellers.`);
     async handler(ctx, args) {
       const userId = await buyerIdOf(ctx, args.authToken);
       if (userId) {
-        const db = ctx.db();
+        const db = fullDb(ctx);
         await db.update(notifications).set({ isRead: true }).where(eq(notifications.userId, userId));
       }
       return { ok: true };
@@ -31013,7 +44004,7 @@ Review it in the admin panel under Sellers.`);
     request: exports_external.object({ authToken: authTokenField, order_code: exports_external.string().trim().min(4).max(40), phone: exports_external.string().trim().min(7).max(20), reason: exports_external.string().trim().min(8).max(400) }),
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const code = args.order_code.toUpperCase();
       const userId = await buyerIdOf(ctx, args.authToken);
       const order = userId ? (await db.select().from(orders).where(and(eq(orders.orderCode, code), eq(orders.userId, userId))).limit(1))[0] : (await db.select().from(orders).where(and(eq(orders.orderCode, code), eq(orders.phone, args.phone.trim()))).limit(1))[0];
@@ -31028,16 +44019,18 @@ Review it in the admin panel under Sellers.`);
       if (existing)
         throw new Error("A return has already been requested for this order.");
       const requestedBy = userId ? `buyer:${userId}` : `guest:${args.phone.trim()}`;
-      fullDb(ctx).transaction((tx) => {
-        const current = tx.select().from(orders).where(eq(orders.id, order.id)).limit(1).prepare().get();
+      await fullDb(ctx).transaction(async (tx) => {
+        const current = (await tx.select().from(orders).where(eq(orders.id, order.id)).limit(1).for("update"))[0];
         if (!current || current.status !== "delivered")
           throw new Error("Only delivered orders can be returned.");
-        tx.update(orders).set({ status: "return_requested", updatedAt: new Date }).where(eq(orders.id, current.id)).prepare().run();
-        tx.insert(returnRequests).values({ orderId: current.id, reason: args.reason.trim(), requestedBy }).prepare().run();
+        await tx.update(orders).set({ status: "return_requested", updatedAt: new Date }).where(eq(orders.id, current.id));
+        await tx.insert(returnRequests).values({ orderId: current.id, reason: args.reason.trim(), requestedBy });
       });
       if (order.userId) {
         await notifyUser(ctx, order.userId, { type: "order_status", title: `Return requested for ${order.orderCode}`, body: `Your return request for order ${order.orderCode} is with the seller.`, link: "#/orders" });
       }
+      await notifySeller(ctx, order.storeId, { type: "return_requested", title: `Return requested for ${order.orderCode}`, body: `A buyer requested a return for order ${order.orderCode}. Reason: ${args.reason.trim().slice(0, 140)}`, link: null });
+      await notifyAdminUser(ctx, { type: "return_requested", title: `Return requested for ${order.orderCode}`, body: `${order.customerName} requested a return for order ${order.orderCode}.`, link: null });
       await emailBuyerMsg(ctx, order.userId, (to, name2) => returnRequestedBuyerEmail(to, name2, order.orderCode));
       await emailSeller(ctx, order.storeId, `Return requested for ${order.orderCode}`, `A buyer has requested a return for order ${order.orderCode}.
 
@@ -31054,28 +44047,28 @@ Please review it in your seller studio.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const order = (await db.select().from(orders).where(and(eq(orders.id, args.order_id), eq(orders.storeId, store.id))).limit(1))[0];
       if (!order)
         throw new Error("Order not found.");
       if (order.status !== "return_requested")
         throw new Error("This order does not have a pending return request.");
       const next = args.decision === "accepted" ? "returned" : "delivered";
-      fullDb(ctx).transaction((tx) => {
-        const current = tx.select().from(orders).where(eq(orders.id, order.id)).limit(1).prepare().get();
+      await fullDb(ctx).transaction(async (tx) => {
+        const current = (await tx.select().from(orders).where(eq(orders.id, order.id)).limit(1).for("update"))[0];
         if (!current || current.storeId !== store.id)
           throw new Error("Order not found.");
         if (current.status !== "return_requested")
           throw new Error("This order does not have a pending return request.");
         if (next === "returned") {
-          restoreStockTx(tx, current.id, "return_accepted", "seller", String(store.id));
+          await restoreStockTx(tx, current.id, "return_accepted", "seller", String(store.id));
         }
-        tx.update(orders).set({ status: next, updatedAt: new Date }).where(eq(orders.id, current.id)).prepare().run();
+        await tx.update(orders).set({ status: next, updatedAt: new Date }).where(eq(orders.id, current.id));
         const now = new Date;
-        const rr = tx.select().from(returnRequests).where(eq(returnRequests.orderId, current.id)).limit(1).prepare().get();
+        const rr = (await tx.select().from(returnRequests).where(eq(returnRequests.orderId, current.id)).limit(1).for("update"))[0];
         if (!rr || rr.status !== "requested")
           throw new Error("This return request was already decided.");
-        tx.update(returnRequests).set({ status: args.decision, decidedBy: `seller:${store.id}`, decidedAt: now }).where(eq(returnRequests.id, rr.id)).prepare().run();
+        await tx.update(returnRequests).set({ status: args.decision, decidedBy: `seller:${store.id}`, decidedAt: now }).where(eq(returnRequests.id, rr.id));
       });
       if (order.userId) {
         await notifyUser(ctx, order.userId, { type: "order_status", title: `Return ${args.decision} for ${order.orderCode}`, body: args.decision === "accepted" ? `Your return for order ${order.orderCode} was accepted.` : `Your return for order ${order.orderCode} was declined.`, link: "#/orders" });
@@ -31107,7 +44100,7 @@ Please review it in your seller studio.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const refund = (await db.select().from(refunds).where(eq(refunds.id, args.refund_id)).limit(1))[0];
       if (!refund)
         throw new Error("Refund not found.");
@@ -31117,21 +44110,21 @@ Please review it in your seller studio.`);
       if (!order)
         throw new Error("Order not found.");
       const now = new Date;
-      fullDb(ctx).transaction((tx) => {
-        const current = tx.select().from(refunds).where(eq(refunds.id, refund.id)).limit(1).prepare().get();
+      await fullDb(ctx).transaction(async (tx) => {
+        const current = (await tx.select().from(refunds).where(eq(refunds.id, refund.id)).limit(1).for("update"))[0];
         if (!current || current.status !== "pending" && current.status !== "failed")
           throw new Error("This refund has already been resolved.");
-        tx.update(refunds).set({ status: args.decision, note: args.reference.trim(), resolvedBy: `admin:${auth.id}`, updatedAt: now }).where(eq(refunds.id, current.id)).prepare().run();
+        await tx.update(refunds).set({ status: args.decision, note: args.reference.trim(), resolvedBy: `admin:${auth.id}`, updatedAt: now }).where(eq(refunds.id, current.id));
         if (args.decision === "completed") {
-          tx.update(orders).set({ status: "refunded", paymentStatus: "refunded", updatedAt: now }).where(eq(orders.id, order.id)).prepare().run();
-          reverseCommissionTx(tx, order.id, order.orderCode);
+          await tx.update(orders).set({ status: "refunded", paymentStatus: "refunded", updatedAt: now }).where(eq(orders.id, order.id));
+          await reverseCommissionTx(tx, order.id, order.orderCode);
           if (refund.provider === "cod") {
-            tx.update(payments).set({ status: "refunded", updatedAt: now }).where(eq(payments.orderId, order.id)).prepare().run();
+            await tx.update(payments).set({ status: "refunded", updatedAt: now }).where(eq(payments.orderId, order.id));
           } else if (order.groupId) {
-            const groupOrders = tx.select({ paymentStatus: orders.paymentStatus }).from(orders).where(eq(orders.groupId, order.groupId)).prepare().all();
+            const groupOrders = await tx.select({ paymentStatus: orders.paymentStatus }).from(orders).where(eq(orders.groupId, order.groupId));
             const covered = groupOrders.length > 0 && groupOrders.every((o) => o.paymentStatus === "refunded" || o.paymentStatus === "cancelled");
             if (covered) {
-              tx.update(payments).set({ status: "refunded", updatedAt: now }).where(eq(payments.groupId, order.groupId)).prepare().run();
+              await tx.update(payments).set({ status: "refunded", updatedAt: now }).where(eq(payments.groupId, order.groupId));
             }
           }
         }
@@ -31163,7 +44156,7 @@ We will try again \u2014 you do not need to do anything.`);
     response: exports_external.object({ refunds: exports_external.array(exports_external.object({ id: exports_external.number(), order_id: exports_external.number(), order_code: exports_external.string(), store_name: exports_external.string(), amount_paisa: exports_external.number(), provider: exports_external.enum(["cod", "esewa", "khalti"]), status: exports_external.enum(["not_required", "pending", "completed", "failed"]), note: exports_external.string(), requested_by: exports_external.string(), resolved_by: exports_external.string().nullable(), created_at: exports_external.string(), updated_at: exports_external.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = args.status ? await db.select().from(refunds).where(eq(refunds.status, args.status)).orderBy(desc(refunds.createdAt)).limit(200) : await db.select().from(refunds).orderBy(desc(refunds.createdAt)).limit(200);
       const orderIds = [...new Set(rows.map((r) => r.orderId))];
       const [orders2, stores] = await Promise.all([
@@ -31183,7 +44176,7 @@ We will try again \u2014 you do not need to do anything.`);
     response: exports_external.object({ rules: exports_external.array(exports_external.object({ id: exports_external.number(), scope: exports_external.enum(["platform", "category", "seller", "product", "campaign"]), scope_id: exports_external.string(), percent: exports_external.number(), label: exports_external.string(), starts_at: exports_external.string().nullable(), ends_at: exports_external.string().nullable(), is_active: exports_external.boolean(), created_at: exports_external.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = await db.select().from(commissionRules).orderBy(commissionRules.id);
       return {
         rules: rows.map((r) => ({
@@ -31214,7 +44207,7 @@ We will try again \u2014 you do not need to do anything.`);
     response: exports_external.object({ ok: exports_external.literal(true), rule_id: exports_external.number() }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       let scopeId = args.scope_id.trim();
       if (args.scope === "platform") {
         scopeId = "";
@@ -31293,7 +44286,7 @@ We will try again \u2014 you do not need to do anything.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rule = (await db.select().from(commissionRules).where(eq(commissionRules.id, args.rule_id)).limit(1))[0];
       if (!rule)
         throw new Error("Rule not found.");
@@ -31326,7 +44319,7 @@ We will try again \u2014 you do not need to do anything.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const now = new Date;
       const rows = [
         ["commission_default_percent", String(args.commission_default_percent)],
@@ -31339,6 +44332,80 @@ We will try again \u2014 you do not need to do anything.`);
       await audit(ctx, "admin", auth.id, "money_settings_saved", "platform_settings", "", `default_commission=${args.commission_default_percent}% hold=${args.payout_available_after_days}d min_payout=${args.payout_min_paisa}`);
       ctx.invalidateQueries();
       return { ok: true };
+    }
+  }),
+  adminGetSmtpSettings: defineAction({
+    request: exports_external.object({ authToken: authTokenField }),
+    response: exports_external.object({
+      smtp_host: exports_external.string().nullable(),
+      smtp_port: exports_external.number().nullable(),
+      smtp_user: exports_external.string().nullable(),
+      smtp_from: exports_external.string().nullable(),
+      password_set: exports_external.boolean(),
+      effective_source: exports_external.enum(["env", "db", "none"])
+    }),
+    async handler(ctx, args) {
+      await requireAuth(ctx, args.authToken, "admin");
+      const cfg = await getSmtpConfig();
+      return {
+        smtp_host: cfg?.host ?? null,
+        smtp_port: cfg?.port ?? null,
+        smtp_user: cfg?.username ?? null,
+        smtp_from: cfg?.from ?? null,
+        password_set: cfg !== null,
+        effective_source: cfg?.source ?? "none"
+      };
+    }
+  }),
+  adminSaveSmtpSettings: defineAction({
+    request: exports_external.object({
+      authToken: authTokenField,
+      host: exports_external.string().trim().min(1).max(255),
+      port: exports_external.number().int().min(1).max(65535).optional(),
+      username: exports_external.string().trim().max(255).optional(),
+      password: exports_external.string().max(500).optional(),
+      from: exports_external.string().trim().max(255).optional()
+    }),
+    response: exports_external.object({ ok: exports_external.literal(true) }),
+    async handler(ctx, args) {
+      const auth = await requireAuth(ctx, args.authToken, "admin");
+      const db = fullDb(ctx);
+      const existing = (await db.select().from(smtpSettings).where(eq(smtpSettings.id, 1)).limit(1))[0];
+      const host = args.host.trim();
+      const port = args.port ?? existing?.port ?? 587;
+      const username = args.username !== undefined ? args.username.trim() || null : existing?.username ?? null;
+      const password = args.password ? args.password : existing?.password ?? null;
+      const fromAddress = args.from !== undefined ? args.from.trim() || null : existing?.fromAddress ?? null;
+      const now = new Date;
+      const values = { id: 1, host, port, username, password, fromAddress, updatedAt: now };
+      await db.insert(smtpSettings).values(values).onConflictDoUpdate({ target: smtpSettings.id, set: { host, port, username, password, fromAddress, updatedAt: now } });
+      await audit(ctx, "admin", auth.id, "smtp_settings_saved", "smtp_settings", "1", `host=${host} port=${port} user=${username ?? "(none)"}`);
+      ctx.invalidateQueries();
+      return { ok: true };
+    }
+  }),
+  adminSendTestSmtpEmail: defineAction({
+    request: exports_external.object({ authToken: authTokenField, to: exports_external.string().trim().min(3).max(120) }),
+    response: exports_external.object({ sent: exports_external.boolean(), error: exports_external.string().optional() }),
+    async handler(ctx, args) {
+      await requireAuth(ctx, args.authToken, "admin");
+      const to = args.to.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to))
+        throw new Error("Enter a valid email address.");
+      const result = await sendEmail({
+        to,
+        subject: "Nepal Shop test email",
+        text: `Hello,
+
+` + `This is a test email from your Nepal Shop store.
+
+` + `If you received it, your email settings are working correctly.
+
+` + `\u2014 Nepal Shop`
+      });
+      if (result.sent)
+        return { sent: true };
+      return { sent: false, error: result.error ?? "The email could not be sent." };
     }
   }),
   adminGetSellerBalances: defineAction({
@@ -31357,13 +44424,12 @@ We will try again \u2014 you do not need to do anything.`);
     }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const stores = await db.select({ id: storeSettings.id, name: storeSettings.storeName, code: storeSettings.sellerCode, status: storeSettings.status }).from(storeSettings).orderBy(storeSettings.id);
-      const sellers = [];
-      for (const s of stores) {
+      const sellers = await Promise.all(stores.map(async (s) => {
         const b = await sellerBalances(ctx, s.id);
-        sellers.push({ store_id: s.id, store_name: s.name, seller_code: s.code, status: s.status, pending_paisa: b.pending_paisa, available_paisa: b.available_paisa, reserved_paisa: b.reserved_paisa, paid_paisa: b.paid_paisa });
-      }
+        return { store_id: s.id, store_name: s.name, seller_code: s.code, status: s.status, pending_paisa: b.pending_paisa, available_paisa: b.available_paisa, reserved_paisa: b.reserved_paisa, paid_paisa: b.paid_paisa };
+      }));
       return { sellers };
     }
   }),
@@ -31376,13 +44442,14 @@ We will try again \u2014 you do not need to do anything.`);
     }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
-      const [balances, rows, payouts, orders2] = await Promise.all([
+      const db = fullDb(ctx);
+      const [balances, rows, payouts] = await Promise.all([
         sellerBalances(ctx, store.id),
         db.select().from(sellerLedger).where(eq(sellerLedger.storeId, store.id)).orderBy(desc(sellerLedger.id)).limit(60),
-        db.select().from(sellerPayouts).where(eq(sellerPayouts.storeId, store.id)).orderBy(desc(sellerPayouts.id)).limit(20),
-        db.select({ id: orders.id, code: orders.orderCode }).from(orders).where(eq(orders.storeId, store.id))
+        db.select().from(sellerPayouts).where(eq(sellerPayouts.storeId, store.id)).orderBy(desc(sellerPayouts.id)).limit(20)
       ]);
+      const ledgerOrderIds = [...new Set(rows.map((r) => r.orderId).filter((o) => o != null))];
+      const orders2 = ledgerOrderIds.length ? await db.select({ id: orders.id, code: orders.orderCode }).from(orders).where(inArray(orders.id, ledgerOrderIds)) : [];
       const codeById = new Map(orders2.map((o) => [o.id, o.code]));
       return {
         balances,
@@ -31422,7 +44489,7 @@ We will try again \u2014 you do not need to do anything.`);
     }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const d = (await db.select().from(sellerPayoutDetails).where(eq(sellerPayoutDetails.storeId, store.id)).limit(1))[0];
       return {
         bank_name: d?.bankName ?? null,
@@ -31446,7 +44513,7 @@ We will try again \u2014 you do not need to do anything.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const existing = (await db.select().from(sellerPayoutDetails).where(eq(sellerPayoutDetails.storeId, store.id)).limit(1))[0];
       const keep = (provided, current) => {
         if (provided === undefined)
@@ -31492,7 +44559,7 @@ We will try again \u2014 you do not need to do anything.`);
     response: exports_external.object({ ok: exports_external.literal(true), payout_id: exports_external.number() }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const details = (await db.select().from(sellerPayoutDetails).where(eq(sellerPayoutDetails.storeId, store.id)).limit(1))[0];
       let destination;
       if (args.method === "bank") {
@@ -31545,13 +44612,13 @@ Review it in the admin panel under Payouts.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      fullDb(ctx).transaction((tx) => {
-        const p = tx.select().from(sellerPayouts).where(eq(sellerPayouts.id, args.payout_id)).limit(1).prepare().get();
+      await fullDb(ctx).transaction(async (tx) => {
+        const p = (await tx.select().from(sellerPayouts).where(eq(sellerPayouts.id, args.payout_id)).limit(1).for("update"))[0];
         if (!p || p.storeId !== store.id)
           throw new Error("Payout not found.");
         if (p.status !== "requested")
           throw new Error("Only a payout that is still waiting can be cancelled.");
-        tx.update(sellerPayouts).set({ status: "cancelled", updatedAt: new Date }).where(eq(sellerPayouts.id, p.id)).prepare().run();
+        await tx.update(sellerPayouts).set({ status: "cancelled", updatedAt: new Date }).where(eq(sellerPayouts.id, p.id));
       });
       await audit(ctx, "seller", String(store.id), "payout_cancelled", "seller_payout", String(args.payout_id), "cancelled by seller");
       ctx.invalidateQueries();
@@ -31563,7 +44630,7 @@ Review it in the admin panel under Payouts.`);
     response: exports_external.object({ payouts: exports_external.array(exports_external.object({ id: exports_external.number(), amount_paisa: exports_external.number(), status: exports_external.enum(["requested", "processing", "completed", "failed", "cancelled"]), method: exports_external.enum(["bank", "esewa", "khalti"]), destination: exports_external.string(), reference: exports_external.string().nullable(), note: exports_external.string(), created_at: exports_external.string(), updated_at: exports_external.string() })) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = await db.select().from(sellerPayouts).where(eq(sellerPayouts.storeId, store.id)).orderBy(desc(sellerPayouts.id)).limit(100);
       return {
         payouts: rows.map((p) => ({
@@ -31585,7 +44652,7 @@ Review it in the admin panel under Payouts.`);
     response: exports_external.object({ payouts: exports_external.array(exports_external.object({ id: exports_external.number(), store_id: exports_external.number(), store_name: exports_external.string(), seller_code: exports_external.string(), amount_paisa: exports_external.number(), status: exports_external.enum(["requested", "processing", "completed", "failed", "cancelled"]), method: exports_external.enum(["bank", "esewa", "khalti"]), destination: exports_external.string(), reference: exports_external.string().nullable(), note: exports_external.string(), created_at: exports_external.string(), updated_at: exports_external.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = args.status ? await db.select().from(sellerPayouts).where(eq(sellerPayouts.status, args.status)).orderBy(desc(sellerPayouts.createdAt)).limit(200) : await db.select().from(sellerPayouts).orderBy(desc(sellerPayouts.createdAt)).limit(200);
       const stores = await db.select({ id: storeSettings.id, name: storeSettings.storeName, code: storeSettings.sellerCode }).from(storeSettings);
       return {
@@ -31620,7 +44687,7 @@ Review it in the admin panel under Payouts.`);
     response: exports_external.object({ ok: exports_external.literal(true), status: exports_external.string() }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const payout = (await db.select().from(sellerPayouts).where(eq(sellerPayouts.id, args.payout_id)).limit(1))[0];
       if (!payout)
         throw new Error("Payout not found.");
@@ -31641,19 +44708,19 @@ Review it in the admin panel under Payouts.`);
         throw new Error("The seller's available balance no longer covers this payout \u2014 it cannot be completed.");
       }
       const now = new Date;
-      fullDb(ctx).transaction((tx) => {
-        const current = tx.select().from(sellerPayouts).where(eq(sellerPayouts.id, payout.id)).limit(1).prepare().get();
+      await fullDb(ctx).transaction(async (tx) => {
+        const current = (await tx.select().from(sellerPayouts).where(eq(sellerPayouts.id, payout.id)).limit(1).for("update"))[0];
         if (!current || !allowed[current.status]?.includes(args.status)) {
           throw new Error(`A payout that is ${current?.status ?? "unknown"} cannot move to ${args.status}.`);
         }
-        tx.update(sellerPayouts).set({
+        await tx.update(sellerPayouts).set({
           status: args.status,
           reference: args.status === "completed" ? reference : current.reference,
           note: (args.note ?? "").trim() || current.note,
           updatedAt: now
-        }).where(eq(sellerPayouts.id, current.id)).prepare().run();
+        }).where(eq(sellerPayouts.id, current.id));
         if (args.status === "completed") {
-          insertLedgerTx(tx, current.storeId, {
+          await insertLedgerTx(tx, current.storeId, {
             type: "payout",
             amountPaisa: -current.amountPaisa,
             payoutId: current.id,
@@ -31674,6 +44741,14 @@ Note from our team: ${args.note.trim()}` : ""}
 
 ${availabilityNote}`);
       await audit(ctx, "admin", auth.id, "payout_status_changed", "seller_payout", String(payout.id), `${payout.status} \u2192 ${args.status}${reference ? ` (${reference.slice(0, 60)})` : ""}`);
+      if (args.status === "completed" || args.status === "failed") {
+        await notifySeller(ctx, payout.storeId, {
+          type: "payout",
+          title: `Payout ${args.status}: ${formatRs(payout.amountPaisa)}`,
+          body: args.status === "completed" ? `Your payout of ${formatRs(payout.amountPaisa)} via ${payout.method} (${payout.destination}) has been sent. Reference: ${reference}.` : `Your payout of ${formatRs(payout.amountPaisa)} via ${payout.method} could not be completed. The amount is available in your earnings again.`,
+          link: null
+        });
+      }
       ctx.invalidateQueries();
       return { ok: true, status: args.status };
     }
@@ -31688,12 +44763,12 @@ ${availabilityNote}`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const store = (await db.select({ id: storeSettings.id, name: storeSettings.storeName }).from(storeSettings).where(eq(storeSettings.id, args.store_id)).limit(1))[0];
       if (!store)
         throw new Error("Seller not found.");
-      fullDb(ctx).transaction((tx) => {
-        insertLedgerTx(tx, store.id, {
+      await fullDb(ctx).transaction(async (tx) => {
+        await insertLedgerTx(tx, store.id, {
           type: "adjustment",
           amountPaisa: args.amount_paisa,
           note: `Manual adjustment by marketplace team: ${args.reason.trim()}`
@@ -31714,7 +44789,7 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ orders: exports_external.array(orderShape) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const all = await db.select().from(orders).where(eq(orders.storeId, store.id)).orderBy(desc(orders.createdAt)).limit(200);
       const orders2 = all.filter((o) => o.status === "return_requested" || o.status === "returned" || o.status === "refunded").slice(0, 100);
       const items = orders2.length ? await db.select().from(orderItems).where(inArray(orderItems.orderId, orders2.map((o) => o.id))) : [];
@@ -31727,27 +44802,27 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const order = (await db.select().from(orders).where(eq(orders.id, args.order_id)).limit(1))[0];
       if (!order)
         throw new Error("Order not found.");
       if (order.status !== "return_requested")
         throw new Error("This order does not have a pending return request.");
       const next = args.decision === "accepted" ? "returned" : "delivered";
-      fullDb(ctx).transaction((tx) => {
-        const current = tx.select().from(orders).where(eq(orders.id, order.id)).limit(1).prepare().get();
+      await fullDb(ctx).transaction(async (tx) => {
+        const current = (await tx.select().from(orders).where(eq(orders.id, order.id)).limit(1).for("update"))[0];
         if (!current)
           throw new Error("Order not found.");
         if (current.status !== "return_requested")
           throw new Error("This order does not have a pending return request.");
         if (next === "returned")
-          restoreStockTx(tx, current.id, "return_accepted", "admin", auth.id);
-        tx.update(orders).set({ status: next, updatedAt: new Date }).where(eq(orders.id, current.id)).prepare().run();
+          await restoreStockTx(tx, current.id, "return_accepted", "admin", auth.id);
+        await tx.update(orders).set({ status: next, updatedAt: new Date }).where(eq(orders.id, current.id));
         const now = new Date;
-        const rr = tx.select().from(returnRequests).where(eq(returnRequests.orderId, current.id)).limit(1).prepare().get();
+        const rr = (await tx.select().from(returnRequests).where(eq(returnRequests.orderId, current.id)).limit(1).for("update"))[0];
         if (!rr || rr.status !== "requested")
           throw new Error("This return request was already decided.");
-        tx.update(returnRequests).set({ status: args.decision, decidedBy: `admin:${auth.id}`, decidedAt: now }).where(eq(returnRequests.id, rr.id)).prepare().run();
+        await tx.update(returnRequests).set({ status: args.decision, decidedBy: `admin:${auth.id}`, decidedAt: now }).where(eq(returnRequests.id, rr.id));
       });
       if (order.userId) {
         await notifyUser(ctx, order.userId, { type: "order_status", title: `Return ${args.decision} for ${order.orderCode}`, body: `The marketplace team ${args.decision} your return for order ${order.orderCode}.`, link: "#/orders" });
@@ -31763,7 +44838,7 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ returns: exports_external.array(exports_external.object({ id: exports_external.number(), order_id: exports_external.number(), order_code: exports_external.string(), store_name: exports_external.string(), reason: exports_external.string(), status: exports_external.enum(["requested", "accepted", "rejected"]), requested_by: exports_external.string(), decided_by: exports_external.string().nullable(), created_at: exports_external.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = args.status ? await db.select().from(returnRequests).where(eq(returnRequests.status, args.status)).orderBy(desc(returnRequests.createdAt)).limit(200) : await db.select().from(returnRequests).orderBy(desc(returnRequests.createdAt)).limit(200);
       const orderIds = [...new Set(rows.map((r) => r.orderId))];
       const [orders2, stores] = await Promise.all([
@@ -31783,7 +44858,7 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const order = (await db.select().from(orders).where(and(eq(orders.id, args.order_id), eq(orders.storeId, store.id))).limit(1))[0];
       if (!order)
         throw new Error("Order not found.");
@@ -31808,7 +44883,7 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const order = (await db.select().from(orders).where(eq(orders.id, args.order_id)).limit(1))[0];
       if (!order)
         throw new Error("Order not found.");
@@ -31821,6 +44896,527 @@ If you have any questions, please contact support.`);
         await notifyUser(ctx, order.userId, { type: "order_status", title: `Shipment update for ${order.orderCode}`, body: `Your parcel ${order.orderCode} is on its way${carrier ? ` with ${carrier}` : ""}. Tracking number: ${tracking}.`, link: "#/orders" });
       }
       await audit(ctx, "admin", auth.id, "shipment_info_set", "order", String(order.id), `${order.orderCode} carrier=${carrier ?? "\u2014"} tracking=${tracking ?? "\u2014"}`);
+      ctx.invalidateQueries();
+      return { ok: true };
+    }
+  }),
+  getInvoice: defineAction({
+    request: exports_external.object({ authToken: authTokenRequired, order_code: exports_external.string().trim().min(4).max(40) }),
+    response: exports_external.object({
+      invoice: exports_external.object({
+        invoice_no: exports_external.string(),
+        issued_at: exports_external.string(),
+        group_code: exports_external.string(),
+        order_date: exports_external.string(),
+        customer: exports_external.object({ name: exports_external.string(), phone: exports_external.string(), address: exports_external.string() }),
+        fulfilments: exports_external.array(exports_external.object({
+          order_code: exports_external.string(),
+          status: exports_external.string(),
+          payment_status: exports_external.string(),
+          seller_name: exports_external.string(),
+          store_name: exports_external.string(),
+          contact_phone: exports_external.string().nullable(),
+          contact_email: exports_external.string().nullable(),
+          items: exports_external.array(exports_external.object({ product_name: exports_external.string(), variant_label: exports_external.string().nullable(), quantity: exports_external.number(), unit_price_paisa: exports_external.number(), line_total_paisa: exports_external.number() })),
+          subtotal_paisa: exports_external.number(),
+          discount_paisa: exports_external.number(),
+          delivery_fee_paisa: exports_external.number(),
+          total_paisa: exports_external.number()
+        })),
+        subtotal_paisa: exports_external.number(),
+        discount_paisa: exports_external.number(),
+        delivery_fee_paisa: exports_external.number(),
+        grand_total_paisa: exports_external.number(),
+        payment: exports_external.object({ provider: exports_external.string(), status: exports_external.string() }),
+        tax_note: exports_external.string()
+      })
+    }),
+    async handler(ctx, args) {
+      const auth = await requireAuth(ctx, args.authToken, "buyer", "seller", "admin");
+      const db = fullDb(ctx);
+      const code = args.order_code.toUpperCase();
+      let groupId = null;
+      const orderRow = (await db.select({ groupId: orders.groupId }).from(orders).where(eq(orders.orderCode, code)).limit(1))[0];
+      if (orderRow?.groupId) {
+        groupId = orderRow.groupId;
+      } else {
+        const g = (await db.select({ id: orderGroups.id }).from(orderGroups).where(eq(orderGroups.groupCode, code)).limit(1))[0];
+        if (g)
+          groupId = g.id;
+      }
+      if (groupId == null)
+        throw new Error("No order was found for that order code.");
+      const group = (await db.select().from(orderGroups).where(eq(orderGroups.id, groupId)).limit(1))[0];
+      if (!group)
+        throw new Error("No order was found for that order code.");
+      if (auth.type === "buyer" && group.userId !== auth.id)
+        throw new Error("That order does not belong to your account.");
+      const storeId = auth.type === "seller" ? Number(auth.id) : null;
+      let fuls = await db.select().from(orders).where(eq(orders.groupId, group.id)).orderBy(orders.id);
+      if (storeId != null) {
+        fuls = fuls.filter((o) => o.storeId === storeId);
+        if (!fuls.length)
+          throw new Error("That order does not belong to your shop.");
+      }
+      if (!fuls.length)
+        throw new Error("No order was found for that order code.");
+      const inv = await ensureGroupInvoice(ctx, group.id);
+      const itemRows = await db.select().from(orderItems).where(inArray(orderItems.orderId, fuls.map((f) => f.id)));
+      const storeRows = await db.select({ id: storeSettings.id, name: storeSettings.storeName, phone: storeSettings.phone, email: storeSettings.email }).from(storeSettings).where(inArray(storeSettings.id, [...new Set(fuls.map((f) => f.storeId))]));
+      const storeOf = (id) => storeRows.find((s) => s.id === id);
+      const fulfilments = fuls.map((o) => {
+        const s = storeOf(o.storeId);
+        return {
+          order_code: o.orderCode,
+          status: o.status,
+          payment_status: o.paymentStatus,
+          seller_name: s?.name ?? "Seller",
+          store_name: s?.name ?? "Seller",
+          contact_phone: s?.phone ?? null,
+          contact_email: s?.email ?? null,
+          items: itemRows.filter((i) => i.orderId === o.id).map((i) => ({
+            product_name: i.productName,
+            variant_label: i.variantLabel,
+            quantity: i.quantity,
+            unit_price_paisa: i.unitPricePaisa,
+            line_total_paisa: i.unitPricePaisa * i.quantity
+          })),
+          subtotal_paisa: o.subtotalPaisa,
+          discount_paisa: o.discountPaisa,
+          delivery_fee_paisa: o.deliveryFeePaisa,
+          total_paisa: o.totalPaisa
+        };
+      });
+      const totals = storeId != null ? { subtotal: fulfilments.reduce((n, f) => n + f.subtotal_paisa, 0), discount: fulfilments.reduce((n, f) => n + f.discount_paisa, 0), delivery: fulfilments.reduce((n, f) => n + f.delivery_fee_paisa, 0), grand: fulfilments.reduce((n, f) => n + f.total_paisa, 0) } : { subtotal: group.subtotalPaisa, discount: group.discountPaisa, delivery: group.deliveryFeePaisa, grand: group.totalPaisa };
+      const paymentStatus = storeId != null ? fuls[0]?.paymentStatus ?? "pending" : aggregatePaymentStatus(fuls.map((o) => o.paymentStatus));
+      return {
+        invoice: {
+          invoice_no: inv.invoiceNo,
+          issued_at: inv.issuedAt.toISOString(),
+          group_code: group.groupCode,
+          order_date: group.createdAt.toISOString(),
+          customer: { name: group.customerName, phone: group.phone, address: group.address },
+          fulfilments,
+          subtotal_paisa: totals.subtotal,
+          discount_paisa: totals.discount,
+          delivery_fee_paisa: totals.delivery,
+          grand_total_paisa: totals.grand,
+          payment: { provider: group.paymentMethod, status: paymentStatus },
+          tax_note: TAX_NOTE
+        }
+      };
+    }
+  }),
+  askQuestion: defineAction({
+    request: exports_external.object({ authToken: authTokenRequired, product_id: exports_external.number().int().positive(), question: exports_external.string().trim().min(3).max(500) }),
+    response: exports_external.object({ id: exports_external.number() }),
+    async handler(ctx, args) {
+      const auth = await requireAuth(ctx, args.authToken, "buyer");
+      const db = fullDb(ctx);
+      const product = (await db.select({ id: products.id }).from(products).where(eq(products.id, args.product_id)).limit(1))[0];
+      if (!product)
+        throw new Error("That product was not found.");
+      const user = (await db.select({ name: users.name }).from(users).where(eq(users.id, auth.id)).limit(1))[0];
+      const dup = (await db.select({ id: productQuestions.id }).from(productQuestions).where(and(eq(productQuestions.productId, args.product_id), eq(productQuestions.userId, auth.id), isNull(productQuestions.answer))).limit(1))[0];
+      if (dup)
+        throw new Error("You already have a pending question on this product \u2014 the seller will answer it soon.");
+      const inserted = await db.insert(productQuestions).values({
+        productId: args.product_id,
+        userId: auth.id,
+        askerName: user?.name ?? "Buyer",
+        question: args.question.trim(),
+        createdAt: new Date
+      }).returning({ id: productQuestions.id });
+      const row = inserted[0];
+      if (!row)
+        throw new Error("Your question could not be saved.");
+      ctx.invalidateQueries();
+      return { id: row.id };
+    }
+  }),
+  answerQuestion: defineAction({
+    request: exports_external.object({ ...sellerAuthFields, question_id: exports_external.number().int().positive(), answer: exports_external.string().trim().min(1).max(1000) }),
+    response: exports_external.object({ ok: exports_external.literal(true) }),
+    async handler(ctx, args) {
+      const store = await resolveSeller(ctx, args);
+      const db = fullDb(ctx);
+      const q = (await db.select().from(productQuestions).where(eq(productQuestions.id, args.question_id)).limit(1))[0];
+      if (!q)
+        throw new Error("Question not found.");
+      const product = (await db.select({ id: products.id, name: products.name, storeId: products.storeId }).from(products).where(eq(products.id, q.productId)).limit(1))[0];
+      if (!product || product.storeId !== store.id)
+        throw new Error("You can only answer questions on your own products.");
+      await db.update(productQuestions).set({ answer: args.answer.trim(), answeredAt: new Date }).where(eq(productQuestions.id, q.id));
+      await notifyUser(ctx, q.userId, { type: "question_answered", title: `Answered: ${product.name}`, body: args.answer.trim().slice(0, 140), link: `#/product/${product.id}` });
+      await audit(ctx, "seller", String(store.id), "question_answered", "product_question", String(q.id), product.name);
+      ctx.invalidateQueries();
+      return { ok: true };
+    }
+  }),
+  getProductQuestions: defineAction({
+    request: exports_external.object({ product_id: exports_external.number().int().positive(), ...sellerAuthFields }),
+    response: exports_external.object({
+      questions: exports_external.array(exports_external.object({
+        id: exports_external.number(),
+        question: exports_external.string(),
+        answer: exports_external.string().nullable(),
+        answered_at: exports_external.string().nullable(),
+        asker_name: exports_external.string(),
+        mine: exports_external.boolean(),
+        created_at: exports_external.string()
+      }))
+    }),
+    async handler(ctx, args) {
+      const db = fullDb(ctx);
+      const askerId = await buyerIdOf(ctx, args.authToken);
+      let ownerStoreId = null;
+      if (askerId == null) {
+        try {
+          if (args.seller_code && args.seller_key) {
+            ownerStoreId = (await requireSeller(ctx, args.seller_code, args.seller_key)).id;
+          } else {
+            ownerStoreId = await sellerStoreIdOf(ctx, args.authToken);
+          }
+        } catch {
+          ownerStoreId = null;
+        }
+      }
+      const rows = await db.select().from(productQuestions).where(and(eq(productQuestions.productId, args.product_id), eq(productQuestions.isVisible, true))).orderBy(desc(productQuestions.createdAt));
+      let isOwner = false;
+      if (ownerStoreId != null) {
+        const product = (await db.select({ storeId: products.storeId }).from(products).where(eq(products.id, args.product_id)).limit(1))[0];
+        isOwner = product != null && product.storeId === ownerStoreId;
+      }
+      const visible = rows.filter((q) => q.answer != null || askerId != null && q.userId === askerId || isOwner);
+      return {
+        questions: visible.map((q) => ({
+          id: q.id,
+          question: q.question,
+          answer: q.answer ?? null,
+          answered_at: q.answeredAt ? q.answeredAt.toISOString() : null,
+          asker_name: q.askerName,
+          mine: askerId != null && q.userId === askerId,
+          created_at: q.createdAt.toISOString()
+        }))
+      };
+    }
+  }),
+  deleteAccount: defineAction({
+    request: exports_external.object({ authToken: authTokenRequired, password: exports_external.string().min(1).max(120), confirm_text: exports_external.string().min(1).max(20) }),
+    response: exports_external.object({ ok: exports_external.literal(true), orders_kept: exports_external.number(), addresses_deleted: exports_external.number(), wishlist_items_removed: exports_external.number() }),
+    async handler(ctx, args) {
+      const auth = await requireAuth(ctx, args.authToken, "buyer");
+      const db = fullDb(ctx);
+      const user = (await db.select().from(users).where(eq(users.id, auth.id)).limit(1))[0];
+      if (!user)
+        throw new Error("Account not found.");
+      if (!await Bun.password.verify(args.password, user.passwordHash))
+        throw new Error("The password you entered is incorrect.");
+      if (args.confirm_text !== "DELETE")
+        throw new Error("Type DELETE (in capitals) to confirm you want to delete your account.");
+      const summary = await fullDb(ctx).transaction(async (tx) => {
+        const myOrders = await tx.select({ id: orders.id }).from(orders).where(eq(orders.userId, auth.id));
+        const orderIds = myOrders.map((o) => o.id);
+        for (let i = 0;i < orderIds.length; i += 500) {
+          const chunk = orderIds.slice(i, i + 500);
+          if (chunk.length)
+            await tx.update(reviews).set({ reviewerName: "Deleted user" }).where(inArray(reviews.orderId, chunk));
+        }
+        const addrCount = (await tx.select({ id: addresses.id }).from(addresses).where(eq(addresses.userId, auth.id))).length;
+        if (addrCount)
+          await tx.delete(addresses).where(eq(addresses.userId, auth.id));
+        const wl = (await tx.select({ id: wishlists.id }).from(wishlists).where(eq(wishlists.userId, auth.id)).limit(1))[0];
+        let wlItems = 0;
+        if (wl) {
+          wlItems = (await tx.select({ id: wishlistItems.id }).from(wishlistItems).where(eq(wishlistItems.wishlistId, wl.id))).length;
+          if (wlItems)
+            await tx.delete(wishlistItems).where(eq(wishlistItems.wishlistId, wl.id));
+          await tx.delete(wishlists).where(eq(wishlists.id, wl.id));
+        }
+        const cart = (await tx.select({ id: carts.id }).from(carts).where(eq(carts.userId, auth.id)).limit(1))[0];
+        if (cart) {
+          await tx.delete(cartItems).where(eq(cartItems.cartId, cart.id));
+          await tx.delete(carts).where(eq(carts.id, cart.id));
+        }
+        await tx.delete(recentlyViewed).where(eq(recentlyViewed.userId, auth.id));
+        await tx.update(productViews).set({ userId: null }).where(eq(productViews.userId, auth.id));
+        await tx.update(searchEvents).set({ userId: null }).where(eq(searchEvents.userId, auth.id));
+        await tx.update(funnelEvents).set({ userId: null }).where(eq(funnelEvents.userId, auth.id));
+        await tx.update(supportTickets).set({ userId: null }).where(eq(supportTickets.userId, auth.id));
+        await tx.update(couponUsages).set({ userId: null }).where(eq(couponUsages.userId, auth.id));
+        await tx.delete(buyerEmailVerifications).where(eq(buyerEmailVerifications.userId, auth.id));
+        await tx.delete(passwordResetTokens).where(and(eq(passwordResetTokens.userType, "buyer"), eq(passwordResetTokens.userId, auth.id)));
+        await tx.delete(sessions).where(and(eq(sessions.userType, "buyer"), eq(sessions.userId, auth.id)));
+        await tx.update(users).set({
+          name: "Deleted user",
+          email: null,
+          phone: `DELETED:${auth.id}`,
+          avatarUrl: null,
+          status: "suspended",
+          emailVerified: false,
+          notifyOrderEmails: false,
+          updatedAt: new Date
+        }).where(eq(users.id, auth.id));
+        return { orders_kept: orderIds.length, addresses_deleted: addrCount, wishlist_items_removed: wlItems };
+      });
+      await audit(ctx, "buyer", auth.id, "account_deleted", "user", auth.id, `${summary.orders_kept} orders kept for records`);
+      ctx.invalidateQueries();
+      return { ok: true, ...summary };
+    }
+  }),
+  exportAccountData: defineAction({
+    request: exports_external.object({ authToken: authTokenRequired }),
+    response: exports_external.object({
+      exported_at: exports_external.string(),
+      profile: exports_external.object({ id: exports_external.string(), name: exports_external.string(), phone: exports_external.string(), email: exports_external.string().nullable(), email_verified: exports_external.boolean(), created_at: exports_external.string() }),
+      addresses: exports_external.array(exports_external.object({ label: exports_external.string(), full_name: exports_external.string(), phone: exports_external.string(), province: exports_external.string(), district: exports_external.string(), municipality: exports_external.string(), ward: exports_external.string().nullable(), landmark: exports_external.string().nullable(), is_default: exports_external.boolean() })),
+      orders: exports_external.array(orderGroupShape),
+      wishlist: exports_external.array(exports_external.object({ product_id: exports_external.number(), product_name: exports_external.string(), added_price_paisa: exports_external.number(), added_at: exports_external.string() })),
+      reviews: exports_external.array(exports_external.object({ product_id: exports_external.number(), product_name: exports_external.string(), rating: exports_external.number(), body: exports_external.string(), created_at: exports_external.string() })),
+      notification_prefs: exports_external.object({ order_emails: exports_external.boolean() })
+    }),
+    async handler(ctx, args) {
+      const auth = await requireAuth(ctx, args.authToken, "buyer");
+      const db = fullDb(ctx);
+      const user = (await db.select().from(users).where(eq(users.id, auth.id)).limit(1))[0];
+      if (!user)
+        throw new Error("Account not found.");
+      const addrRows = await db.select().from(addresses).where(eq(addresses.userId, auth.id)).orderBy(addresses.id);
+      const groupRows = await db.select({ id: orderGroups.id }).from(orderGroups).where(eq(orderGroups.userId, auth.id)).orderBy(desc(orderGroups.createdAt));
+      const orders2 = [];
+      for (const g of groupRows) {
+        const view = await loadOrderGroup(ctx, g.id);
+        if (view)
+          orders2.push(publicGroupView(view));
+      }
+      const wlRows = await db.select({
+        productId: wishlistItems.productId,
+        productName: products.name,
+        addedPricePaisa: wishlistItems.addedPricePaisa,
+        addedAt: wishlistItems.addedAt,
+        wishlistId: wishlistItems.wishlistId
+      }).from(wishlistItems).innerJoin(wishlists, eq(wishlistItems.wishlistId, wishlists.id)).innerJoin(products, eq(wishlistItems.productId, products.id)).where(eq(wishlists.userId, auth.id));
+      const reviewRows = await db.select({
+        productId: reviews.productId,
+        productName: products.name,
+        rating: reviews.rating,
+        body: reviews.body,
+        createdAt: reviews.createdAt
+      }).from(reviews).innerJoin(orders, eq(reviews.orderId, orders.id)).innerJoin(products, eq(reviews.productId, products.id)).where(eq(orders.userId, auth.id)).orderBy(desc(reviews.createdAt));
+      return {
+        exported_at: new Date().toISOString(),
+        profile: { id: user.id, name: user.name, phone: user.phone, email: user.email, email_verified: user.emailVerified, created_at: user.createdAt.toISOString() },
+        addresses: addrRows.map((a) => ({
+          label: a.label,
+          full_name: a.fullName,
+          phone: a.phone,
+          province: a.province,
+          district: a.district,
+          municipality: a.municipality,
+          ward: a.ward ?? null,
+          landmark: a.landmark ?? null,
+          is_default: a.isDefault
+        })),
+        orders: orders2,
+        wishlist: wlRows.map((w) => ({ product_id: w.productId, product_name: w.productName, added_price_paisa: w.addedPricePaisa, added_at: w.addedAt.toISOString() })),
+        reviews: reviewRows.map((r) => ({ product_id: r.productId, product_name: r.productName, rating: r.rating, body: r.body, created_at: r.createdAt.toISOString() })),
+        notification_prefs: { order_emails: user.notifyOrderEmails }
+      };
+    }
+  }),
+  sellerCsvImport: defineAction({
+    request: exports_external.object({ ...sellerAuthFields, csv_text: exports_external.string().min(1).max(204800) }),
+    response: exports_external.object({ created: exports_external.number(), skipped: exports_external.number(), errors: exports_external.array(exports_external.object({ row: exports_external.number(), message: exports_external.string() })) }),
+    async handler(ctx, args) {
+      const store = await resolveSeller(ctx, args);
+      assertSellerCanSell(store);
+      const db = fullDb(ctx);
+      const rows = parseCsv(args.csv_text);
+      const headerRow = rows[0];
+      if (!rows.length || !headerRow)
+        throw new Error("The CSV is empty.");
+      const header = headerRow.map((h) => h.trim().toLowerCase());
+      const col = (name2) => header.indexOf(name2);
+      const iName = col("name"), iPrice = col("price_paisa"), iStock = col("stock"), iSku = col("sku"), iCategory = col("category");
+      if (iName < 0 || iPrice < 0)
+        throw new Error('The CSV needs a header row with at least "name" and "price_paisa" columns (optional: stock, sku, category).');
+      const data = rows.slice(1).filter((r) => r.some((c) => c.trim() !== ""));
+      if (data.length > 500)
+        throw new Error("The CSV has more than 500 product rows \u2014 split it into smaller imports.");
+      const existingSkus = new Set((await db.select({ sku: products.sku }).from(products).where(eq(products.storeId, store.id))).map((r) => r.sku).filter((s) => !!s));
+      const seenSkus = new Set;
+      const approvalStatus = store.status === "active" ? "approved" : "pending";
+      const now = new Date;
+      let created = 0;
+      const errors5 = [];
+      for (let i = 0;i < data.length; i++) {
+        const lineNo = i + 2;
+        const r = data[i];
+        if (!r)
+          continue;
+        const fail = (message) => {
+          errors5.push({ row: lineNo, message });
+        };
+        const name2 = (r[iName] ?? "").trim();
+        const priceRaw = (r[iPrice] ?? "").trim();
+        const stockRaw = iStock >= 0 ? (r[iStock] ?? "").trim() : "";
+        const skuRaw = iSku >= 0 ? (r[iSku] ?? "").trim() : "";
+        const category = (iCategory >= 0 ? (r[iCategory] ?? "").trim() : "") || "General";
+        if (name2.length < 2 || name2.length > 80) {
+          fail("Name must be between 2 and 80 characters.");
+          continue;
+        }
+        if (!/^\d+$/.test(priceRaw)) {
+          fail("price_paisa must be a whole positive number of paisa (e.g. 129900 for Rs 1,299).");
+          continue;
+        }
+        const price = Number(priceRaw);
+        if (price <= 0) {
+          fail("price_paisa must be greater than zero.");
+          continue;
+        }
+        let stock = 0;
+        if (stockRaw !== "") {
+          if (!/^\d+$/.test(stockRaw)) {
+            fail("stock must be a whole number of 0 or more.");
+            continue;
+          }
+          stock = Number(stockRaw);
+        }
+        if (category.length < 2 || category.length > 40) {
+          fail("category must be between 2 and 40 characters.");
+          continue;
+        }
+        const sku = normalizeSku(skuRaw || null);
+        if (sku && (existingSkus.has(sku) || seenSkus.has(sku))) {
+          fail(`The SKU "${sku}" is already used by another product in this shop.`);
+          continue;
+        }
+        try {
+          const inserted = await db.insert(products).values({
+            storeId: store.id,
+            name: name2,
+            category,
+            description: `Imported from CSV: ${name2}.`,
+            pricePaisa: price,
+            deliveryFeePaisa: 0,
+            stock,
+            sku,
+            lowStockThreshold: 5,
+            isActive: false,
+            approvalStatus,
+            updatedAt: now
+          }).returning({ id: products.id });
+          const prow = inserted[0];
+          if (!prow) {
+            fail("The product could not be saved.");
+            continue;
+          }
+          if (stock > 0) {
+            await db.insert(stockMovements).values({ productId: prow.id, variantId: 0, change: stock, stockAfter: stock, reason: "product_created", actorType: "seller", actorId: String(store.id), createdAt: now });
+          }
+          if (sku) {
+            seenSkus.add(sku);
+            existingSkus.add(sku);
+          }
+          created++;
+        } catch (e) {
+          fail(e instanceof Error ? e.message : "The product could not be saved.");
+        }
+      }
+      await audit(ctx, "seller", String(store.id), "csv_import", "product", "", `${created} created, ${errors5.length} skipped`);
+      ctx.invalidateQueries();
+      return { created, skipped: errors5.length, errors: errors5 };
+    }
+  }),
+  adminUpdateCategorySeo: defineAction({
+    request: exports_external.object({
+      authToken: authTokenField,
+      category_id: exports_external.number().int().positive(),
+      seo_title: exports_external.string().trim().max(120).nullish(),
+      seo_description: exports_external.string().trim().max(320).nullish(),
+      intro_content: exports_external.string().trim().max(1e4).nullish()
+    }),
+    response: exports_external.object({ ok: exports_external.literal(true) }),
+    async handler(ctx, args) {
+      const auth = await requireAuth(ctx, args.authToken, "admin");
+      const db = fullDb(ctx);
+      const existing = (await db.select({ id: categories.id }).from(categories).where(eq(categories.id, args.category_id)).limit(1))[0];
+      if (!existing)
+        throw new Error("Category not found.");
+      const patch = {};
+      if (args.seo_title !== undefined)
+        patch.seoTitle = args.seo_title?.trim() || null;
+      if (args.seo_description !== undefined)
+        patch.seoDescription = args.seo_description?.trim() || null;
+      if (args.intro_content !== undefined)
+        patch.introContent = args.intro_content?.trim() || null;
+      if (Object.keys(patch).length) {
+        await db.update(categories).set(patch).where(eq(categories.id, args.category_id));
+      }
+      await audit(ctx, "admin", auth.id, "category_seo_updated", "category", String(args.category_id), Object.keys(patch).join(","));
+      ctx.invalidateQueries();
+      return { ok: true };
+    }
+  }),
+  submitProductForApproval: defineAction({
+    request: exports_external.object({ ...sellerAuthFields, product_id: exports_external.number().int().positive() }),
+    response: exports_external.object({ ok: exports_external.literal(true) }),
+    async handler(ctx, args) {
+      const store = await resolveSeller(ctx, args);
+      if (store.status === "suspended" || store.status === "rejected")
+        throw new Error("This shop cannot submit products for approval right now.");
+      const db = fullDb(ctx);
+      const product = (await db.select().from(products).where(and(eq(products.id, args.product_id), eq(products.storeId, store.id))).limit(1))[0];
+      if (!product)
+        throw new Error("Product not found.");
+      if (product.approvalStatus === "pending")
+        throw new Error("This product is already awaiting approval.");
+      await db.update(products).set({ approvalStatus: "pending", isActive: false, updatedAt: new Date }).where(eq(products.id, product.id));
+      await audit(ctx, "seller", String(store.id), "product_submitted_for_approval", "product", String(product.id), product.name);
+      ctx.invalidateQueries();
+      return { ok: true };
+    }
+  }),
+  adminApproveProduct: defineAction({
+    request: exports_external.object({ authToken: authTokenField, product_id: exports_external.number().int().positive() }),
+    response: exports_external.object({ ok: exports_external.literal(true) }),
+    async handler(ctx, args) {
+      const auth = await requireAuth(ctx, args.authToken, "admin");
+      const db = fullDb(ctx);
+      const product = (await db.select().from(products).where(eq(products.id, args.product_id)).limit(1))[0];
+      if (!product)
+        throw new Error("Product not found.");
+      if (product.approvalStatus === "approved")
+        throw new Error("This product is already approved.");
+      await db.update(products).set({ approvalStatus: "approved", updatedAt: new Date }).where(eq(products.id, product.id));
+      await emailSellerMsg(ctx, product.storeId, (to, storeName) => productModerationEmail(to, storeName, product.name, true));
+      await notifySeller(ctx, product.storeId, { type: "product_approved", title: `Product approved: ${product.name}`, body: "Your product passed review. Publish it from your seller studio whenever you are ready.", link: `#/product/${product.id}` });
+      await audit(ctx, "admin", auth.id, "product_approved", "product", String(product.id), product.name);
+      ctx.invalidateQueries();
+      return { ok: true };
+    }
+  }),
+  adminRejectProduct: defineAction({
+    request: exports_external.object({ authToken: authTokenField, product_id: exports_external.number().int().positive(), reason: exports_external.string().trim().max(400).optional() }),
+    response: exports_external.object({ ok: exports_external.literal(true) }),
+    async handler(ctx, args) {
+      const auth = await requireAuth(ctx, args.authToken, "admin");
+      const db = fullDb(ctx);
+      const product = (await db.select().from(products).where(eq(products.id, args.product_id)).limit(1))[0];
+      if (!product)
+        throw new Error("Product not found.");
+      if (product.approvalStatus === "rejected")
+        throw new Error("This product is already rejected.");
+      await db.update(products).set({ approvalStatus: "rejected", isActive: false, updatedAt: new Date }).where(eq(products.id, product.id));
+      await emailSellerMsg(ctx, product.storeId, (to, storeName) => productModerationEmail(to, storeName, product.name, false));
+      await notifySeller(ctx, product.storeId, {
+        type: "product_rejected",
+        title: `Product not approved: ${product.name}`,
+        body: args.reason?.trim() ? `Reason: ${args.reason.trim()}` : "Your product did not pass review. Edit it and submit it for approval again.",
+        link: null
+      });
+      await audit(ctx, "admin", auth.id, "product_rejected", "product", String(product.id), `${product.name}${args.reason?.trim() ? ` \u2014 ${args.reason.trim().slice(0, 80)}` : ""}`);
       ctx.invalidateQueries();
       return { ok: true };
     }
@@ -31868,7 +45464,7 @@ If you have any questions, please contact support.`);
       if (!args.standard_enabled && !args.express_enabled && !args.pickup_enabled) {
         throw new Error("At least one delivery method must stay enabled.");
       }
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const now = new Date;
       const rows = [
         ["shipping_express_fee_paisa", String(args.express_fee_paisa)],
@@ -31896,7 +45492,7 @@ If you have any questions, please contact support.`);
       seller: exports_external.object({ store_name: exports_external.string(), location: exports_external.string(), rating: exports_external.number().nullable(), product_count: exports_external.number(), verified: exports_external.boolean() })
     }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const actives = await activeStoreIds(ctx);
       const pubs = publicOnly(await productRows(ctx), actives);
       const product = pubs.find((p) => p.id === args.product_id);
@@ -31968,7 +45564,7 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ images: exports_external.array(exports_external.object({ id: exports_external.number(), url: exports_external.string() })) }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const product = (await db.select({ id: products.id }).from(products).where(and(eq(products.id, args.product_id), eq(products.storeId, store.id))).limit(1))[0];
       if (!product)
         throw new Error("Product not found.");
@@ -31993,7 +45589,7 @@ If you have any questions, please contact support.`);
     }),
     response: exports_external.object({ products: exports_external.array(productShape), total: exports_external.number() }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const actives = await activeStoreIds(ctx);
       let pubs = publicOnly(await productRows(ctx), actives);
       const q = args.query.toLowerCase().trim().replace(/\s+/g, " ");
@@ -32088,7 +45684,7 @@ If you have any questions, please contact support.`);
       const userId = await buyerIdOf(ctx, args.authToken);
       if (!userId)
         return { products: [] };
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = await db.select().from(recentlyViewed).where(eq(recentlyViewed.userId, userId)).orderBy(desc(recentlyViewed.viewedAt)).limit(12);
       const byId = new Map(publicOnly(await productRows(ctx), await activeStoreIds(ctx)).map((p) => [p.id, p]));
       const products2 = rows.flatMap((r) => {
@@ -32102,10 +45698,11 @@ If you have any questions, please contact support.`);
     request: exports_external.object({ authToken: authTokenField }),
     response: exports_external.object({
       banners: exports_external.array(exports_external.object({ title: exports_external.string(), subtitle: exports_external.string().nullable(), link: exports_external.string().nullable(), image_url: exports_external.string().nullable() })),
-      sections: exports_external.array(exports_external.object({ key: exports_external.string(), title: exports_external.string(), products: exports_external.array(productShape) }))
+      sections: exports_external.array(exports_external.object({ key: exports_external.string(), title: exports_external.string(), products: exports_external.array(productShape) })),
+      site_logo_url: exports_external.string().nullable()
     }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const actives = await activeStoreIds(ctx);
       const pubs = publicOnly(await productRows(ctx), actives);
       const banners = (await db.select().from(homepageBanners).where(eq(homepageBanners.isActive, true)).orderBy(homepageBanners.sortOrder)).map((b) => ({ title: b.title, subtitle: b.subtitle, link: b.link, image_url: b.imageUrl }));
@@ -32122,7 +45719,7 @@ If you have any questions, please contact support.`);
         flash_deals: pubs.filter((p) => p.discount_pct > 0).sort((a, b) => b.discount_pct - a.discount_pct).slice(0, 8),
         recommended
       };
-      return { banners, sections: sectionRows.map((s) => ({ key: s.key, title: s.title, products: builders[s.key] ?? [] })) };
+      return { banners, sections: sectionRows.map((s) => ({ key: s.key, title: s.title, products: builders[s.key] ?? [] })), site_logo_url: await siteLogoUrl(ctx) };
     }
   }),
   askAssistant: defineAction({
@@ -32159,7 +45756,7 @@ If you have any questions, please contact support.`);
     }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const cutoff = Date.now() - 30 * 86400 * 1000;
       const cutoffDate = new Date(cutoff);
       const isBillable = (s) => s !== "cancelled" && s !== "refunded";
@@ -32256,7 +45853,7 @@ If you have any questions, please contact support.`);
     }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const cutoff = Date.now() - 30 * 86400 * 1000;
       const cutoffDate = new Date(cutoff);
       const isBillable = (s) => s !== "cancelled" && s !== "refunded";
@@ -32342,12 +45939,12 @@ If you have any questions, please contact support.`);
   }),
   adminListCategories: defineAction({
     request: exports_external.object({ authToken: authTokenField }),
-    response: exports_external.object({ categories: exports_external.array(exports_external.object({ id: exports_external.number(), name: exports_external.string(), slug: exports_external.string(), is_active: exports_external.boolean() })) }),
+    response: exports_external.object({ categories: exports_external.array(exports_external.object({ id: exports_external.number(), name: exports_external.string(), slug: exports_external.string(), is_active: exports_external.boolean(), seo_title: exports_external.string().nullable(), seo_description: exports_external.string().nullable(), intro_content: exports_external.string().nullable() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = await db.select().from(categories).orderBy(categories.name);
-      return { categories: rows.map((c) => ({ id: c.id, name: c.name, slug: c.slug, is_active: c.isActive })) };
+      return { categories: rows.map((c) => ({ id: c.id, name: c.name, slug: c.slug, is_active: c.isActive, seo_title: c.seoTitle ?? null, seo_description: c.seoDescription ?? null, intro_content: c.introContent ?? null })) };
     }
   }),
   adminSaveCategory: defineAction({
@@ -32359,7 +45956,7 @@ If you have any questions, please contact support.`);
       const slug = name2.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
       if (!slug)
         throw new Error("That category name cannot be used.");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const clash = (await db.select({ id: categories.id }).from(categories).where(eq(categories.slug, slug)).limit(1))[0];
       if (clash && clash.id !== args.id)
         throw new Error(`The category "${name2}" already exists.`);
@@ -32384,7 +45981,7 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const category = (await db.select().from(categories).where(eq(categories.id, args.id)).limit(1))[0];
       if (!category)
         throw new Error("Category not found.");
@@ -32401,17 +45998,17 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ banners: exports_external.array(exports_external.object({ id: exports_external.number(), title: exports_external.string(), subtitle: exports_external.string().nullable(), link: exports_external.string().nullable(), image_url: exports_external.string().nullable(), is_active: exports_external.boolean(), sort_order: exports_external.number() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = await db.select().from(homepageBanners).orderBy(homepageBanners.sortOrder);
       return { banners: rows.map((b) => ({ id: b.id, title: b.title, subtitle: b.subtitle, link: b.link, image_url: b.imageUrl, is_active: b.isActive, sort_order: b.sortOrder })) };
     }
   }),
   adminSaveBanner: defineAction({
-    request: exports_external.object({ authToken: authTokenField, id: exports_external.number().int().positive().optional(), title: exports_external.string().trim().min(2).max(80), subtitle: exports_external.string().trim().max(160).nullable().optional(), link: exports_external.string().trim().max(200).nullable().optional(), image_url: exports_external.string().trim().max(300).nullable().optional(), is_active: exports_external.boolean().optional(), sort_order: exports_external.number().int().min(0).max(1000).optional() }),
+    request: exports_external.object({ authToken: authTokenField, id: exports_external.number().int().positive().optional(), title: exports_external.string().trim().min(2).max(80), subtitle: exports_external.string().trim().max(160).nullable().optional(), link: bannerLinkField.nullable().optional(), image_url: bannerImageUrlField.nullable().optional(), is_active: exports_external.boolean().optional(), sort_order: exports_external.number().int().min(0).max(1000).optional() }),
     response: exports_external.object({ id: exports_external.number() }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const imageUrl = args.image_url?.trim() || null;
       if (!args.id && !imageUrl)
         throw new Error("Please upload a banner image \u2014 every advertisement is shown with its image.");
@@ -32423,7 +46020,7 @@ If you have any questions, please contact support.`);
         if (!imageUrl && !existing.imageUrl)
           throw new Error("Please upload a banner image \u2014 every advertisement is shown with its image.");
         if (existing.imageUrl && imageUrl && existing.imageUrl !== imageUrl)
-          deleteUploadFile(existing.imageUrl);
+          await deleteStoredUpload(existing.imageUrl);
         await db.update(homepageBanners).set(values).where(eq(homepageBanners.id, args.id));
         ctx.invalidateQueries();
         return { id: args.id };
@@ -32441,10 +46038,10 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const existing = (await db.select().from(homepageBanners).where(eq(homepageBanners.id, args.id)).limit(1))[0];
       if (existing?.imageUrl)
-        deleteUploadFile(existing.imageUrl);
+        await deleteStoredUpload(existing.imageUrl);
       await db.delete(homepageBanners).where(eq(homepageBanners.id, args.id));
       ctx.invalidateQueries();
       return { ok: true };
@@ -32455,7 +46052,7 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ sections: exports_external.array(exports_external.object({ key: exports_external.string(), title: exports_external.string(), is_active: exports_external.boolean(), sort_order: exports_external.number() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = await db.select().from(homepageSections).orderBy(homepageSections.sortOrder);
       return { sections: rows.map((s) => ({ key: s.key, title: s.title, is_active: s.isActive, sort_order: s.sortOrder })) };
     }
@@ -32465,7 +46062,7 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       await db.insert(homepageSections).values({ key: args.key, title: args.title.trim(), isActive: args.is_active, sortOrder: args.sort_order }).onConflictDoUpdate({ target: homepageSections.key, set: { title: args.title.trim(), isActive: args.is_active, sortOrder: args.sort_order } });
       ctx.invalidateQueries();
       return { ok: true };
@@ -32476,7 +46073,7 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ tickets: exports_external.array(exports_external.object({ ticket_code: exports_external.string(), name: exports_external.string(), contact: exports_external.string(), subject: exports_external.string(), message: exports_external.string(), order_code: exports_external.string().nullable(), status: exports_external.enum(["open", "answered", "closed"]), admin_reply: exports_external.string().nullable(), created_at: exports_external.string() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = args.status ? await db.select().from(supportTickets).where(eq(supportTickets.status, args.status)).orderBy(desc(supportTickets.createdAt)).limit(200) : await db.select().from(supportTickets).orderBy(desc(supportTickets.createdAt)).limit(200);
       return { tickets: rows.map((t) => ({ ticket_code: t.ticketCode, name: t.name, contact: t.contact, subject: t.subject, message: t.message, order_code: t.orderCode, status: t.status, admin_reply: t.adminReply, created_at: t.createdAt.toISOString() })) };
     }
@@ -32486,7 +46083,7 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const ticket = (await db.select().from(supportTickets).where(eq(supportTickets.ticketCode, args.ticket_code.trim().toUpperCase())).limit(1))[0];
       if (!ticket)
         throw new Error("Ticket not found.");
@@ -32504,7 +46101,7 @@ If you have any questions, please contact support.`);
     response: exports_external.object({ ok: exports_external.literal(true) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "admin");
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const ticket = (await db.select({ id: supportTickets.id }).from(supportTickets).where(eq(supportTickets.ticketCode, args.ticket_code.trim().toUpperCase())).limit(1))[0];
       if (!ticket)
         throw new Error("Ticket not found.");
@@ -32518,7 +46115,7 @@ If you have any questions, please contact support.`);
     request: exports_external.object({ authToken: authTokenField, name: exports_external.string().trim().min(2).max(80), contact: exports_external.string().trim().min(5).max(40), subject: exports_external.string().trim().min(4).max(80), message: exports_external.string().trim().min(10).max(1000), order_code: exports_external.string().trim().min(4).max(40).optional() }),
     response: exports_external.object({ ticket_code: exports_external.string() }),
     async handler(ctx, args) {
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const userId = await buyerIdOf(ctx, args.authToken);
       let ticketCode = "";
       for (let i = 0;i < 5; i++) {
@@ -32562,29 +46159,29 @@ If you have any questions, please contact support.`);
       const userId = await buyerIdOf(ctx, args.authToken);
       if (!userId)
         return { tickets: [] };
-      const db = ctx.db();
+      const db = fullDb(ctx);
       const rows = await db.select().from(supportTickets).where(eq(supportTickets.userId, userId)).orderBy(desc(supportTickets.createdAt)).limit(50);
       return { tickets: rows.map((t) => ({ ticket_code: t.ticketCode, subject: t.subject, message: t.message, order_code: t.orderCode, status: t.status, admin_reply: t.adminReply, created_at: t.createdAt.toISOString() })) };
     }
   })
 };
 var UNPAID_GROUP_TTL_MS = 45 * 60 * 1000;
-function sweepExpiredUnpaidGroups(fullDb2, nowMs = Date.now()) {
+async function sweepExpiredUnpaidGroups(fullDb2, nowMs = Date.now()) {
   const cutoff = new Date(nowMs - UNPAID_GROUP_TTL_MS);
   const swept = [];
-  fullDb2.transaction((tx) => {
-    const stale = tx.select({ id: orderGroups.id }).from(orderGroups).where(and(lt(orderGroups.createdAt, cutoff), ne(orderGroups.paymentMethod, "cod"))).prepare().all();
+  await fullDb2.transaction(async (tx) => {
+    const stale = await tx.select({ id: orderGroups.id }).from(orderGroups).where(and(lt(orderGroups.createdAt, cutoff), ne(orderGroups.paymentMethod, "cod")));
     for (const g of stale) {
-      const subs = tx.select().from(orders).where(eq(orders.groupId, g.id)).prepare().all();
+      const subs = await tx.select().from(orders).where(eq(orders.groupId, g.id));
       if (!subs.length)
         continue;
       if (!subs.every((o) => o.status === "confirmation_needed"))
         continue;
-      const pay = tx.select().from(payments).where(eq(payments.groupId, g.id)).limit(1).prepare().get();
+      const pay = (await tx.select().from(payments).where(eq(payments.groupId, g.id)).limit(1).for("update"))[0];
       if (!pay || pay.status === "paid" || pay.status === "refunded" || pay.status === "cancelled")
         continue;
-      const group = tx.select().from(orderGroups).where(eq(orderGroups.id, g.id)).limit(1).prepare().get();
-      cancelFulfilmentsTx(tx, subs.map((o) => o.id), "system", "payment_expired");
+      const group = (await tx.select().from(orderGroups).where(eq(orderGroups.id, g.id)).limit(1).for("update"))[0];
+      await cancelFulfilmentsTx(tx, subs.map((o) => o.id), "system", "payment_expired");
       if (group)
         swept.push({ userId: group.userId, groupCode: group.groupCode });
     }
@@ -32594,7 +46191,7 @@ function sweepExpiredUnpaidGroups(fullDb2, nowMs = Date.now()) {
     if (!s.userId)
       continue;
     try {
-      fullDb2.insert(notifications).values({ userId: s.userId, type: "order_status", title: `Order ${s.groupCode} expired`, body: `The unpaid order ${s.groupCode} was released after 45 minutes without payment and its items returned to stock. You can check out again whenever you are ready.`, link: "#/orders", createdAt: at }).prepare().run();
+      await fullDb2.insert(notifications).values({ userId: s.userId, type: "order_status", title: `Order ${s.groupCode} expired`, body: `The unpaid order ${s.groupCode} was released after 45 minutes without payment and its items returned to stock. You can check out again whenever you are ready.`, link: "#/orders", createdAt: at });
     } catch {}
   }
   return { swept: swept.length, groups: swept.map((s) => s.groupCode) };
@@ -32603,5 +46200,6 @@ export {
   sweepExpiredUnpaidGroups,
   notifyAdmin,
   UNPAID_GROUP_TTL_MS,
+  TAX_NOTE,
   Actions
 };

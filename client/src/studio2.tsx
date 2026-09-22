@@ -244,6 +244,125 @@ export function SellerReturns({ callArgs }: { callArgs: SellerArgs }) {
   );
 }
 
+// --- buyer questions (seller answer box) -------------------------------------
+// Lists unanswered (and answered) buyer questions across this shop's
+// products, with an inline answer box. Questions are fetched per product via
+// getProductQuestions, passing this seller's auth: the server returns
+// pending questions too when the token/code+key belongs to the product's
+// owning seller. A failure on one product never breaks the rest of the list.
+export function SellerQuestions({ products, callArgs }: { products: { id: number; name: string }[]; callArgs: SellerArgs }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const qs = useQuery({
+    queryKey: ["seller-questions", products.map((p) => p.id)],
+    enabled: products.length > 0,
+    queryFn: async () => {
+      const per = await Promise.all(products.map(async (p) => {
+        try {
+          const r = await api.getProductQuestions({ ...callArgs, product_id: p.id });
+          return { productId: p.id, productName: p.name, questions: r.questions };
+        } catch {
+          return { productId: p.id, productName: p.name, questions: [] as { id: number; question: string; answer: string | null; answered_at: string | null; asker_name: string }[] };
+        }
+      }));
+      return per.filter((g) => g.questions.length > 0);
+    },
+  });
+  const answer = useMutation({
+    mutationFn: ({ id, text }: { id: number; text: string }) => api.answerQuestion({ ...callArgs, question_id: id, answer: text }),
+    onSuccess: (_, v) => {
+      setDrafts((d) => ({ ...d, [v.id]: "" }));
+      void queryClient.invalidateQueries({ queryKey: ["seller-questions"] });
+      toast("Answer published — buyers can see it on the product page.");
+    },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not save the answer.", "err"),
+  });
+
+  if (qs.isPending) return <p className="muted">Loading questions…</p>;
+  if (qs.error) return <p className="form-error">Questions could not load.</p>;
+  const groups = qs.data ?? [];
+  const openCount = groups.reduce((n, g) => n + g.questions.filter((q) => !q.answer).length, 0);
+  if (groups.length === 0) return <p className="muted">No buyer questions yet. When buyers ask about your products, they will appear here.</p>;
+  return (
+    <div>
+      {openCount > 0 && <p className="banner warn" role="status">{openCount} question{openCount === 1 ? "" : "s"} waiting for your answer.</p>}
+      {groups.map((g) => (
+        <div key={g.productId} className="qa-group">
+          <h3>{g.productName}</h3>
+          {g.questions.map((q) => (
+            <article key={q.id} className="qa-item">
+              <p><b>Q:</b> {q.question}</p>
+              <small className="muted">{q.asker_name}{q.answered_at ? ` · Answered ${fmtDate(q.answered_at)}` : ""}</small>
+              {q.answer ? (
+                <p className="qa-answer"><b>A:</b> {q.answer}</p>
+              ) : (
+                <form className="stack-form compact" onSubmit={(e) => {
+                  e.preventDefault();
+                  const text = (drafts[q.id] ?? "").trim();
+                  if (text.length >= 1) answer.mutate({ id: q.id, text });
+                }}>
+                  <label>Your answer<textarea value={drafts[q.id] ?? ""} onChange={(e) => setDrafts((d) => ({ ...d, [q.id]: e.target.value }))} minLength={1} maxLength={2000} required placeholder="Answer honestly — this appears publicly on the product page" /></label>
+                  <button className="primary" disabled={answer.isPending || !(drafts[q.id] ?? "").trim()}>
+                    {answer.isPending ? "Publishing…" : "Publish answer"}
+                  </button>
+                </form>
+              )}
+            </article>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// --- CSV bulk import ----------------------------------------------------------
+// Lets sellers paste or upload a CSV of products and shows the server's
+// honest result: created / skipped counts plus per-row errors.
+export function SellerCsvImport({ callArgs }: { callArgs: SellerArgs }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [csvText, setCsvText] = useState("");
+  const [result, setResult] = useState<{ created: number; skipped: number; errors: { row: number; message: string }[] } | null>(null);
+  const run = useMutation({
+    mutationFn: (text: string) => api.sellerCsvImport({ ...callArgs, csv_text: text }),
+    onSuccess: (r) => {
+      setResult(r);
+      void queryClient.invalidateQueries({ queryKey: ["seller-inventory"] });
+      toast(`Imported ${r.created} product${r.created === 1 ? "" : "s"}${r.skipped ? `, skipped ${r.skipped}` : ""}.`);
+    },
+    onError: (e) => toast(e instanceof Error ? e.message : "The CSV could not be imported.", "err"),
+  });
+  const onFile = (f: File | undefined) => {
+    if (!f) return;
+    void f.text().then((t) => { setCsvText(t); setResult(null); })
+      .catch(() => toast("Could not read that file.", "err"));
+  };
+  return (
+    <div>
+      <p className="muted">One product per line. The first line <b>must</b> be a header row. Required columns: <b>name, price_paisa</b> (whole paisa — e.g. 129900 for Rs 1,299). Optional columns: <b>stock, sku, category</b>. Every valid row becomes an <b>inactive draft</b> for you to review and publish. The server checks every row and reports exactly what it created, skipped, and rejected.</p>
+      <div className="stack-form">
+        <label>Choose a .csv file<input type="file" accept=".csv,text/csv" onChange={(e) => onFile(e.target.files?.[0] ?? undefined)} /></label>
+        <label>Or paste CSV text<textarea value={csvText} onChange={(e) => { setCsvText(e.target.value); setResult(null); }} rows={6} placeholder={"name,price_paisa,stock,category\nHandwoven Dhaka scarf,85000,25,Clothing"} /></label>
+        <button className="primary" disabled={run.isPending || !csvText.trim()} onClick={() => run.mutate(csvText)}>
+          {run.isPending ? "Importing…" : "Import products"}
+        </button>
+      </div>
+      {run.error && <p className="form-error" role="alert">{run.error instanceof Error ? run.error.message : "The CSV could not be imported."}</p>}
+      {result && (
+        <div className="import-result" role="status">
+          <p><b>{result.created} created</b>{result.skipped > 0 && <> · {result.skipped} skipped</>}{result.errors.length > 0 && <> · {result.errors.length} row{result.errors.length === 1 ? "" : "s"} rejected</>}</p>
+          {result.errors.length > 0 && (
+            <ul className="import-errors">
+              {result.errors.map((e, i) => <li key={i}><b>Row {e.row}:</b> {e.message}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- stock history (inventory ledger) ---------------------------------------
 // Read-only trail of every stock change for this shop: what each order took
 // off the shelf, what each cancellation or accepted return put back, and the

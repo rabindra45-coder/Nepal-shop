@@ -20,6 +20,12 @@ export const money = (paisa: number) =>
 export const fmtDate = (value: string | number) =>
   new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 
+// Honest tax wording shown on the product page and checkout summary. This
+// is the exact wording of the server's canonical TAX_NOTE (also shipped on
+// every getInvoice payload as tax_note), mirrored here for pages that don't
+// call getInvoice.
+export const MARKETPLACE_TAX_NOTE = "No separate tax is charged on this marketplace.";
+
 const authToken = z.string().min(8).max(120).optional();
 
 // --- shared shapes ---------------------------------------------------------
@@ -426,7 +432,9 @@ const p2Actions = {
   },
   adminListCategories: {
     request: z.object({ authToken }),
-    response: z.object({ categories: z.array(z.object({ id: z.number(), name: z.string(), slug: z.string(), is_active: z.boolean() })) }),
+    // Mirrors the server's adminListCategories response: includes the v9
+    // category SEO fields (seo_title / seo_description / intro_content).
+    response: z.object({ categories: z.array(z.object({ id: z.number(), name: z.string(), slug: z.string(), is_active: z.boolean(), seo_title: z.string().nullable(), seo_description: z.string().nullable(), intro_content: z.string().nullable() })) }),
   },
   adminSaveCategory: {
     request: z.object({ authToken, id: z.number().optional(), name: z.string().trim().min(1), is_active: z.boolean().optional() }),

@@ -1,6 +1,6 @@
 // Checkpoint 19 (Analytics) verification: real funnel over real HTTP.
 // Usage: boot a fresh server first, e.g.
-//   PORT=3899 DB_PATH=/tmp/analytics-v5.db EMAIL_TEST_CAPTURE=1 bun selfhost.ts
+//   PORT=3899 DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres EMAIL_TEST_CAPTURE=1 bun selfhost.ts
 // then: bun scripts/verify-analytics.ts --port 3899
 const port = process.argv.includes("--port") ? process.argv[process.argv.indexOf("--port") + 1] : "3899";
 const BASE = `http://localhost:${port}`;
