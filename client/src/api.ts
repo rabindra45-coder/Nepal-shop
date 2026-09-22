@@ -8,6 +8,7 @@
 
 import type { Actions } from "../../server/src/actions";
 import { createActionClient } from "@hatch/space-sdk/client";
+import type { ApiRequest } from "@hatch/space-sdk/client";
 
 // --- Auth state -----------------------------------------------------------
 // The signed-in session is kept in localStorage under this key. Every action
@@ -84,6 +85,19 @@ export const api: RawClient = new Proxy(rawClient, {
     };
   },
 });
+
+// --- Admin SMTP settings (typed wrappers) ---------------------------------
+// The signed-in admin session token is attached automatically by the proxy
+// above when the caller does not pass authToken explicitly.
+export function adminGetSmtpSettings(args: ApiRequest<typeof api, "adminGetSmtpSettings"> = {}) {
+  return api.adminGetSmtpSettings(args);
+}
+export function adminSaveSmtpSettings(args: ApiRequest<typeof api, "adminSaveSmtpSettings">) {
+  return api.adminSaveSmtpSettings(args);
+}
+export function adminSendTestSmtpEmail(args: ApiRequest<typeof api, "adminSendTestSmtpEmail">) {
+  return api.adminSendTestSmtpEmail(args);
+}
 
 // Re-exported for convenience so client code can do
 //

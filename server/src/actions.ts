@@ -10,6 +10,7 @@ import { buildEsewaParams, esewaConfig, esewaFormUrl, esewaTransactionStatus, in
 import {
   adminAlertEmail, adminEmailAddress, buyerVerificationEmail, buyerWelcomeEmail,
   capturedEmails, clearCapturedEmails, commissionChangeEmail, emailConfigured, lowStockEmail,
+  getSmtpConfig,
   orderCancelledBuyerEmail, orderCancelledSellerEmail, orderConfirmationEmail, orderEmail,
   paymentFailedEmail, paymentReceivedEmail, productModerationEmail, resetPasswordEmail,
   returnRequestedBuyerEmail, sellerAccountStatusEmail, sellerNewOrderEmail, sellerVerificationEmail,
@@ -244,6 +245,16 @@ async function shippingConfig(ctx: Ctx): Promise<ShippingConfig> {
     express_enabled: bool(get("shipping_express_enabled"), true),
     pickup_enabled: bool(get("shipping_pickup_enabled"), true),
   };
+}
+
+// Site logo uploaded by the admin (POST /api/site-logo-uploads in
+// selfhost.ts), stored as the site_logo_url key in platform_settings.
+// Missing or empty means no logo has been uploaded yet.
+async function siteLogoUrl(ctx: Ctx): Promise<string | null> {
+  const db = ctx.db<typeof schema>();
+  const row = (await db.select({ value: schema.platformSettings.value }).from(schema.platformSettings).where(eq(schema.platformSettings.key, "site_logo_url")).limit(1))[0];
+  const v = (row?.value ?? "").trim();
+  return v ? v : null;
 }
 
 // Best-effort email to a buyer (when they have an email on file) or to a
@@ -1325,13 +1336,13 @@ export const Actions = {
     },
   }),
   getMe: defineAction({
-    request: z.object({ authToken: authTokenField }), response: z.object({ user: userShape }),
+    request: z.object({ authToken: authTokenField }), response: z.object({ user: userShape.extend({ avatar_url: z.string().nullable() }) }),
     async handler(ctx, args) {
       const auth = await requireAuth(ctx, args.authToken, "buyer");
       const db = ctx.db<typeof schema>();
       const user = (await db.select().from(schema.users).where(eq(schema.users.id, auth.id)).limit(1))[0];
       if (!user) throw new Error("Account not found.");
-      return { user: { id: user.id, name: user.name, phone: user.phone, email: user.email } };
+      return { user: { id: user.id, name: user.name, phone: user.phone, email: user.email, avatar_url: user.avatarUrl ?? null } };
     },
   }),
   logout: defineAction({
@@ -1391,7 +1402,7 @@ export const Actions = {
         const a = (await db.select().from(schema.admins).where(eq(schema.admins.email, ident)).limit(1))[0];
         if (a) { userId = a.id; email = a.email; name = a.name; }
       }
-      if (userId && email && emailConfigured()) {
+      if (userId && email && await emailConfigured()) {
         const token = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
         const tokenHash = await hashKey(token);
         await db.insert(schema.passwordResetTokens).values({
@@ -1470,7 +1481,7 @@ export const Actions = {
         expiresAt: new Date(Date.now() + 24 * 3600 * 1000), createdAt: new Date(),
       });
       let emailSent = false;
-      if (emailConfigured()) {
+      if (await emailConfigured()) {
         const { publicBaseUrl } = await import("./payments");
         const link = `${publicBaseUrl()}/#/verify-buyer?token=${token}`;
         const sent = await sendEmail(buyerVerificationEmail(user.email, user.name, link));
@@ -1561,7 +1572,7 @@ export const Actions = {
         expiresAt: new Date(Date.now() + 24 * 3600 * 1000), createdAt: new Date(),
       });
       let emailSent = false;
-      if (emailConfigured()) {
+      if (await emailConfigured()) {
         const { publicBaseUrl } = await import("./payments");
         const link = `${publicBaseUrl()}/#/verify-seller?token=${token}`;
         const sent = await sendEmail(sellerVerificationEmail(email, args.store_name.trim(), link));
@@ -1616,7 +1627,7 @@ export const Actions = {
         expiresAt: new Date(Date.now() + 24 * 3600 * 1000), createdAt: new Date(),
       });
       let emailSent = false;
-      if (emailConfigured()) {
+      if (await emailConfigured()) {
         const { publicBaseUrl } = await import("./payments");
         const link = `${publicBaseUrl()}/#/verify-seller?token=${token}`;
         const sent = await sendEmail(sellerVerificationEmail(store.email, store.storeName, link));
@@ -3953,6 +3964,86 @@ export const Actions = {
       return { ok: true };
     },
   }),
+  // ---------- admin SMTP settings ----------
+  // Outgoing mail can be configured from environment variables
+  // (SMTP_HOST/SMTP_USER/SMTP_PASS) or from this panel, stored in the
+  // smtp_settings table (single row, id=1). Environment wins when fully set;
+  // otherwise the stored row is used. The stored password is masked: no
+  // action ever returns it and it is never written to logs.
+  adminGetSmtpSettings: defineAction({
+    request: z.object({ authToken: authTokenField }),
+    response: z.object({
+      smtp_host: z.string().nullable(),
+      smtp_port: z.number().nullable(),
+      smtp_user: z.string().nullable(),
+      smtp_from: z.string().nullable(),
+      password_set: z.boolean(),
+      effective_source: z.enum(["env", "db", "none"]),
+    }),
+    async handler(ctx, args): Promise<{ smtp_host: string | null; smtp_port: number | null; smtp_user: string | null; smtp_from: string | null; password_set: boolean; effective_source: "env" | "db" | "none" }> {
+      await requireAuth(ctx, args.authToken, "admin");
+      const cfg = await getSmtpConfig();
+      return {
+        smtp_host: cfg?.host ?? null,
+        smtp_port: cfg?.port ?? null,
+        smtp_user: cfg?.username ?? null,
+        smtp_from: cfg?.from ?? null,
+        password_set: cfg !== null,
+        effective_source: cfg?.source ?? "none",
+      };
+    },
+  }),
+  adminSaveSmtpSettings: defineAction({
+    request: z.object({
+      authToken: authTokenField,
+      host: z.string().trim().min(1).max(255),
+      port: z.number().int().min(1).max(65535).optional(),
+      username: z.string().trim().max(255).optional(),
+      password: z.string().max(500).optional(),
+      from: z.string().trim().max(255).optional(),
+    }),
+    response: z.object({ ok: z.literal(true) }),
+    async handler(ctx, args): Promise<{ ok: true }> {
+      const auth = await requireAuth(ctx, args.authToken, "admin");
+      const db = ctx.db<typeof schema>();
+      const existing = (await db.select().from(schema.smtpSettings).where(eq(schema.smtpSettings.id, 1)).limit(1))[0];
+      const host = args.host.trim();
+      const port = args.port ?? existing?.port ?? 587;
+      const username = args.username !== undefined ? (args.username.trim() || null) : (existing?.username ?? null);
+      // An empty or omitted password keeps the existing stored password, so
+      // the admin can change host/port without retyping the password.
+      const password = args.password ? args.password : (existing?.password ?? null);
+      const fromAddress = args.from !== undefined ? (args.from.trim() || null) : (existing?.fromAddress ?? null);
+      const now = new Date();
+      const values = { id: 1, host, port, username, password, fromAddress, updatedAt: now };
+      await db.insert(schema.smtpSettings).values(values)
+        .onConflictDoUpdate({ target: schema.smtpSettings.id, set: { host, port, username, password, fromAddress, updatedAt: now } });
+      // The audit trail records what changed, never the password.
+      await audit(ctx, "admin", auth.id, "smtp_settings_saved", "smtp_settings", "1", `host=${host} port=${port} user=${username ?? "(none)"}`);
+      ctx.invalidateQueries();
+      return { ok: true };
+    },
+  }),
+  adminSendTestSmtpEmail: defineAction({
+    request: z.object({ authToken: authTokenField, to: z.string().trim().min(3).max(120) }),
+    response: z.object({ sent: z.boolean(), error: z.string().optional() }),
+    async handler(ctx, args): Promise<{ sent: boolean; error?: string }> {
+      await requireAuth(ctx, args.authToken, "admin");
+      const to = args.to.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw new Error("Enter a valid email address.");
+      const result = await sendEmail({
+        to,
+        subject: "Nepal Shop test email",
+        text:
+          `Hello,\n\n` +
+          `This is a test email from your Nepal Shop store.\n\n` +
+          `If you received it, your email settings are working correctly.\n\n` +
+          `— Nepal Shop`,
+      });
+      if (result.sent) return { sent: true };
+      return { sent: false, error: result.error ?? "The email could not be sent." };
+    },
+  }),
   // ---------- seller balances overview (admin) ----------
   // Every figure is derived from the ledger at read time — there is no
   // stored balance anywhere to drift out of sync.
@@ -4693,6 +4784,7 @@ export const Actions = {
     response: z.object({
       banners: z.array(z.object({ title: z.string(), subtitle: z.string().nullable(), link: z.string().nullable(), image_url: z.string().nullable() })),
       sections: z.array(z.object({ key: z.string(), title: z.string(), products: z.array(productShape) })),
+      site_logo_url: z.string().nullable(),
     }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
@@ -4713,7 +4805,7 @@ export const Actions = {
         flash_deals: pubs.filter((p) => p.discount_pct > 0).sort((a, b) => b.discount_pct - a.discount_pct).slice(0, 8),
         recommended,
       };
-      return { banners, sections: sectionRows.map((s) => ({ key: s.key, title: s.title, products: builders[s.key] ?? [] })) };
+      return { banners, sections: sectionRows.map((s) => ({ key: s.key, title: s.title, products: builders[s.key] ?? [] })), site_logo_url: await siteLogoUrl(ctx) };
     },
   }),
 

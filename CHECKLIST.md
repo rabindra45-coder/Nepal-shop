@@ -1,4 +1,6 @@
-# Production-Ready Website Checklist — Nepal Shop (v7 audit)
+# Production-Ready Website Checklist — Nepal Shop (v8 audit)
+
+> **v8 (user-reported fixes, 2026-09-22):** eight problems found testing v7 on phone + desktop, all fixed and verified over real HTTP on fresh boots: mobile-only hamburger drawer nav (desktop/tablet untouched); "Seller studio" hidden from the public nav unless seller; product photos are real file uploads (URL paste removed, per-file progress); admin Email/SMTP tab with masked password, test-email button and env>DB>none precedence (verification emails now actually send when configured); seller logo/banner upload fixed (session token now attached); admin-uploadable site logo shown in navbar + hero; account page rebuilt as a sidebar (mobile drawer) with buyer profile-photo upload shown in header/sidebar/navbar chip; same sidebar pattern in studio + admin; mobile overflow/tap-target pass. New: migrations 0055–0057, `POST /api/site-logo-uploads`, `POST /api/profile-uploads`, `adminGetSmtpSettings`/`adminSaveSmtpSettings`/`adminSendTestSmtpEmail`. Verified: typechecks clean, client rebuilt, 36/36 verify suite, 21-assertion HTTP integration suite, fresh-DB boot with 57 migrations, zip boots clean from extraction. Honest caveat: drawer animation verified from markup + CSS media queries only (no headless browser) — a quick real-phone check is worthwhile.
 
 > **v7 (final production pass, 2026-09-22):** all 54 migrations, 148 RPC actions, and the full marketplace loop hardened and verified end to end over real HTTP on fresh boots. Verified this pass: multi-seller checkout (one group + one fulfilment per seller, correct ownership, inventory 10→9, 5% commission, ledger reconciles, per-role visibility) — 72/72 E2E checks; failure sweep (payment failure/timeout, duplicate verification, double-click idempotency, out-of-stock, expired coupon, session expiry, cancellation, return + refund, payout guards) — all safe and understandable; `scripts/verify-v4.ts` 36/36; payout flow (adjustment → request → processing → completed) 10/10; `scripts/backup.ts` exit 0 with both artifacts; server + client typechecks clean. Seller lifecycle `pending → under_review → active` with legal transitions; pending shops draft-only. Commission accrues on payment confirmation (COD: at delivery; eSewa/Khalti: at verified payment). Remaining: merchant keys, SMTP, Render disk/env, legal review, demo-data cleanup (all NEEDS-USER below — no code blockers).
 
@@ -54,7 +56,10 @@ Audited against the code in this repo and the live site. **Status key:** `DONE` 
 - [DONE] Images — `loading="lazy"` + `decoding="async"` on non-critical images; hero eager as LCP.
 - [DONE] Modals — bottom sheets on mobile, centred dialogs on desktop; `role="dialog"`, labelled close buttons.
 - [DONE] Footer — wraps and stacks on small screens.
-- [DONE] Mobile menu — bottom navigation with active states.
+- [DONE] Mobile menu — hamburger opens a slide-in sidebar drawer below 768px (public nav, account, seller studio, admin panel); desktop/tablet layouts unchanged.
+- [DONE] Public nav hides seller-only links — "Seller studio" only renders for signed-in sellers, in nav and drawer.
+- [DONE] Account/studio/admin dashboards — persistent sidebar on desktop, drawer on mobile; all tab functionality preserved.
+- [DONE] Buyer profile photo — upload from the account page (buyer-authenticated, 5 MB, image types only); avatar shown in account header, sidebar and navbar chip.
 
 ## 4. Functionality
 
@@ -73,7 +78,8 @@ Audited against the code in this repo and the live site. **Status key:** `DONE` 
 - [DONE] External links — no dead external links; canonical + OG URLs point at the live site.
 - [DONE] Authentication — bcrypt passwords, token sessions, role-separated (buyer/seller/admin).
 - [DONE] Database operations — all writes through drizzle + zod-validated actions (148 actions); transactions where money/stock moves.
-- [DONE] File uploads — seller product photos (up to 10/product), store logo/banner, admin banner ads: validated type/size, stored under `UPLOADS_DIR`, served from `/uploads/`; ownership checks on every upload/delete.
+- [DONE] File uploads — seller product photos (up to 10/product, real file picker — URL paste removed), store logo/banner, buyer profile photo, admin banner ads and site logo: validated type/size, stored under `UPLOADS_DIR`, served from `/uploads/`; ownership checks on every upload/delete.
+- [DONE] Admin Email/SMTP settings — admin panel Email tab saves host/port/username/password/from (password masked, test-email button, env vars take precedence when set); verification emails send when configured.
 - [DONE] Error states — `PageError` with retry on every data screen; friendly 400/422/429 messages.
 - [DONE] Loading states — skeletons/spinners on every async view.
 - [DONE] Empty states — cart, wishlist, orders, search, notifications, tickets all have guided empty states.

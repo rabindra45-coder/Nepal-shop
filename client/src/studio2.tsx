@@ -23,6 +23,8 @@ export function ProductImageUploader({ productId, callArgs }: { productId: numbe
   const images = list.data?.images ?? [];
   const slotsLeft = MAX_PHOTOS - images.length;
   const authArgs = { authToken: getAuth()?.token ?? undefined, ...callArgs };
+  type UploadState = { name: string; status: "uploading" | "done" | "error"; detail?: string };
+  const [uploads, setUploads] = useState<UploadState[]>([]);
 
   const onFiles = async (files: FileList | null) => {
     if (!files?.length || busy) return;
@@ -34,16 +36,29 @@ export function ProductImageUploader({ productId, callArgs }: { productId: numbe
       return;
     }
     setBusy(true);
-    try {
-      for (const f of batch) await uploadProductImage(authArgs, productId, f);
-      await list.refetch();
-      void queryClient.invalidateQueries({ queryKey: ["seller-inventory"] });
-      toast(batch.length === 1 ? "Photo added — it is live in the shop now." : `${batch.length} photos added — live in the shop now.`);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Upload failed.", "err");
-    } finally {
-      setBusy(false);
+    setUploads(batch.map((f) => ({ name: f.name, status: "uploading" as const })));
+    let failed = 0;
+    let failedFirst = "";
+    for (let i = 0; i < batch.length; i++) {
+      const f = batch[i]!;
+      try {
+        await uploadProductImage(authArgs, productId, f);
+        setUploads((prev) => prev.map((s, j) => j === i ? { ...s, status: "done" as const } : s));
+      } catch (e) {
+        failed++;
+        const msg = e instanceof Error ? e.message : "Upload failed.";
+        if (!failedFirst) failedFirst = msg;
+        setUploads((prev) => prev.map((s, j) => j === i ? { ...s, status: "error" as const, detail: msg } : s));
+      }
     }
+    await list.refetch();
+    void queryClient.invalidateQueries({ queryKey: ["seller-inventory"] });
+    if (failed === 0) {
+      toast(batch.length === 1 ? "Photo added — it is live in the shop now." : `${batch.length} photos added — live in the shop now.`);
+    } else {
+      toast(failed === batch.length ? failedFirst || "Upload failed." : `${failed} of ${batch.length} photos failed — ${failedFirst}`, "err");
+    }
+    setBusy(false);
   };
 
   const remove = async (imageId: number) => {
@@ -79,6 +94,20 @@ export function ProductImageUploader({ productId, callArgs }: { productId: numbe
         </div>
       )}
       <small className="muted">Up to {MAX_PHOTOS} photos per product, 5 MB each. The first photo is the cover shown in the shop.</small>
+      {uploads.length > 0 && (
+        <ul className="up-progress" aria-live="polite">
+          {uploads.map((u, i) => (
+            <li key={`${i}-${u.name}`}>
+              <small>
+                {u.name}:{" "}
+                {u.status === "uploading" ? <span className="muted">uploading…</span>
+                  : u.status === "done" ? <span className="success">done</span>
+                  : <span className="form-error">failed{u.detail ? ` — ${u.detail}` : ""}</span>}
+              </small>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -240,12 +269,13 @@ export function StockHistory({ callArgs }: { callArgs: SellerArgs }) {
   );
 }
 
-// Extended product form fields (brand, original price, photo uploader, image
-// URL, low-stock threshold). Rendered inside Studio's existing product form.
+// Extended product form fields (brand, original price, photo uploader,
+// low-stock threshold). Rendered inside Studio's existing product form.
 // The uploader needs an existing product id; for brand-new products the form
-// shows a hint until the product is published.
+// shows a hint until the product is published. Product photos are real file
+// uploads only — there is no image-URL field.
 export function ProductExtraFields({ editing, productId, callArgs }: {
-  editing: { brand?: string | null; original_price_paisa?: number | null; image_url?: string | null; low_stock_threshold?: number; sku?: string | null } | null;
+  editing: { brand?: string | null; original_price_paisa?: number | null; low_stock_threshold?: number; sku?: string | null } | null;
   productId?: number;
   callArgs?: SellerArgs;
 }) {
@@ -264,7 +294,6 @@ export function ProductExtraFields({ editing, productId, callArgs }: {
       ) : (
         <p className="muted up-hint"><small>Publish the product first — then you can add up to 10 photos here.</small></p>
       )}
-      <label>Image URL<input name="image_url" type="url" maxLength={500} defaultValue={editing?.image_url ?? ""} placeholder="https://…" /><small>…or paste a photo link. Uploaded photos are shown first.</small></label>
     </>
   );
 }
@@ -280,10 +309,9 @@ export function productExtraPayload(d: FormData) {
   };
   const brand = String(d.get("brand") ?? "").trim() || undefined;
   const original_price_paisa = num(d.get("original_price"));
-  const image_url = String(d.get("image_url") ?? "").trim() || undefined;
   const low_stock_threshold = int(d.get("low_stock_threshold"));
   const sku = String(d.get("sku") ?? "").trim() || undefined;
-  return { brand, original_price_paisa, image_url, low_stock_threshold, sku };
+  return { brand, original_price_paisa, low_stock_threshold, sku };
 }
 
 // --- store logo / banner uploader (studio settings) --------------------------
@@ -295,13 +323,20 @@ export function StoreAssetUploader({ kind, currentUrl, callArgs, onSaved }: {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
   const field = kind === "logo" ? "logo_url" : "banner_url";
+  // Like ProductImageUploader above: email+password sellers sign in with a
+  // session token, but `callArgs` is {} for them (App.tsx builds
+  // `callArgs = tokenAuth ? {} : creds`), so merge the token explicitly
+  // before the multipart upload — otherwise the server answers
+  // "Seller sign-in is required." Legacy seller_code+seller_key sign-in
+  // still works because those keys survive the merge untouched.
+  const authArgs = { authToken: getAuth()?.token ?? undefined, ...callArgs };
   const onFiles = async (files: FileList | null) => {
     const f = files?.[0];
     if (!f || busy) return;
     if (!f.type.startsWith("image/")) { toast("Only photo files please (JPG, PNG, WebP, GIF).", "err"); return; }
     setBusy(true);
     try {
-      const url = await uploadStoreAsset(callArgs, kind, f);
+      const url = await uploadStoreAsset(authArgs, kind, f);
       await api.saveStoreAssets({ ...(callArgs as unknown as Record<string, unknown>), [field]: url });
       onSaved(url);
       toast(kind === "logo" ? "Store logo updated." : "Store banner updated.");

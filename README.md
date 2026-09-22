@@ -1,4 +1,4 @@
-# Nepal Shopping Site v7 (self-hosted)
+# Nepal Shopping Site v8 (self-hosted)
 
 A full-stack marketplace web app for Nepal — a customer-facing online shop
 built to rival Daraz, with the things Daraz lacks: native eSewa/Khalti
@@ -166,8 +166,14 @@ Copy `.env.example` to `.env`. All values are read server-side only.
 The shop sends transactional emails (order confirmations, payment results,
 shipment milestones, cancellations, returns, refunds, payouts, seller
 account and product moderation decisions, low-stock and admin alerts).
-Credentials are read **only** from environment variables — never committed
-to the repo.
+Credentials are read from environment variables **or** from the admin
+panel's Email tab (stored in the `smtp_settings` table) — never committed
+to the repo. Precedence: environment variables win when all of
+`SMTP_HOST`/`SMTP_USER`/`SMTP_PASS` are set; otherwise the saved settings
+are used; otherwise emails are logged-not-sent (flows keep working and say
+so honestly). The admin Email tab also has a "Send test email" button, and
+shows which source is active. The stored password is never returned by the
+API or written to logs.
 
 | Variable | Purpose |
 |----------|---------|
@@ -584,6 +590,65 @@ testing — all flagged NEEDS-USER in `CHECKLIST.md`.
   Verified: migration applies on fresh boot, unauthenticated upload
   rejected, imageless create rejected, upload/serve/homepage/delete-file
   over HTTP all pass, 36/36 verify suite, typechecks clean, client rebuilt.
+
+## v8 — user-reported fixes (2026-09-22)
+
+Eight problems found while testing v7 on phone + desktop, all fixed and
+verified over real HTTP on fresh boots:
+
+1. **Mobile sidebar navigation** — below 768px the cramped top nav is
+   replaced by a hamburger button opening a slide-in drawer (Home, Shop,
+   Assistant, Search, Basket, Log in/Sign up or Account, plus Seller
+   studio for sellers and Admin panel for admins; overlay/Escape/close
+   button). Desktop and tablet layouts are untouched.
+2. **"Seller studio" hidden from the public nav** — it only appears for
+   signed-in sellers now (nav + drawer); everyone else never sees it.
+3. **Product photos are real uploads** — the "paste a photo link" URL
+   input is gone; sellers pick files (JPG/PNG/WebP/GIF, 5 MB each,
+   10-photo cap) with honest per-file progress and server error messages.
+4. **Admin-managed SMTP** — new admin Email tab: host/port/username/
+   password/from fields, masked password, "Send test email", and the
+   active source (env vars / saved settings / not configured). Verification
+   emails (buyer + seller) were silently dropped when only env config was
+   missing — they now flow through the DB settings too.
+5. **Seller logo/banner upload fixed** — email+password sellers got
+   "Seller sign-in is required." because the session token was never sent
+   with the multipart upload; the token is now attached like the product
+   photo uploader does.
+6. **Site logo** — the admin Homepage tab has a Branding logo uploader
+   (`POST /api/site-logo-uploads`, admin-only); the navbar and homepage
+   hero show it when set, falling back to the text brand otherwise.
+7. **Account sidebar + profile photo** — the account page is now a
+   sidebar layout (drawer on mobile) across My orders, Addresses,
+   Wishlist, Notifications, Support tickets, Basket, Email preferences
+   and Change password; buyers can upload a profile photo
+   (`POST /api/profile-uploads`, buyer-only, 5 MB) shown in the account
+   header, sidebar and navbar chip. The seller studio and admin panel use
+   the same sidebar pattern.
+8. **Mobile optimisation pass** — touched pages checked for horizontal
+   overflow and sub-44px tap targets; drawer/sidebar controls are all
+   44px+.
+
+New migrations: `0055_smtp_settings` (SMTP table), `0056_site_logo`
+(`platform_settings.site_logo_url` key), `0057_users_avatar`
+(`users.avatar_url`). New endpoints: `POST /api/site-logo-uploads`,
+`POST /api/profile-uploads`; new admin actions `adminGetSmtpSettings`,
+`adminSaveSmtpSettings`, `adminSendTestSmtpEmail`.
+
+**Verified this pass:** both typechecks clean; client rebuilt; the full
+`scripts/verify-v4.ts` regression suite **36/36**; 21-assertion
+cross-worker HTTP integration suite (SMTP save/get/test with masked
+password and env>DB>none precedence, site-logo upload → serves →
+`getHomepage.site_logo_url`, profile-photo upload → serves →
+`getMe.avatar_url`, store-logo upload with a seller session token,
+auth-boundary rejections, oversize/wrong-type rejections) all pass;
+fresh-DB boot with all 57 migrations; the packaged zip boots cleanly
+from extraction (homepage 200).
+
+**Honest caveats:** no headless browser was available, so the drawer
+slide-in animation and tap-target feel were verified from markup + CSS
+media queries only — a quick manual check on a real phone is still
+worthwhile. Everything else above was tested over real HTTP.
 
 ## v7 — final production pass (2026-09-22)
 

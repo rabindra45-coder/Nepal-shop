@@ -364,6 +364,7 @@ const p2Actions = {
     response: z.object({
       banners: z.array(z.object({ title: z.string(), subtitle: z.string().nullable(), link: z.string().nullable(), image_url: z.string().nullable() })),
       sections: z.array(z.object({ key: z.string(), title: z.string(), products: z.array(productPublicSchema) })),
+      site_logo_url: z.string().nullable(),
     }),
   },
 

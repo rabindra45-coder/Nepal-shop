@@ -1,14 +1,25 @@
 // Outgoing email for Nepal Shop.
 //
-// Configuration is env-only (never in the repo):
-//   SMTP_HOST, SMTP_PORT (default 587, use 465 for implicit TLS),
-//   SMTP_USER, SMTP_PASS, SMTP_FROM (defaults to SMTP_USER).
+// Configuration comes from environment variables OR the admin-managed
+// smtp_settings table (single row, id=1), with this precedence:
+//   ENV (SMTP_HOST + SMTP_USER + SMTP_PASS all set) > DB row > none.
+//   SMTP_PORT (default 587, use 465 for implicit TLS),
+//   SMTP_FROM (defaults to SMTP_USER).
+//
+// Env values live outside the repo as before; the DB row is managed from
+// the admin panel (adminSaveSmtpSettings). The stored password is never
+// logged and never returned by any action.
 //
 // When unconfigured, sendEmail logs a warning and reports { sent: false }
 // instead of faking delivery — callers must treat that honestly (e.g. the
 // password-reset action still returns a generic ok to avoid account
 // enumeration, but no email goes out and the server log says so).
 import nodemailer, { type Transporter } from "nodemailer";
+import { eq } from "drizzle-orm";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
+// Runtime import (not type-only): dbSmtpConfig queries smtp_settings.
+// schema.ts only depends on drizzle-orm, so there is no import cycle.
+import * as schema from "./schema";
 
 export interface EmailMessage {
   to: string;
@@ -50,23 +61,107 @@ function captureEnabled(): boolean {
   return process.env.EMAIL_TEST_CAPTURE === "1";
 }
 
-export function emailConfigured(): boolean {
+export function emailConfigured(): Promise<boolean> {
   // EMAIL_TEST_CAPTURE=1 counts as configured so test flows can exercise
   // the send path; production never sets that flag.
-  return captureEnabled() || !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  return getSmtpConfig().then((cfg) => captureEnabled() || cfg !== null);
+}
+
+// --- SMTP configuration: env > DB > none ------------------------------------
+// The DB row is read fresh on every call (single-row lookup, negligible
+// cost) so an admin saving new settings takes effect on the very next send
+// with no restart. The cached transporter below is keyed on the full
+// resolved config (including the row's updated_at), so any settings change
+// transparently drops the old transporter — no stale credentials.
+//
+// The host process injects its drizzle instance once at boot via
+// setSmtpDbProvider (selfhost.ts). Hosts that never call it (e.g. the
+// Muse-hosted version) simply fall back to env-only behaviour.
+
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  from: string;
+  source: "env" | "db";
+  // Monotonic marker for the DB-sourced config (the row's updated_at, or 0
+  // when unset); "env" for env-sourced. Part of the transporter cache key.
+  version: string;
+}
+
+type SmtpDb = BunSQLiteDatabase<typeof schema>;
+let dbProvider: (() => SmtpDb) | null = null;
+export function setSmtpDbProvider(provider: (() => SmtpDb) | null): void {
+  dbProvider = provider;
+}
+
+function envSmtpConfig(): SmtpConfig | null {
+  const host = (process.env.SMTP_HOST ?? "").trim();
+  const username = (process.env.SMTP_USER ?? "").trim();
+  const password = process.env.SMTP_PASS ?? "";
+  if (!host || !username || !password) return null;
+  const port = Number(process.env.SMTP_PORT ?? 587);
+  return {
+    host,
+    port: Number.isFinite(port) && port >= 1 && port <= 65535 ? Math.round(port) : 587,
+    username,
+    password,
+    from: (process.env.SMTP_FROM ?? "").trim() || username,
+    source: "env",
+    version: "env",
+  };
+}
+
+async function dbSmtpConfig(): Promise<SmtpConfig | null> {
+  if (!dbProvider) return null;
+  try {
+    const db = dbProvider();
+    const row = (await db.select().from(schema.smtpSettings).where(eq(schema.smtpSettings.id, 1)).limit(1))[0];
+    const host = (row?.host ?? "").trim();
+    const username = (row?.username ?? "").trim();
+    const password = row?.password ?? "";
+    if (!host || !username || !password) return null;
+    const port = row?.port ?? 587;
+    return {
+      host,
+      port: Number.isFinite(port) && port >= 1 && port <= 65535 ? Math.round(port) : 587,
+      username,
+      password,
+      from: (row?.fromAddress ?? "").trim() || username,
+      source: "db",
+      version: String(row?.updatedAt?.getTime() ?? 0),
+    };
+  } catch {
+    // Table missing (database migrated before smtp_settings existed, or a
+    // host without the provider) — treat as unconfigured, never crash.
+    return null;
+  }
+}
+
+export async function getSmtpConfig(): Promise<SmtpConfig | null> {
+  return envSmtpConfig() ?? (await dbSmtpConfig());
 }
 
 let transporter: Transporter | null = null;
+let transporterKey: string | null = null;
 
-function getTransporter(): Transporter {
-  if (!transporter) {
-    const port = Number(process.env.SMTP_PORT ?? 587);
+function transporterCacheKey(cfg: SmtpConfig): string {
+  // Includes the password so a credential rotation drops the old
+  // transporter; this string is in-memory only and is never logged.
+  return [cfg.source, cfg.host, cfg.port, cfg.username, cfg.password, cfg.from, cfg.version].join("\u0000");
+}
+
+function getTransporter(cfg: SmtpConfig): Transporter {
+  const key = transporterCacheKey(cfg);
+  if (!transporter || transporterKey !== key) {
     transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port,
-      secure: port === 465,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      host: cfg.host,
+      port: cfg.port,
+      secure: cfg.port === 465,
+      auth: { user: cfg.username, pass: cfg.password },
     });
+    transporterKey = key;
   }
   return transporter;
 }
@@ -76,13 +171,14 @@ export async function sendEmail(msg: EmailMessage): Promise<EmailResult> {
     captured.push({ to: msg.to, subject: msg.subject, text: msg.text, html: msg.html, at: new Date().toISOString() });
     return { sent: true, captured: true };
   }
-  if (!emailConfigured()) {
+  const cfg = await getSmtpConfig();
+  if (!cfg) {
     console.warn(`[email] not configured — email to ${msg.to} ("${msg.subject}") was not sent`);
     return { sent: false, error: "Email is not configured." };
   }
   try {
-    await getTransporter().sendMail({
-      from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
+    await getTransporter(cfg).sendMail({
+      from: cfg.from,
       to: msg.to,
       subject: msg.subject,
       text: msg.text,

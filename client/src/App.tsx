@@ -4,19 +4,19 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { SafeAreaTopScrim } from "@hatch/space-sdk/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, clearAuth, clearLegacySeller, getAuth, getLegacySeller, setAuth, setLegacySeller, type ApiResponse, type AuthInfo, type LegacySeller } from "./api";
-import { api2, money, toP2Order, toP2OrderGroup, type P2OrderGroup, type P2Product } from "./phase2api";
+import { api2, money, toP2Order, toP2OrderGroup, type P2Product } from "./phase2api";
 import { AuthContext, go, useAuth, useRoute } from "./session";
 import { CartProvider, clearGuestCart, readGuestCart, useCart } from "./cart";
 import { ToastProvider, useToast, ProductCard, ProductImage } from "./ui";
 import heroArt from "./assets/hero-parcel-exchange.webp";
 import {
   AssistantPage, CartPage, ChangePasswordForm, CheckoutPage, ComparePage, Homepage, PaymentResultPage,
-  ProductPage, SearchPage, StorePage, WishlistPage, STATUS_LABEL, PAY_LABEL,
+  ProductPage, SearchPage, StorePage, WishlistPage, STATUS_LABEL,
 } from "./screens";
-import { AccountHub, AddressesPage, HelpPage, NotificationsPage, useUnreadCount } from "./account";
+import { AccountShell, Drawer, FieldError, GroupTrail, HelpPage, NotificationsPage, OrderTrail, useBuyerAvatar, useUnreadCount } from "./account";
 import { AboutPage, ContactPage, PrivacyPage, TermsPage, NotFoundPage, CookieBanner } from "./legal";
-import { ProductExtraFields, ReturnRequestForm, SellerAnalytics, SellerEarnings, SellerReturns, SellerStatusBanners, ShipmentForm, SpecManager, StockHistory, StudioSellerSettings, VariantManager, productExtraPayload } from "./studio2";
-import { AdminAnalytics, AdminAuditLog, AdminCategories, AdminCoupons, AdminHomepage, AdminPayments, AdminRefunds, AdminReturns, AdminReviewReports, AdminShippingSettings, AdminTickets } from "./admin2";
+import { ProductExtraFields, SellerAnalytics, SellerEarnings, SellerReturns, SellerStatusBanners, ShipmentForm, SpecManager, StockHistory, StudioSellerSettings, VariantManager, productExtraPayload } from "./studio2";
+import { AdminAnalytics, AdminAuditLog, AdminCategories, AdminCoupons, AdminEmail, AdminHomepage, AdminPayments, AdminRefunds, AdminReturns, AdminReviewReports, AdminShippingSettings, AdminShell, AdminTickets } from "./admin2";
 
 type Order = ApiResponse<typeof api, "listOrders">["orders"][number];
 type AdminSeller = ApiResponse<typeof api, "adminListSellers">["sellers"][number];
@@ -31,13 +31,6 @@ const nextStatus: Partial<Record<Order["status"], Order["status"]>> = {
   delivery_failed: "out_for_delivery",
 };
 const sellerStatusLabel: Record<AdminSeller["status"], string> = { pending: "Waiting for email verification", under_review: "Under review", active: "Active", suspended: "Suspended", rejected: "Not approved" };
-
-function FieldError({ error }: { error: unknown }) {
-  if (!error) return null;
-  const message = error instanceof Error ? error.message : String(error);
-  const clean = message.replace(/^action \w+ (error|failed):\s*\d*\s*/, "").trim() || message;
-  return <p className="form-error" role="alert">{clean}</p>;
-}
 
 async function mergeGuestCartOnLogin() {
   try {
@@ -164,22 +157,37 @@ function SiteHeader({ path }: { path: string }) {
   const wish = useQuery({ queryKey: ["wishlist"], queryFn: () => api2.getWishlist({}), enabled: auth?.type === "buyer" });
   const unread = useUnreadCount();
   const [showCart, setShowCart] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  // A signed-in seller (token session) or a legacy code+key seller session.
+  const isSeller = auth?.type === "seller" || !!getLegacySeller();
+  // Site logo from the public homepage payload (null until the admin sets
+  // one — the text brand is the fallback). Shares the "homepage" query cache
+  // with the homepage itself.
+  const home = useQuery({ queryKey: ["homepage"], queryFn: () => api2.getHomepage({}) });
+  const siteLogoUrl = (home.data as unknown as { site_logo_url?: string | null } | undefined)?.site_logo_url ?? null;
+  const avatarUrl = useBuyerAvatar();
   return (<>
     <header className="topbar">
-      <button className="brand" onClick={() => go("/")} aria-label="Nepal Shop home">Nepal&nbsp;Shop</button>
+      <button className="nav-hamburger" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button>
+      {siteLogoUrl
+        ? <button className="brand brand-img" onClick={() => go("/")} aria-label="Nepal Shop home"><img src={siteLogoUrl} alt="Nepal Shop" /></button>
+        : <button className="brand" onClick={() => go("/")} aria-label="Nepal Shop home">Nepal&nbsp;Shop</button>}
       <nav aria-label="Main sections" className="tabs">
         <button className={path === "/" ? "active" : ""} onClick={() => go("/")}>Home</button>
         <button className={path === "/shop" ? "active" : ""} onClick={() => go("/shop")}>Shop</button>
         <button className={path === "/assistant" ? "active" : ""} onClick={() => go("/assistant")}>Assistant</button>
         <button className={path === "/track" || path === "/account/orders" ? "active" : ""} onClick={() => go("/track")}>My order</button>
-        <button className={path.startsWith("/seller") ? "active" : ""} onClick={() => go("/seller")}>Seller studio</button>
+        {isSeller && <button className={path.startsWith("/seller") ? "active" : ""} onClick={() => go("/seller")}>Seller studio</button>}
       </nav>
       <div className="header-search hide-mobile"><HeaderSearch /></div>
       <div className="account-menu">
         {auth?.type === "buyer" && <>
           <button className={path === "/wishlist" ? "active" : ""} onClick={() => go("/wishlist")} aria-label={`Wishlist, ${wish.data?.items.length ?? 0} items`}>♥ {wish.data ? wish.data.items.length : ""}</button>
           <button className={`bell${path === "/notifications" ? " active" : ""}`} onClick={() => go("/notifications")} aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}>🔔{unread > 0 && <span className="badge">{unread}</span>}</button>
-          <button className={path.startsWith("/account") ? "active" : ""} onClick={() => go("/account")}>Account</button>
+          <button className={path.startsWith("/account") ? "active" : ""} onClick={() => go("/account")} aria-label="My account">
+            {avatarUrl && <img className="nav-avatar" src={avatarUrl} alt="" />}
+            Account
+          </button>
         </>}
         {!auth && <>
           <button className={path === "/login" ? "active" : ""} onClick={() => go("/login")}>Log in</button>
@@ -200,8 +208,43 @@ function SiteHeader({ path }: { path: string }) {
         <button className="cart-button" onClick={() => setShowCart(true)} aria-label={`Open basket with ${count} items`}>Basket <span>{count}</span></button>
       </div>
     </header>
+    <NavDrawer open={menuOpen} onClose={() => setMenuOpen(false)} path={path} />
     {showCart && <CheckoutSheet close={() => setShowCart(false)} onPlaced={(code) => { setShowCart(false); go("/track"); sessionStorage.setItem("lastOrderCode", code); }} />}
   </>);
+}
+
+// Mobile-only slide-in site menu. The hamburger that opens it is hidden at
+// >=768px, so this drawer never exists on desktop or tablet.
+function NavDrawer({ open, onClose, path }: { open: boolean; onClose: () => void; path: string }) {
+  const { auth, signOut } = useAuth();
+  const isSeller = auth?.type === "seller" || !!getLegacySeller();
+  const goAndClose = (to: string) => { onClose(); go(to); };
+  const items: { label: string; desc: string; to: string; active: boolean }[] = [
+    { label: "Home", desc: "Today's market", to: "/", active: path === "/" },
+    { label: "Shop", desc: "Browse everything", to: "/shop", active: path === "/shop" },
+    { label: "Assistant", desc: "Ask for recommendations", to: "/assistant", active: path === "/assistant" },
+    { label: "Search", desc: "Find products and sellers", to: "/search", active: path === "/search" },
+    { label: "Basket", desc: "Review and check out", to: "/cart", active: path === "/cart" },
+  ];
+  return (
+    <Drawer open={open} onClose={onClose} label="Menu">
+      <nav aria-label="Site menu" className="drawer-nav">
+        {items.map((i) => (
+          <button key={i.to} type="button" className={i.active ? "active" : ""} aria-current={i.active ? "page" : undefined} onClick={() => goAndClose(i.to)}>
+            <b>{i.label}</b><small>{i.desc}</small>
+          </button>
+        ))}
+        {!auth && <>
+          <button type="button" className={path === "/login" ? "active" : ""} onClick={() => goAndClose("/login")}><b>Log in</b><small>Your orders and wishlist</small></button>
+          <button type="button" className={path === "/signup" ? "active" : ""} onClick={() => goAndClose("/signup")}><b>Sign up</b><small>Join the market</small></button>
+        </>}
+        {auth?.type === "buyer" && <button type="button" className={path.startsWith("/account") ? "active" : ""} onClick={() => goAndClose("/account")}><b>Account</b><small>Orders, addresses, settings</small></button>}
+        {isSeller && <button type="button" className={path.startsWith("/seller") ? "active" : ""} onClick={() => goAndClose("/seller")}><b>Seller studio</b><small>Inventory, orders, earnings</small></button>}
+        {auth?.type === "admin" && <button type="button" className={path.startsWith("/admin") ? "active" : ""} onClick={() => goAndClose("/admin")}><b>Admin panel</b><small>Marketplace control</small></button>}
+        {auth && <button type="button" className="drawer-logout" onClick={() => { onClose(); signOut(); }}><b>Log out</b></button>}
+      </nav>
+    </Drawer>
+  );
 }
 
 function HeaderSearch() {
@@ -263,9 +306,9 @@ function RouteView({ path, query, invalidate }: { path: string; query: URLSearch
   if (path === "/reset-password") return <ResetPasswordPage query={query} />;
   if (path === "/verify-seller") return <VerifySellerPage query={query} />;
   if (path === "/verify-buyer") return <VerifyBuyerPage query={query} />;
-  if (path === "/account") return auth?.type === "buyer" ? <AccountHub /> : null;
-  if (path === "/account/addresses") return auth?.type === "buyer" ? <AddressesPage /> : null;
-  if (path === "/account/orders") return auth?.type === "buyer" ? <MyOrders /> : null;
+  if (path === "/account") return auth?.type === "buyer" ? <AccountShell key="account" initial="orders" /> : null;
+  if (path === "/account/addresses") return auth?.type === "buyer" ? <AccountShell key="addresses" initial="addresses" /> : null;
+  if (path === "/account/orders") return auth?.type === "buyer" ? <AccountShell key="orders" initial="orders" /> : null;
   if (path === "/notifications") return <NotificationsPage />;
   if (path === "/wishlist") return <WishlistPage />;
   if (path === "/cart") return <CartPage />;
@@ -387,62 +430,6 @@ function TrackOrder({ invalidate }: { invalidate: () => void }) {
   const submit = (e: FormEvent<HTMLFormElement>) => { e.preventDefault(); setEnabled(false); const data = new FormData(e.currentTarget); setCredentials({ order_code: String(data.get("code") ?? "").toUpperCase(), phone: String(data.get("phone") ?? "") }); setTimeout(() => setEnabled(true), 0); };
   const refresh = () => { invalidate(); void track.refetch(); };
   return <main className="track-page"><section className="track-intro"><p className="eyebrow">No account needed</p><h1>Follow your parcel.</h1><p>Your order code and phone number reveal only your matching order.</p></section><form className="track-form" onSubmit={submit}><label>Order code<input name="code" defaultValue={credentials.order_code} placeholder="NSG-…" required /></label><label>Mobile number<input name="phone" type="tel" required /></label><button className="primary">Find order</button></form>{track.isFetching && <p className="muted">Checking the order trail…</p>}{enabled && track.data?.order === null && track.data?.group === null && <div className="empty-state"><h3>No matching order</h3><p>Check the code and mobile number exactly as entered at checkout.</p></div>}{track.data?.group && <GroupTrail group={toP2OrderGroup(track.data.group)} credentials={credentials} invalidate={refresh} />}{track.data?.order && !track.data?.group && <OrderTrail order={toP2Order(track.data.order)} credentials={credentials} invalidate={refresh} />}</main>;
-}
-
-// One customer checkout rendered as a group: the group header (code, totals,
-// payment state) plus one trail per seller fulfilment. Cancelling any
-// fulfilment cancels the whole group — the customer experiences one order.
-function GroupTrail({ group, credentials, invalidate }: { group: P2OrderGroup; credentials: { order_code: string; phone: string }; invalidate: () => void }) {
-  const anyCancellable = group.orders.some((o) => o.status === "confirmation_needed" || o.status === "confirmed");
-  return <section className="order-trail group-trail">
-    <div className="order-heading"><div><p className="eyebrow">{group.group_code}</p><h2>Order {group.group_code}</h2></div><strong>{money(group.total_paisa)}</strong></div>
-    <p className="muted">Placed {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(group.created_at))} · {group.orders.length} seller{group.orders.length === 1 ? "" : "s"} · {group.payment_method === "cod" ? "Cash on delivery" : `${group.payment_method.toUpperCase()} · ${PAY_LABEL[group.payment_status] ?? group.payment_status}`}{group.delivery_method !== "standard" ? ` · ${group.delivery_method} delivery` : ""}{group.coupon_code ? ` · Coupon ${group.coupon_code} (−${money(group.discount_paisa)})` : ""}</p>
-    {anyCancellable && <p className="muted">Cancelling one parcel cancels the whole order — every seller's reserved stock is released.</p>}
-    {group.orders.map((o) => <OrderTrail key={o.id} order={o} groupCode={group.group_code} credentials={credentials} invalidate={invalidate} />)}
-  </section>;
-}
-
-function OrderTrail({ order, groupCode, credentials, invalidate }: { order: ReturnType<typeof toP2Order>; groupCode?: string; credentials: { order_code: string; phone: string }; invalidate: () => void }) {
-  const { auth } = useAuth();
-  const { toast } = useToast();
-  const [message, setMessage] = useState("");
-  const [showReturn, setShowReturn] = useState(false);
-  const [confirmingCancel, setConfirmingCancel] = useState(false);
-  const issue = useMutation({ mutationFn: api.reportIssue, onSuccess: () => { setMessage("Your issue is now in the seller’s queue."); invalidate(); } });
-  const review = useMutation({ mutationFn: api.addReview, onSuccess: () => { setMessage("Your verified review is published."); invalidate(); } });
-  const cancel = useMutation({
-    mutationFn: () => auth?.type === "buyer"
-      ? api2.cancelOrder({ order_id: order.id })
-      : groupCode
-        ? api2.cancelOrder({ group_code: groupCode, phone: credentials.phone })
-        : api2.cancelOrder({ order_code: credentials.order_code, phone: credentials.phone }),
-    onSuccess: () => { setConfirmingCancel(false); setMessage("Your order was cancelled. No payment is due."); toast("Order cancelled."); invalidate(); },
-    onError: (e) => { setConfirmingCancel(false); toast(e instanceof Error ? e.message : "Could not cancel the order.", "err"); },
-  });
-  const steps = ["confirmation_needed", "confirmed", "packed", "shipped", "out_for_delivery", "delivered"];
-  const endStates = ["return_requested", "returned", "refunded", "cancelled", "delivery_failed"];
-  const current = endStates.includes(order.status) ? steps.length : steps.indexOf(order.status);
-  const cancellable = order.status === "confirmation_needed" || order.status === "confirmed";
-  const endBanner = (): string | null => {
-    switch (order.status) {
-      case "return_requested": return "Return requested — the seller is reviewing your request.";
-      case "returned":
-        if (order.refund_status === "pending") return "Returned — the item is back and your refund is with our team. It is completed manually, so please allow a few working days.";
-        if (order.refund_status === "not_required") return "Returned — this was Cash on Delivery and no payment was collected, so there is nothing to refund.";
-        if (order.refund_status === "failed") return "Returned — our team could not complete the refund yet and will try again. You do not need to do anything.";
-        return "Returned — the item is on its way back.";
-      case "refunded": return "Refunded — the money has been sent back.";
-      case "delivery_failed": return "Delivery failed — the seller will arrange another attempt. If the parcel never arrives, you can request a return or report a problem below.";
-      default: return null;
-    }
-  };
-  const banner = endBanner();
-  return <section className="order-trail"><div className="order-heading"><div><p className="eyebrow">{order.order_code}</p><h2>{STATUS_LABEL[order.status] ?? order.status}</h2></div><strong>{money(order.total_paisa)}</strong></div><div className="timeline">{steps.map((step, index) => <div className={index <= current && order.status !== "cancelled" ? "done" : ""} key={step}><span>{index + 1}</span><b>{STATUS_LABEL[step]}</b></div>)}</div>{banner && order.status !== "cancelled" && <p className="banner warn" role="status">{banner}</p>}{order.status === "cancelled" && <p className="banner" role="status">Cancelled — no payment is due and reserved stock was released.</p>}{order.tracking_number && <p className="banner" role="status">Tracking{order.carrier ? ` · ${order.carrier}` : ""}: <b>{order.tracking_number}</b></p>}<div className="order-items">{order.items.map((item) => <span key={item.id}>{item.quantity} × {item.product_name}{item.variant_label ? ` (${item.variant_label})` : ""}<b>{money(item.quantity * item.unit_price_paisa)}</b></span>)}<span>Delivery<b>{money(order.delivery_fee_paisa)}</b></span>{order.discount_paisa > 0 && <span>Coupon {order.coupon_code}<b className="success">−{money(order.discount_paisa)}</b></span>}</div><p className="muted">Ordered {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.created_at))} · {order.status === "cancelled" ? "No payment due" : order.payment_method === "cod" ? "Cash on delivery" : `${order.payment_method.toUpperCase()} · ${PAY_LABEL[order.payment_status]}`}{order.delivery_method !== "standard" ? ` · ${order.delivery_method} delivery` : ""}</p>
-    {cancellable && !confirmingCancel && <button className="ghost text-danger" onClick={() => setConfirmingCancel(true)}>Cancel this order</button>}
-    {cancellable && confirmingCancel && <p className="banner warn" role="alert">Cancel order {order.order_code}? This cannot be undone.<span className="order-actions"><button className="ghost text-danger" disabled={cancel.isPending} onClick={() => cancel.mutate()}>{cancel.isPending ? "Cancelling…" : "Yes, cancel it"}</button><button className="ghost" onClick={() => setConfirmingCancel(false)}>Keep my order</button></span></p>}
-    {order.status === "delivered" && !showReturn && <button className="ghost" onClick={() => setShowReturn(true)}>Request return</button>}
-    {order.status === "delivered" && showReturn && <ReturnRequestForm orderCode={order.order_code} phone={credentials.phone} onDone={() => { setShowReturn(false); invalidate(); }} />}
-    {order.status === "delivered" && <details><summary>Write a verified review</summary><form className="stack-form compact" onSubmit={(e) => { e.preventDefault(); const d = new FormData(e.currentTarget); review.mutate({ ...credentials, product_id: Number(d.get("product")), rating: Number(d.get("rating")), body: String(d.get("body") ?? "") }); }}><label>Product<select name="product">{order.items.map((item) => <option value={item.product_id} key={item.id}>{item.product_name}{item.variant_label ? ` (${item.variant_label})` : ""}</option>)}</select></label><label>Rating<select name="rating"><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Okay</option><option value="2">2 — Poor</option><option value="1">1 — Bad</option></select></label><label>Review<textarea name="body" minLength={3} required /></label><button>Publish verified review</button></form></details>}<details><summary>Report a problem</summary><form className="stack-form compact" onSubmit={(e) => { e.preventDefault(); const d = new FormData(e.currentTarget); issue.mutate({ ...credentials, kind: String(d.get("kind") ?? ""), detail: String(d.get("detail") ?? "") }); }}><label>Issue<select name="kind"><option>Delivery delay</option><option>Wrong item</option><option>Damaged item</option><option>Refund request</option><option>Other</option></select></label><label>What happened?<textarea name="detail" minLength={8} required /></label><button>Send to seller</button></form></details>{message && <p className="success">{message}</p>}</section>;
 }
 
 // --- buyer accounts ----------------------------------------------------------
@@ -572,19 +559,6 @@ function VerifySellerPage({ query }: { query: URLSearchParams }) {
   </main>;
 }
 
-function MyOrders() {
-  const { auth } = useAuth();
-  const ordersQuery = useQuery({ queryKey: ["my-orders"], queryFn: () => api.getMyOrderGroups({}), enabled: auth?.type === "buyer" });
-  const queryClient = useQueryClient();
-  const refresh = () => { void queryClient.invalidateQueries({ queryKey: ["my-orders"] }); void queryClient.invalidateQueries({ queryKey: ["storefront"] }); };
-  return <main className="track-page"><section className="track-intro"><p className="eyebrow">{auth?.name}</p><h1>My orders.</h1><p>Every order you placed while signed in lives here — one card per checkout.</p></section>
-    {ordersQuery.isPending && <p className="muted">Loading your orders…</p>}
-    <FieldError error={ordersQuery.error} />
-    {ordersQuery.data && ordersQuery.data.groups.length === 0 && <div className="empty-state"><h3>No orders yet</h3><p>Your signed-in orders will appear here. Guest orders can still be tracked with the order code.</p><button className="primary" onClick={() => go("/")}>Start shopping</button></div>}
-    {ordersQuery.data?.groups.map((group) => <GroupTrail key={group.id} group={toP2OrderGroup(group)} credentials={{ order_code: group.group_code, phone: group.phone }} invalidate={refresh} />)}
-  </main>;
-}
-
 // --- sellers ------------------------------------------------------------------
 function SellerLogin() {
   const { signIn, auth } = useAuth();
@@ -662,6 +636,7 @@ function Studio({ invalidate }: { invalidate: () => void }) {
   const [notice, setNotice] = useState("");
   // Two-step confirmation for deleting a product from the studio.
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const creds: LegacySeller = auth?.type === "seller" ? { seller_code: "", seller_key: "" } : legacy ?? { seller_code: "", seller_key: "" };
   const tokenAuth = auth?.type === "seller";
   const callArgs: { authToken?: string; seller_code?: string; seller_key?: string } = tokenAuth ? {} : creds;
@@ -731,8 +706,16 @@ function Studio({ invalidate }: { invalidate: () => void }) {
   return <main className="studio-page"><section className="studio-intro"><p className="eyebrow">{tokenAuth ? "Signed in" : creds.seller_code}</p><h1>Run the counter.</h1><p>Publish real inventory, confirm COD orders, and resolve buyer issues from one protected place.</p><button className="switch-mode" onClick={lockStudio}>Lock studio</button></section>
     {notice && <p className="success banner">{notice}</p>}
     <SellerStatusBanners store={store} />
-    <div className="category-list" role="tablist" aria-label="Studio sections">{tabs.map((t) => <button key={t.id} className={tab === t.id ? "selected" : ""} onClick={() => setTab(t.id)}>{t.label}</button>)}</div>
-
+    <div className="mobile-bar">
+      <button className="nav-hamburger" aria-label="Open studio menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button>
+      <strong>{tabs.find((t) => t.id === tab)?.label ?? "Seller studio"}</strong>
+    </div>
+    <div className="studio-shell">
+      <aside className="sidebar desktop-only" aria-label="Studio sections">
+        <div className="sidebar-head"><div><b>Seller studio</b><span className="muted">{store ? store.store_name : creds.seller_code}</span></div></div>
+        <StudioTabNav tabs={tabs} tab={tab} pick={(t) => { setTab(t); setMenuOpen(false); }} />
+      </aside>
+      <div className="studio-panel">
     {tab === "inventory" && <div className="studio-layout">
       <section className="studio-section"><div className="section-title"><h2>{editing ? "Edit product" : "New product"}</h2>{editing && <button onClick={() => { setEditing(null); setConfirmDeleteProduct(false); }}>Cancel edit</button>}</div>
       <form className="stack-form" key={editing?.id ?? "new"} onSubmit={saveProduct}>
@@ -767,7 +750,27 @@ function Studio({ invalidate }: { invalidate: () => void }) {
     {tab === "earnings" && <SellerEarnings callArgs={callArgs} />}
 
     {tab === "settings" && store && <><StudioSellerSettings store={store} callArgs={callArgs} onSaved={privateRefresh} /><ChangePasswordForm kind="seller" extraArgs={callArgs} /></>}
+      </div>
+    </div>
+    <Drawer open={menuOpen} onClose={() => setMenuOpen(false)} label="Studio menu">
+      <div className="sidebar-head"><div><b>Seller studio</b><span className="muted">{store ? store.store_name : creds.seller_code}</span></div></div>
+      <StudioTabNav tabs={tabs} tab={tab} pick={(t) => { setTab(t); setMenuOpen(false); }} />
+    </Drawer>
   </main>;
+}
+
+// Sidebar tab list shared by the desktop studio sidebar and the mobile
+// studio drawer — same tabs, same behaviour, one place.
+function StudioTabNav({ tabs, tab, pick }: { tabs: { id: StudioTab; label: string }[]; tab: StudioTab; pick: (t: StudioTab) => void }) {
+  return (
+    <nav aria-label="Studio sections" className="sidebar-nav">
+      {tabs.map((t) => (
+        <button key={t.id} type="button" className={tab === t.id ? "active" : ""} aria-current={tab === t.id ? "page" : undefined} onClick={() => pick(t.id)}>
+          <b>{t.label}</b>
+        </button>
+      ))}
+    </nav>
+  );
 }
 
 // --- admin ------------------------------------------------------------------
@@ -789,7 +792,7 @@ function AdminLogin() {
   </main>;
 }
 
-type AdminTab = "overview" | "sellers" | "products" | "orders" | "returns" | "refunds" | "shipping" | "issues" | "buyers" | "payments" | "reviews" | "audit" | "coupons" | "categories" | "homepage" | "analytics" | "tickets";
+type AdminTab = "overview" | "sellers" | "products" | "orders" | "returns" | "refunds" | "shipping" | "issues" | "buyers" | "payments" | "reviews" | "audit" | "coupons" | "categories" | "homepage" | "analytics" | "tickets" | "email";
 function AdminPanel() {
   const [tab, setTab] = useState<AdminTab>("overview");
   const tabs: { id: AdminTab; label: string }[] = [
@@ -801,10 +804,10 @@ function AdminPanel() {
     { id: "reviews", label: "Reviews" }, { id: "audit", label: "Audit log" },
     { id: "coupons", label: "Coupons" }, { id: "categories", label: "Categories" },
     { id: "homepage", label: "Homepage" }, { id: "analytics", label: "Analytics" },
-    { id: "tickets", label: "Tickets" },
+    { id: "tickets", label: "Tickets" }, { id: "email", label: "Email" },
   ];
   return <main className="studio-page"><section className="studio-intro"><p className="eyebrow">Marketplace control</p><h1>Admin panel.</h1><p>Approve sellers, curate products, and watch orders across the whole market.</p></section>
-    <div className="category-list" role="tablist" aria-label="Admin sections">{tabs.map((t) => <button key={t.id} className={tab === t.id ? "selected" : ""} onClick={() => setTab(t.id)}>{t.label}</button>)}</div>
+    <AdminShell tabs={tabs} tab={tab} setTab={(id: string) => setTab(id as AdminTab)}>
     {tab === "overview" && <AdminOverview />}
     {tab === "sellers" && <AdminSellers />}
     {tab === "products" && <AdminProducts />}
@@ -822,6 +825,8 @@ function AdminPanel() {
     {tab === "homepage" && <AdminHomepage />}
     {tab === "analytics" && <AdminAnalytics />}
     {tab === "tickets" && <AdminTickets />}
+    {tab === "email" && <AdminEmail />}
+    </AdminShell>
   </main>;
 }
 

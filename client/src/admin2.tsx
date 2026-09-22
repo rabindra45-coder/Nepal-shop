@@ -1,8 +1,9 @@
-// Admin panel phase-2 tabs: coupons, categories, homepage, analytics, tickets.
-import { useEffect, useState, type FormEvent } from "react";
+// Admin panel phase-2 tabs: coupons, categories, homepage (incl. branding),
+// analytics, tickets, email/SMTP settings — plus the admin shell sidebar.
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api2, fmtDate, money, uploadBannerImage, type P2Coupon, type P2Ticket } from "./phase2api";
-import { api } from "./api";
+import { api, getAuth, type ApiResponse } from "./api";
 import { STATUS_LABEL } from "./screens";
 import { useToast } from "./ui";
 
@@ -131,13 +132,37 @@ export function AdminCategories() {
 }
 
 // --- homepage ----------------------------------------------------------------------
+
+// --- site logo uploads -----------------------------------------------------------
+// The site/app logo goes to /api/site-logo-uploads on the self-hosted server
+// (multipart field "file", admin session token in the x-auth-token header —
+// the same pattern as the banner uploads in phase2api). Returns
+// { data: { url } }; the upload persists the logo and the public homepage
+// payload exposes it as `site_logo_url` for the navbar and hero to display.
+async function uploadSiteLogo(file: File): Promise<string> {
+  const token = getAuth()?.token;
+  if (!token) throw new Error("Please sign in as admin first.");
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch("/api/site-logo-uploads", { method: "POST", headers: { "x-auth-token": token }, body: form });
+  const body = await res.json().catch(() => ({})) as { data?: { url: string }; error?: string };
+  if (!res.ok || !body.data?.url) throw new Error(body.error ?? "Upload failed.");
+  return body.data.url;
+}
+
 export function AdminHomepage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [banner, setBanner] = useState<{ id?: number; title: string; subtitle: string; link: string; image_url: string; is_active: boolean; sort_order: number } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [newLogo, setNewLogo] = useState<string | null>(null);
   const banners = useQuery({ queryKey: ["admin-banners"], queryFn: () => api2.adminListBanners({}) });
   const sections = useQuery({ queryKey: ["admin-sections"], queryFn: () => api2.adminListSections({}) });
+  // The public homepage payload carries the current logo as `site_logo_url`
+  // (wired by the display-side worker); read defensively until it lands.
+  const home = useQuery({ queryKey: ["admin-homepage-public"], queryFn: () => api2.getHomepage({}) });
+  const currentLogo = newLogo ?? (home.data as unknown as { site_logo_url?: string | null } | undefined)?.site_logo_url ?? null;
   const refresh = () => { void queryClient.invalidateQueries({ queryKey: ["admin-banners"] }); void queryClient.invalidateQueries({ queryKey: ["admin-sections"] }); };
 
   const pickBannerImage = async (file: File | undefined) => {
@@ -151,6 +176,23 @@ export function AdminHomepage() {
       toast(e instanceof Error ? e.message : "Upload failed.", "err");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const pickSiteLogo = async (file: File | undefined) => {
+    if (!file) return;
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowed.includes(file.type)) { toast(`"${file.name}" is not a JPG, PNG, WebP or GIF image.`, "err"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast(`"${file.name}" is over 5 MB.`, "err"); return; }
+    setLogoUploading(true);
+    try {
+      const url = await uploadSiteLogo(file);
+      setNewLogo(url);
+      toast("Site logo uploaded.");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Upload failed.", "err");
+    } finally {
+      setLogoUploading(false);
     }
   };
 
@@ -171,6 +213,18 @@ export function AdminHomepage() {
 
   return (
     <div className="studio-layout">
+      <section className="studio-section wide"><div className="section-title"><h2>Branding</h2></div>
+        <p className="muted">The site logo appears in the navbar and on the homepage hero.</p>
+        <label>Site logo
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={logoUploading}
+            onChange={(e) => { void pickSiteLogo(e.target.files?.[0]); e.target.value = ""; }} />
+          <small>JPG, PNG, WebP or GIF, up to 5 MB. A square image looks best.</small>
+        </label>
+        {logoUploading && <p className="muted">Uploading logo…</p>}
+        {currentLogo
+          ? <p><img src={currentLogo} alt="Current site logo" style={{ maxHeight: 72, borderRadius: 8, border: "1px solid var(--border)" }} /></p>
+          : <p className="muted">{home.isPending ? "Loading current logo…" : "No site logo uploaded yet."}</p>}
+      </section>
       <section className="studio-section wide"><div className="section-title"><h2>Advertisements</h2>{!banner && <button onClick={() => setBanner({ title: "", subtitle: "", link: "", image_url: "", is_active: true, sort_order: 0 })}>+ New advertisement</button>}</div>
         <p className="muted">Advertisements appear as an image carousel on the homepage. Every advertisement is shown with its image, so an image is required.</p>
         {banners.isPending && <p className="muted">Loading advertisements…</p>}
@@ -902,5 +956,205 @@ export function AdminSellerBalances() {
         ))}</div>
       )}
     </div>
+  );
+}
+
+// --- email / SMTP --------------------------------------------------------------------
+// Marketplace email settings: host, port, username, password and the from
+// address used for every transactional email.
+//
+// Precedence (shown honestly on the tab): SMTP_* environment variables win
+// when set; otherwise these saved settings are used; when neither is set,
+// emails are logged on the server and never sent. The password is never
+// returned by the server — only a "saved" indicator — and the password
+// field is always submitted blank unless the admin types a new one.
+//
+// Server contract (implemented in server/src/actions.ts):
+//   api.adminGetSmtpSettings() -> { smtp_host, smtp_port, smtp_user,
+//     smtp_from (each nullable when nothing is configured),
+//     password_set, effective_source: "env"|"db"|"none" }
+//   api.adminSaveSmtpSettings({ host, port, username, password, from })
+//     -> { ok: true }  (port/username/password/from optional; an empty or
+//     omitted password keeps the existing stored password)
+//   api.adminSendTestSmtpEmail({ to }) -> { sent, error? }
+// The response type is derived from the server's Actions type, so the
+// client can never drift from the contract.
+type AdminSmtpSettings = ApiResponse<typeof api, "adminGetSmtpSettings">;
+
+const SMTP_SOURCE_LABEL: Record<AdminSmtpSettings["effective_source"], string> = {
+  env: "environment variables",
+  db: "saved settings",
+  none: "not configured",
+};
+
+export function AdminEmail() {
+  const { toast } = useToast();
+  const settings = useQuery({ queryKey: ["admin-smtp-settings"], queryFn: () => api.adminGetSmtpSettings({}) });
+  const [host, setHost] = useState("");
+  const [port, setPort] = useState("587");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [from, setFrom] = useState("");
+  const [testTo, setTestTo] = useState("");
+  const [testResult, setTestResult] = useState<{ sent: boolean; error?: string } | null>(null);
+  const data = settings.data;
+  useEffect(() => {
+    if (data) {
+      setHost(data.smtp_host ?? "");
+      setPort(data.smtp_port != null ? String(data.smtp_port) : "587");
+      setUsername(data.smtp_user ?? "");
+      setFrom(data.smtp_from ?? "");
+    }
+  }, [data]);
+
+  const save = useMutation({
+    mutationFn: () => api.adminSaveSmtpSettings({
+      host: host.trim(),
+      port: Math.max(1, Math.min(65535, Number(port) || 587)),
+      username: username.trim(),
+      password,
+      from: from.trim(),
+    }),
+    onSuccess: () => { setPassword(""); void settings.refetch(); toast("SMTP settings saved."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not save the settings.", "err"),
+  });
+
+  const sendTest = useMutation({
+    mutationFn: (to: string) => api.adminSendTestSmtpEmail({ to }),
+    onSuccess: (r) => {
+      setTestResult(r);
+      if (r.sent) toast("Test email sent.");
+      else toast(r.error ? `The test email could not be sent: ${r.error}` : "The test email could not be sent.", "err");
+    },
+    onError: (e) => {
+      const error = e instanceof Error ? e.message : "The test email request failed.";
+      setTestResult({ sent: false, error });
+      toast(error, "err");
+    },
+  });
+
+  const submit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!host.trim() || !username.trim() || !from.trim()) { toast("Host, username and from address are required.", "err"); return; }
+    const p = Number(port);
+    if (!Number.isInteger(p) || p < 1 || p > 65535) { toast("Port must be a number between 1 and 65535.", "err"); return; }
+    if (data && data.effective_source !== "env" && !data.password_set && !password) {
+      toast("Enter the SMTP password — none is saved yet.", "err");
+      return;
+    }
+    save.mutate();
+  };
+
+  return (
+    <div className="studio-layout">
+      <section className="studio-section wide"><div className="section-title"><h2>Email / SMTP</h2></div>
+        <p className="muted">Environment variables take precedence: when <b>SMTP_HOST</b> is set, the <b>SMTP_HOST</b>, <b>SMTP_PORT</b>, <b>SMTP_USER</b>, <b>SMTP_PASS</b> and <b>SMTP_FROM</b> variables are used and the fields below are ignored. Otherwise these saved settings are used. When neither is set, emails are logged on the server and never sent.</p>
+        {settings.isPending && <p className="muted">Loading SMTP settings…</p>}
+        {settings.error && <p className="form-error">Could not load the SMTP settings.</p>}
+        {data && <p className="muted">Using: <b>{SMTP_SOURCE_LABEL[data.effective_source]}</b></p>}
+        {data && (
+          <form className="stack-form" onSubmit={submit}>
+            <div className="form-pair">
+              <label>SMTP host<input value={host} onChange={(e) => setHost(e.target.value)} placeholder="smtp.example.com" autoComplete="off" /></label>
+              <label>SMTP port<input type="number" min={1} max={65535} value={port} onChange={(e) => setPort(e.target.value)} placeholder="587" /></label>
+            </div>
+            <div className="form-pair">
+              <label>Username<input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" /></label>
+              <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" placeholder={data.password_set ? "•••••••• (leave empty to keep)" : ""} />
+                {data.password_set
+                  ? <small className="success">A password is saved. Leave the field empty to keep it.</small>
+                  : <small className="muted">No password saved yet.</small>}
+              </label>
+            </div>
+            <label>From address<input type="email" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="shop@example.com" /></label>
+            <div className="form-pair">
+              <button className="primary" disabled={save.isPending}>{save.isPending ? "Saving…" : "Save SMTP settings"}</button>
+            </div>
+          </form>
+        )}
+      </section>
+      <section className="studio-section"><div className="section-title"><h2>Send a test email</h2></div>
+        <form className="stack-form" onSubmit={(e) => { e.preventDefault(); const to = testTo.trim(); if (!to) { toast("Enter a recipient address.", "err"); return; } sendTest.mutate(to); }}>
+          <label>Recipient<input type="email" value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="you@example.com" /></label>
+          <button className="primary" disabled={sendTest.isPending}>{sendTest.isPending ? "Sending…" : "Send test email"}</button>
+        </form>
+        {testResult && (testResult.sent
+          ? <p className="success">Test email sent.</p>
+          : <p className="form-error">The test email could not be sent: {testResult.error ?? "unknown error"}</p>)}
+      </section>
+    </div>
+  );
+}
+
+// --- admin shell: sidebar layout ---------------------------------------------------
+// Desktop: a persistent left sidebar lists the tabs. Mobile (<=767px): the
+// sidebar becomes a drawer — the hamburger button slides it in from the
+// left over an overlay, with a close button; picking a tab or pressing
+// Escape closes it. Tab content arrives as children, so every tab's
+// functionality stays exactly as-is: this is a layout change only.
+//
+// Wiring (App.tsx AdminPanel keeps owning the tab list and the admin
+// guard): render
+//   <AdminShell tabs={tabs} tab={tab} setTab={setTab}> …tab content… </AdminShell>
+// in place of the category-list row. The CSS is scoped to admin-* classes
+// and rendered here (admin2.tsx carries no theme.css edits), so the
+// desktop/tablet appearance is unchanged apart from the sidebar chrome.
+export type AdminShellTab = { id: string; label: string };
+
+const ADMIN_SHELL_CSS = `
+.admin-shell{display:grid;grid-template-columns:236px minmax(0,1fr);gap:28px;align-items:start;margin-top:26px}
+.admin-hamburger{display:none}
+.admin-sidebar{position:sticky;top:16px;border-top:4px solid var(--text);padding-top:14px;min-width:0}
+.admin-sidebar-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.admin-sidebar-head span{font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
+.admin-sidebar ul{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.admin-sidebar li button{width:100%;text-align:left;border:0;background:transparent;padding:10px 12px;border-radius:7px;font-weight:700;font-size:14px;min-height:44px;cursor:pointer;color:inherit}
+.admin-sidebar li button:hover{background:var(--surface-2)}
+.admin-sidebar li button.selected{background:var(--accent-2);color:#2c1b00;font-weight:800}
+.admin-drawer-close{display:none}
+.admin-overlay{display:none}
+.admin-content{min-width:0}
+@media (max-width:767px){
+  .admin-shell{grid-template-columns:1fr;margin-top:18px}
+  .admin-hamburger{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:var(--surface);color:inherit;border-radius:7px;padding:10px 14px;font-weight:800;font-size:14px;min-height:44px;cursor:pointer}
+  .admin-sidebar{position:fixed;top:0;left:0;bottom:0;width:min(300px,82vw);background:var(--bg);z-index:70;padding:18px 16px;overflow-y:auto;transform:translateX(-105%);transition:transform .22s ease;box-shadow:8px 0 24px rgba(0,0,0,.25);border-top:0}
+  .admin-sidebar.open{transform:none}
+  .admin-drawer-close{display:inline-grid;place-items:center;border:1px solid var(--border);background:transparent;color:inherit;border-radius:7px;width:44px;height:44px;font-size:16px;cursor:pointer}
+  .admin-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:65;border:0;padding:0;cursor:pointer}
+  .admin-overlay.visible{display:block}
+}
+`;
+
+export function AdminShell({ tabs, tab, setTab, children }: { tabs: AdminShellTab[]; tab: string; setTab: (t: string) => void; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [open]);
+  const pick = (id: string) => { setTab(id); setOpen(false); };
+  return (
+    <>
+      <style>{ADMIN_SHELL_CSS}</style>
+      <div className="admin-shell">
+        <button type="button" className="admin-hamburger" aria-label="Open admin menu" aria-expanded={open} aria-controls="admin-sidebar" onClick={() => setOpen(true)}>
+          <span aria-hidden="true">☰</span> Menu
+        </button>
+        <div className={`admin-overlay${open ? " visible" : ""}`} onClick={() => setOpen(false)} aria-hidden={!open} />
+        <nav id="admin-sidebar" className={`admin-sidebar${open ? " open" : ""}`} aria-label="Admin sections">
+          <div className="admin-sidebar-head">
+            <span>Sections</span>
+            <button type="button" className="admin-drawer-close" aria-label="Close admin menu" onClick={() => setOpen(false)}>✕</button>
+          </div>
+          <ul>{tabs.map((t) => (
+            <li key={t.id}><button type="button" className={tab === t.id ? "selected" : ""} aria-current={tab === t.id ? "page" : undefined} onClick={() => pick(t.id)}>{t.label}</button></li>
+          ))}</ul>
+        </nav>
+        <div className="admin-content">{children}</div>
+      </div>
+    </>
   );
 }

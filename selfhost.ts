@@ -14,6 +14,7 @@ import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { unlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { Actions, notifyAdmin, sweepExpiredUnpaidGroups } from "./server/src/actions";
+import { setSmtpDbProvider } from "./server/src/email";
 import * as schema from "./server/src/schema";
 
 // --- Release version ----------------------------------------------------------
@@ -139,8 +140,7 @@ try {
   db = drizzle(sqlite, { schema });
   // Apply any pending migrations (no-op when already up to date).
   migrate(db, { migrationsFolder: "./drizzle" });
-} catch (e) {
-  const message = e instanceof Error ? e.message : String(e);
+} catch (e) {  const message = e instanceof Error ? e.message : String(e);
   logEvent("error", "boot", "database boot failed — server will not start", { error: message });
   await Promise.race([
     notifyAdmin(
@@ -152,6 +152,11 @@ try {
   ]);
   process.exit(1);
 }
+
+// Outgoing mail can be configured from the admin panel (smtp_settings
+// table); give the email module the database handle it needs to read it.
+// Env config (SMTP_HOST/SMTP_USER/SMTP_PASS) still takes precedence.
+setSmtpDbProvider(() => db);
 
 // --- First production admin (documented in README): if ADMIN_EMAIL and
 // ADMIN_PASSWORD are set and no admin with that email exists yet, create the
@@ -262,7 +267,7 @@ const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const UPLOAD_MIME_TO_EXT: Record<string, string> = {
   "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif",
 };
-const UPLOAD_NAME_RE = /^((banner|store)-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|gif)$/;
+const UPLOAD_NAME_RE = /^((banner|store|sitelogo|avatar)-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|gif)$/;
 
 async function legacyKeyHash(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -632,6 +637,61 @@ Bun.serve({
         const name = `banner-${crypto.randomUUID()}${ext}`;
         await Bun.write(join(UPLOADS_DIR, name), file);
         return Response.json({ data: { url: `/uploads/${name}` } });
+      } catch (e) {
+        return Response.json({ error: e instanceof Error ? e.message : "Upload failed." }, { status: 400 });
+      }
+    }
+
+    // --- Site logo upload (admin) --------------------------------------------
+    // The admin uploads the site logo from the admin panel (JPG/PNG/WebP/GIF,
+    // 5 MB). Authenticated with an admin session token in the x-auth-token
+    // header, like banner uploads. On success the URL is persisted as the
+    // site_logo_url key in platform_settings so getHomepage serves it.
+    if (url.pathname === "/api/site-logo-uploads" && req.method === "POST") {
+      try {
+        const token = req.headers.get("x-auth-token") ?? "";
+        const s = token ? (await db.select().from(schema.sessions).where(eq(schema.sessions.token, token)).limit(1))[0] : undefined;
+        if (!s || s.userType !== "admin" || s.expiresAt.getTime() < Date.now()) throw new Error("Admin sign-in required.");
+        const form = await req.formData();
+        const file = form.get("file");
+        if (!(file instanceof File) || file.size === 0) throw new Error("Choose a logo image to upload.");
+        const ext = UPLOAD_MIME_TO_EXT[file.type];
+        if (!ext) throw new Error(`"${file.name || "file"}" is not a JPG, PNG, WebP or GIF image.`);
+        if (file.size > MAX_UPLOAD_BYTES) throw new Error(`"${file.name || "file"}" is over 5 MB.`);
+        const name = `sitelogo-${crypto.randomUUID()}${ext}`;
+        await Bun.write(join(UPLOADS_DIR, name), file);
+        const logoUrl = `/uploads/${name}`;
+        const now = new Date();
+        await db.insert(schema.platformSettings).values({ key: "site_logo_url", value: logoUrl, updatedAt: now })
+          .onConflictDoUpdate({ target: schema.platformSettings.key, set: { value: logoUrl, updatedAt: now } });
+        return Response.json({ data: { url: logoUrl } });
+      } catch (e) {
+        return Response.json({ error: e instanceof Error ? e.message : "Upload failed." }, { status: 400 });
+      }
+    }
+
+    // --- Buyer profile photo upload ------------------------------------------
+    // Signed-in buyers upload their profile photo from the account page
+    // (JPG/PNG/WebP/GIF, 5 MB). The buyer is derived from the session token
+    // in the x-auth-token header — never from client-supplied ids. Sellers,
+    // admins and guests are rejected. The URL is stored on users.avatar_url
+    // and served from /uploads/.
+    if (url.pathname === "/api/profile-uploads" && req.method === "POST") {
+      try {
+        const token = req.headers.get("x-auth-token") ?? "";
+        const s = token ? (await db.select().from(schema.sessions).where(eq(schema.sessions.token, token)).limit(1))[0] : undefined;
+        if (!s || s.userType !== "buyer" || s.expiresAt.getTime() < Date.now()) throw new Error("Please sign in as a buyer to upload a profile photo.");
+        const form = await req.formData();
+        const file = form.get("file");
+        if (!(file instanceof File) || file.size === 0) throw new Error("Choose a profile photo to upload.");
+        const ext = UPLOAD_MIME_TO_EXT[file.type];
+        if (!ext) throw new Error(`"${file.name || "file"}" is not a JPG, PNG, WebP or GIF image.`);
+        if (file.size > MAX_UPLOAD_BYTES) throw new Error(`"${file.name || "file"}" is over 5 MB.`);
+        const name = `avatar-${crypto.randomUUID()}${ext}`;
+        await Bun.write(join(UPLOADS_DIR, name), file);
+        const avatarUrl = `/uploads/${name}`;
+        await db.update(schema.users).set({ avatarUrl, updatedAt: new Date() }).where(eq(schema.users.id, s.userId));
+        return Response.json({ data: { url: avatarUrl } });
       } catch (e) {
         return Response.json({ error: e instanceof Error ? e.message : "Upload failed." }, { status: 400 });
       }

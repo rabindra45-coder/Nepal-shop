@@ -379,6 +379,27 @@
    "when": 1790063997355,
    "tag": "0054_orders_created_idx",
    "breakpoints": false
+  },
+  {
+   "idx": 54,
+   "version": "7",
+   "when": 1790063997355,
+   "tag": "0055_smtp_settings",
+   "breakpoints": false
+  },
+  {
+   "idx": 55,
+   "version": "7",
+   "when": 1790063997355,
+   "tag": "0056_site_logo",
+   "breakpoints": false
+  },
+  {
+   "idx": 56,
+   "version": "7",
+   "when": 1790063997355,
+   "tag": "0057_users_avatar",
+   "breakpoints": false
   }
  ]
 }

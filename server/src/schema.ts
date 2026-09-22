@@ -150,6 +150,10 @@ export const users = sqliteTable("users", {
   // verifyBuyerEmail). Defaults to false; buyers who registered before this
   // existed simply verify from their account page.
   emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
+  // Buyer profile photo uploaded from the account page (avatar-<uuid>.<ext>
+  // under UPLOADS_DIR, served from /uploads/). Null until the buyer uploads
+  // one; the client falls back to an initial-letter avatar.
+  avatarUrl: text("avatar_url"),
   // Notification preference (Notifications checkpoint): when false, the
   // buyer gets no order-update emails (confirmation, payment, shipping,
   // returns, refunds). Security emails (password reset, verification)
@@ -176,6 +180,20 @@ export const sessions = sqliteTable("sessions", {
   userId: text("user_id").notNull(),
   expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
 }, (table) => ({ expiresIdx: index("sessions_expires_at_idx").on(table.expiresAt), userIdx: index("sessions_user_id_idx").on(table.userId) }));
+
+// Admin-managed SMTP settings (single row, id=1). Lets the admin configure
+// outgoing mail from the admin panel instead of environment variables; env
+// (SMTP_HOST/SMTP_USER/SMTP_PASS) takes precedence when fully set. The
+// password is stored here but never returned by any action and never logged.
+export const smtpSettings = sqliteTable("smtp_settings", {
+  id: integer("id").primaryKey(),
+  host: text("host"),
+  port: integer("port"),
+  username: text("username"),
+  password: text("password"),
+  fromAddress: text("from_address"),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }),
+});
 
 // ---------- phase 2: cart, wishlist, coupons, payments, notifications ----------
 
