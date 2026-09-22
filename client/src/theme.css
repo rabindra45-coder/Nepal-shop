@@ -123,6 +123,43 @@
   .cookie-banner{left:24px;right:auto;max-width:520px}
 }
 
+/* --- v11: mobile responsiveness overhaul ---------------------------------------
+   Root causes fixed:
+   1. The topbar rendered hamburger + brand + ALL tab buttons + ALL account
+      buttons on a 390px phone, overflowing the viewport and pushing page
+      content off-screen. Below 768px the topbar now keeps only hamburger +
+      brand + basket; every nav destination lives in the slide-in drawer
+      (which already listed them) and the fixed bottom mobile-nav.
+   2. .site-footer never wrapped below 700px, so its link row overflowed.
+   3. Button sizing was inconsistent (some huge, some tiny). All action
+      buttons now share one scale: min-height 44px touch targets, three
+      padding sizes, no runaway widths.
+   4. Belt-and-braces: clip any stray horizontal overflow at the root so a
+      single wide element can never again push the whole page off-screen. */
+html,body{overflow-x:clip}
+@supports not (overflow:clip){html,body{overflow-x:hidden}}
+@media (max-width:767px){
+  .topbar{gap:6px;padding:10px 10px}
+  .topbar .tabs{display:none}
+  .account-menu button:not(.cart-button),
+  .account-menu .account-name{display:none}
+  .account-menu{flex:none}
+  .brand{font-size:18px}
+  .site-footer{flex-wrap:wrap;row-gap:10px}
+  .site-footer nav{flex-wrap:wrap;row-gap:8px}
+}
+/* --- v11: one button scale ----------------------------------------------------
+   .primary / .ghost are the two action-button styles used across every page.
+   Sizes: default (comfortable), .btn-sm (dense rows), .btn-lg (hero/checkout).
+   Every one keeps a 44px minimum touch target. */
+.primary,.ghost{min-height:44px}
+.primary.btn-sm,.ghost.btn-sm{min-height:40px;padding:8px 12px;font-size:13px}
+.primary.btn-lg,.ghost.btn-lg{min-height:52px;padding:15px 22px;font-size:16px}
+.ghost{max-width:100%}
+button{max-width:100%}
+.cta-row button,.cookie-actions button,.chat-hint button{min-height:44px}
+.empty-mini button,details button{max-width:100%}
+.addr-actions button,.wish-actions button{flex:1 1 auto;min-width:120px}
 /* --- v6: advertisement hero carousel (mobile-first) --- */
 .hero-carousel{margin:26px 0}
 .hero-track{display:grid;grid-auto-flow:column;grid-auto-columns:min(88vw,620px);gap:14px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory;scrollbar-width:thin}

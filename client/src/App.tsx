@@ -244,6 +244,7 @@ function NavDrawer({ open, onClose, path }: { open: boolean; onClose: () => void
     { label: "Assistant", desc: "Ask for recommendations", to: "/assistant", active: path === "/assistant" },
     { label: "Search", desc: "Find products and sellers", to: "/search", active: path === "/search" },
     { label: "Basket", desc: "Review and check out", to: "/cart", active: path === "/cart" },
+    { label: "Track order", desc: "Where's my package?", to: "/track", active: path === "/track" || path === "/account/orders" },
   ];
   return (
     <Drawer open={open} onClose={onClose} label="Menu">
