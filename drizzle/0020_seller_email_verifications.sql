@@ -1,0 +1,1 @@
+CREATE TABLE `seller_email_verifications` (`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL, `token_hash` text NOT NULL UNIQUE, `store_id` integer NOT NULL REFERENCES `store_settings`(`id`) ON DELETE CASCADE, `expires_at` integer NOT NULL, `used_at` integer, `created_at` integer NOT NULL);

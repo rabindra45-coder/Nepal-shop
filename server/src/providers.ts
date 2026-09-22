@@ -12,15 +12,10 @@ export interface SendResult {
   reason?: string;
 }
 
-export async function sendEmail(_to: string, _subject: string, _body: string): Promise<SendResult> {
-  const { SMTP_HOST, SMTP_USER, SMTP_PASS } = process.env;
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-    console.warn("[providers] sendEmail skipped: SMTP_HOST/SMTP_USER/SMTP_PASS not configured");
-    return { sent: false, reason: "provider not configured" };
-  }
-  // TODO: wire a real SMTP client (e.g. nodemailer) here.
-  console.warn("[providers] sendEmail: SMTP is configured but no mail client is wired yet");
-  return { sent: false, reason: "provider not configured" };
+export async function sendEmail(to: string, subject: string, body: string): Promise<SendResult> {
+  const { sendEmail: send } = await import("./email");
+  const r = await send({ to, subject, text: body });
+  return r.sent ? { sent: true } : { sent: false, reason: r.error ?? "provider not configured" };
 }
 
 export async function sendSms(_to: string, _body: string): Promise<SendResult> {

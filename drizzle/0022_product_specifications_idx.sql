@@ -1,0 +1,1 @@
+CREATE INDEX `product_specifications_product_id_idx` ON `product_specifications` (`product_id`);

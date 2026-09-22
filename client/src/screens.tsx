@@ -1,17 +1,104 @@
 // Phase-2 buyer screens.
 import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "./api";
 import { api2, fmtDate, money, placeOrder, type P2Address, type P2Product } from "./phase2api";
 import { useAuth, go } from "./session";
 import { useCart } from "./cart";
 import { EmptyBlock, Loading, PageError, ProductCard, ProductImage, Stars, getCompareIds, isCompared, toggleCompareId, useToast } from "./ui";
 
 // --- shared bits ------------------------------------------------------------
-function SectionRow({ title, products, onOpen, onAdd }: { title: string; products: P2Product[]; onOpen: (p: P2Product) => void; onAdd: (p: P2Product) => void }) {
+// Change-password form for buyers (api2.updateMyPassword) and sellers
+// (api2.updateSellerPassword). The server signs every other session out.
+export function ChangePasswordForm({ kind, extraArgs }: { kind: "buyer" | "seller"; extraArgs?: Record<string, string | undefined> }) {
+  const { toast } = useToast();
+  const [mismatch, setMismatch] = useState("");
+  const change = useMutation({
+    mutationFn: (v: { old_password: string; new_password: string }) =>
+      kind === "buyer" ? api2.updateMyPassword(v) : api2.updateSellerPassword({ ...extraArgs, ...v }),
+    onSuccess: () => toast("Password changed. Other devices were signed out."),
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not change the password.", "err"),
+  });
+  return (
+    <section className="studio-section"><h2>Change password</h2>
+      <form className="stack-form" onSubmit={(e) => { e.preventDefault(); const d = new FormData(e.currentTarget); const a = String(d.get("n1") ?? ""), b = String(d.get("n2") ?? ""); if (a !== b) { setMismatch("The two new passwords do not match."); return; } setMismatch(""); change.mutate({ old_password: String(d.get("old") ?? ""), new_password: a }); (e.target as HTMLFormElement).reset(); }}>
+        <label>Current password<input name="old" type="password" required autoComplete="current-password" /></label>
+        <label>New password<input name="n1" type="password" required minLength={8} autoComplete="new-password" /><small>At least 8 characters.</small></label>
+        <label>Repeat new password<input name="n2" type="password" required minLength={8} autoComplete="new-password" /></label>
+        {mismatch && <p className="form-error">{mismatch}</p>}
+        <button className="primary" disabled={change.isPending}>{change.isPending ? "Changing…" : "Change password"}</button>
+      </form>
+    </section>
+  );
+}
+
+// Photo gallery for the product page: main photo plus a thumbnail strip when
+// the seller uploaded more than one. Falls back to the single cover image or
+// the styled placeholder.
+// Let shoppers flag a review that looks like spam, abuse or fakery. Reports
+// land in the admin panel's Reviews queue; nothing is hidden automatically.
+function ReportReviewLink({ reviewId }: { reviewId: number }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const report = useMutation({
+    mutationFn: (v: { reason: "spam" | "abuse" | "fake" | "other"; detail: string; reporter_name: string }) =>
+      api.reportReview({ review_id: reviewId, ...v }),
+    onSuccess: () => { setOpen(false); toast("Thanks — our team will take a look."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not send the report.", "err"),
+  });
+  if (!open) return <div><button className="linklike" onClick={() => setOpen(true)}><small>Report this review</small></button></div>;
+  return (
+    <form className="stack-form compact" onSubmit={(e) => {
+      e.preventDefault();
+      const d = new FormData(e.currentTarget);
+      report.mutate({
+        reason: String(d.get("reason")) as "spam" | "abuse" | "fake" | "other",
+        detail: String(d.get("detail") ?? ""),
+        reporter_name: String(d.get("name") ?? ""),
+      });
+    }}>
+      <div className="form-pair">
+        <label>Reason<select name="reason" required><option value="spam">Spam</option><option value="abuse">Abusive content</option><option value="fake">Fake review</option><option value="other">Other</option></select></label>
+        <label>Your name<input name="name" required minLength={2} maxLength={60} placeholder="So we can follow up" /></label>
+      </div>
+      <label>What's wrong?<textarea name="detail" required minLength={8} maxLength={500} placeholder="Tell us briefly what's wrong with this review" /></label>
+      <div className="form-pair">
+        <button className="primary" disabled={report.isPending}>{report.isPending ? "Sending…" : "Send report"}</button>
+        <button type="button" className="ghost" onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+    </form>
+  );
+}
+
+function ProductGallery({ product }: { product: P2Product }) {
+  const photos = product.images?.length ? product.images : product.image_url ? [product.image_url] : [];
+  const [sel, setSel] = useState(0);
+  useEffect(() => { setSel(0); }, [product.id]);
+  if (!photos.length) return <ProductImage product={product} className="big" />;
+  return (
+    <div className="pd-gallery">
+      <div className="g-main">
+        <img src={photos[sel]} alt={product.name} decoding="async" />
+      </div>
+      {photos.length > 1 && (
+        <div className="g-thumbs" role="group" aria-label="Product photos">
+          {photos.map((src, i) => (
+            <button key={src} type="button" className={i === sel ? "sel" : ""} onClick={() => setSel(i)} aria-label={`Show photo ${i + 1} of ${photos.length}`} aria-pressed={i === sel}>
+              <img src={src} alt="" loading="lazy" decoding="async" />
+            </button>
+          ))}
+        </div>
+      )}
+      {product.original_price_paisa && product.original_price_paisa > product.price_paisa && <span className="off-badge">-{product.discount_pct}%</span>}
+    </div>
+  );
+}
+
+function SectionRow({ title, badge, products, onOpen, onAdd }: { title: string; badge?: string; products: P2Product[]; onOpen: (p: P2Product) => void; onAdd: (p: P2Product) => void }) {
   if (!products.length) return null;
   return (
     <section className="home-section">
-      <div className="section-title"><h2>{title}</h2><button onClick={() => go("/shop")}>View all</button></div>
+      <div className="section-title"><h2>{title}{badge && <span className="ai-badge">{badge}</span>}</h2><button onClick={() => go("/shop")}>View all</button></div>
       <div className="rail">{products.map((p) => (
         <div className="rail-card" key={p.id}><ProductCard product={p} onOpen={() => onOpen(p)} onAdd={onAdd} /></div>
       ))}</div>
@@ -22,12 +109,13 @@ function SectionRow({ title, products, onOpen, onAdd }: { title: string; product
 // --- homepage ---------------------------------------------------------------
 export function Homepage() {
   const { auth } = useAuth();
-  const { add } = useCart();
+  const { add, products } = useCart();
   const home = useQuery({ queryKey: ["homepage"], queryFn: () => api2.getHomepage({}) });
   const recent = useQuery({ queryKey: ["recently-viewed"], queryFn: () => api2.getRecentlyViewed({}), enabled: auth?.type === "buyer" });
   const open = (p: P2Product) => go(`/product/${p.id}`);
   const banners = home.data?.banners ?? [];
   const sections = home.data?.sections ?? [];
+  const categories = useMemo(() => [...new Set(products.map((p) => p.category))].sort(), [products]);
 
   return (
     <main>
@@ -49,14 +137,37 @@ export function Homepage() {
         <div><b>03</b><span>Reviews require delivery</span></div>
       </section>
 
+      {categories.length > 1 && (
+        <nav className="category-list home-cats" aria-label="Shop by category">
+          {categories.map((c) => (
+            <button key={c} type="button" onClick={() => go(`/search?category=${encodeURIComponent(c)}`)}>{c}</button>
+          ))}
+        </nav>
+      )}
+
       <div className="home-wrap">
         {home.isPending && <p className="muted">Opening the market…</p>}
         {home.error && <p className="form-error">The homepage could not load. The shop is still open — <button className="linklike" onClick={() => go("/shop")}>browse everything</button>.</p>}
-        {banners.length > 0 && <div className="banners">{banners.map((b, i) => (
-          <a key={i} className="banner-card" href={b.link ?? "#/shop"}>
-            <p className="eyebrow">Offer</p><h3>{b.title}</h3>{b.subtitle && <p>{b.subtitle}</p>}
-          </a>
-        ))}</div>}
+        {banners.length > 0 && (
+          <div className="hero-carousel" role="region" aria-label="Advertisements">
+            <div className="hero-track">
+              {banners.map((b, i) => (
+                <a key={i} className="hero-slide" href={b.link ?? "#/shop"}>
+                  {b.image_url ? (
+                    <img src={b.image_url} alt={b.title} loading="lazy" />
+                  ) : (
+                    <span className="hero-slide-fallback" aria-hidden="true" />
+                  )}
+                  <span className="hero-slide-copy">
+                    <span className="eyebrow">Advertisement</span>
+                    <strong>{b.title}</strong>
+                    {b.subtitle && <span className="hero-slide-sub">{b.subtitle}</span>}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
         {sections.map((s) => <SectionRow key={s.key} title={s.title} products={s.products} onOpen={open} onAdd={add} />)}
         {!home.isPending && !home.error && sections.length === 0 && (
           <EmptyBlock kicker="FRESH MARKET" title="The shelves are being arranged." body="Product sections appear here as sellers publish listings. Meanwhile you can browse the full catalogue." actionLabel="Browse the shop" onAction={() => go("/shop")} />
@@ -72,6 +183,50 @@ export function Homepage() {
   );
 }
 
+// --- public seller store page -----------------------------------------------
+export function StorePage({ code }: { code: string }) {
+  const store = useQuery({ queryKey: ["store", code.toUpperCase()], queryFn: () => api.getStore({ seller_code: code }) });
+  const name = store.data?.store_name;
+  useEffect(() => { document.title = name ? `${name} — Nepal Shop` : "Store — Nepal Shop"; }, [name]);
+  if (store.isPending) return <Loading text="Opening the store…" />;
+  // Suspended, pending and unknown stores all land here with the same
+  // friendly message — never revealing which of the three it was.
+  if (store.error || !store.data) return (
+    <main className="track-page"><div className="empty-state">
+      <span>STORE UNAVAILABLE</span>
+      <h3>This store is not available.</h3>
+      <p>It may have been renamed, closed or suspended. Browse the full marketplace instead.</p>
+      <button className="primary" onClick={() => go("/shop")}>Browse the shop</button>
+    </div></main>
+  );
+  const s = store.data;
+  return (
+    <main className="track-page wide-main">
+      {s.banner_url && <div className="store-banner"><img src={s.banner_url} alt="" loading="lazy" decoding="async" /></div>}
+      <section className="store-intro">
+        <p className="eyebrow">Seller store · {s.location}</p>
+        <div className="store-title-row">
+          {s.logo_url && <img className="store-logo" src={s.logo_url} alt={`${s.store_name} logo`} loading="lazy" decoding="async" />}
+          <h1>{s.store_name}</h1>
+        </div>
+        <p>{s.tagline}</p>
+        {s.vacation_mode && <p className="banner warn" role="status">This shop is on a short break — you can browse, but orders are paused for now.</p>}
+        {s.description && <p className="store-desc">{s.description}</p>}
+        <div className="store-meta">
+          {s.verified && <span className="verified-badge">✓ Verified seller</span>}
+          <Stars rating={s.rating} count={s.review_count} />
+          <span className="muted">{s.product_count} product{s.product_count === 1 ? "" : "s"}</span>
+        </div>
+      </section>
+      {s.products.length === 0 ? (
+        <EmptyBlock kicker="QUIET SHELVES" title="Nothing on the shelves yet." body="This seller hasn't published any products yet." actionLabel="Browse the shop" onAction={() => go("/shop")} />
+      ) : (
+        <div className="product-grid">{s.products.map((p) => <SearchCard key={p.id} product={p} />)}</div>
+      )}
+    </main>
+  );
+}
+
 // --- search ------------------------------------------------------------------
 type SortKey = "relevance" | "price_asc" | "price_desc" | "rating" | "newest" | "popularity" | "discount";
 const SORTS: { id: SortKey; label: string }[] = [
@@ -81,11 +236,11 @@ const SORTS: { id: SortKey; label: string }[] = [
 ];
 const PAGE = 24;
 
-export function SearchPage({ initialQuery }: { initialQuery: string }) {
+export function SearchPage({ initialQuery, initialCategory }: { initialQuery: string; initialCategory: string }) {
   const { products } = useCart();
   const [q, setQ] = useState(initialQuery);
   const [committed, setCommitted] = useState(initialQuery);
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(initialCategory);
   const [brand, setBrand] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
@@ -187,10 +342,30 @@ export function ProductPage({ id }: { id: number }) {
   const { add } = useCart();
   const { toast } = useToast();
   const [qty, setQty] = useState(1);
+  const [variantId, setVariantId] = useState(0);
+  useEffect(() => { setQty(1); setVariantId(0); }, [id]);
   const detail = useQuery({ queryKey: ["product-detail", id], queryFn: () => api2.getProductDetail({ product_id: id }) });
   const wishlist = useQuery({ queryKey: ["wishlist"], queryFn: () => api2.getWishlist({}), enabled: auth?.type === "buyer" });
   const queryClient = useQueryClient();
   const [compared, setCompared] = useState(() => isCompared(id));
+  const productName = detail.data?.product.name;
+  useEffect(() => { document.title = productName ? `${productName} — Nepal Shop` : "Product — Nepal Shop"; }, [productName]);
+  // Per-product meta description for search results (real catalogue text only).
+  useEffect(() => {
+    const desc = detail.data?.product.description?.slice(0, 155);
+    let el = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+    if (desc) {
+      if (!el) { el = document.createElement("meta"); el.name = "description"; document.head.appendChild(el); }
+      el.content = desc;
+    }
+  }, [detail.data]);
+  // AI recommendations (Gemini when configured, honest rule-based picks
+  // otherwise — the server labels which). Cached per product for 5 minutes.
+  const recs = useQuery({
+    queryKey: ["ai-recs", id],
+    queryFn: () => api2.getProductRecommendations({ product_id: id }),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const toggleWish = useMutation({
     mutationFn: () => api2.toggleWishlist({ product_id: id }),
@@ -200,12 +375,18 @@ export function ProductPage({ id }: { id: number }) {
 
   if (detail.isPending) return <Loading text="Opening the product…" />;
   if (detail.error || !detail.data) return <PageError error={detail.error} retry={() => detail.refetch()} />;
-  const { product: p, reviews, related, frequently_bought_together: fbt, seller } = detail.data;
+  const { product: p, variants, specs, reviews, frequently_bought_together: fbt, seller } = detail.data;
   const wishlisted = wishlist.data?.items.some((i) => i.product.id === id) ?? false;
   const deliveryNote = "2–5 working days · Standard";
   const expressNote = "1–2 working days · Express (+Rs 120)";
 
-  const buyNow = () => { add(p, qty); go("/checkout"); };
+  const variant = variants.find((v) => v.id === variantId) ?? null;
+  const unitPrice = variant?.price_paisa ?? p.price_paisa;
+  const avail = variant ? variant.stock : p.stock;
+  const cartVariant = variant ? { id: variant.id, label: variant.label, unitPrice, stock: variant.stock } : undefined;
+  const variantName = variant ? `${p.name} (${variant.label})` : p.name;
+
+  const buyNow = () => { add(p, qty, cartVariant); go("/checkout"); };
   const share = async () => {
     const url = `${window.location.origin}${window.location.pathname}#/product/${p.id}`;
     if (navigator.share) { try { await navigator.share({ title: p.name, text: p.name, url }); } catch { /* dismissed */ } }
@@ -217,26 +398,65 @@ export function ProductPage({ id }: { id: number }) {
 
   return (
     <main className="product-page">
+      <script type="application/ld+json">{JSON.stringify({
+        "@context": "https://schema.org", "@type": "Product",
+        name: p.name, description: p.description, category: p.category,
+        brand: p.brand ?? undefined, image: p.images?.length ? p.images : p.image_url ?? undefined,
+        offers: {
+          "@type": "Offer", priceCurrency: "NPR", price: String(Math.round(p.price_paisa / 100)),
+          availability: p.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+        },
+        aggregateRating: p.rating !== null ? { "@type": "AggregateRating", ratingValue: Number(p.rating.toFixed(1)), reviewCount: p.review_count } : undefined,
+      })}</script>
       <button className="linklike back" onClick={() => window.history.length > 1 ? window.history.back() : go("/shop")}>← Back</button>
+      <nav aria-label="Breadcrumb" className="crumbs">
+        <button className="linklike" onClick={() => go("/")}>Home</button>
+        <span aria-hidden="true"> › </span>
+        <button className="linklike" onClick={() => go(`/search?category=${encodeURIComponent(p.category)}`)}>{p.category}</button>
+        <span aria-hidden="true"> › </span>
+        <span aria-current="page">{p.name}</span>
+      </nav>
+      <script type="application/ld+json">{JSON.stringify({
+        "@context": "https://schema.org", "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: "https://nepal-shop-2.onrender.com/" },
+          { "@type": "ListItem", position: 2, name: p.category },
+          { "@type": "ListItem", position: 3, name: p.name },
+        ],
+      })}</script>
       <div className="pd-grid">
-        <div className="pd-gallery"><ProductImage product={p} className="big" />
-          {p.original_price_paisa && p.original_price_paisa > p.price_paisa && <span className="off-badge">-{p.discount_pct}%</span>}
-        </div>
+        <ProductGallery product={p} />
         <div className="pd-info">
           <p className="eyebrow">{p.category}{p.brand ? ` · ${p.brand}` : ""}</p>
           <h1>{p.name}</h1>
           <Stars rating={p.rating} count={p.review_count} />
           <div className="pd-price">
-            <strong>{money(p.price_paisa)}</strong>
-            {p.original_price_paisa && p.original_price_paisa > p.price_paisa && <s className="was">{money(p.original_price_paisa)}</s>}
+            <strong>{money(unitPrice)}</strong>
+            {p.original_price_paisa && p.original_price_paisa > p.price_paisa && !variant && <s className="was">{money(p.original_price_paisa)}</s>}
           </div>
-          <p className={p.stock === 0 ? "stock-out" : p.low_stock ? "stock-low" : "muted"}>
-            {p.stock === 0 ? "Out of stock" : p.low_stock ? `Only ${p.stock} left — order soon` : `${p.stock} in stock`}
+          {variants.length > 0 && (
+            <div className="variant-picker">
+              <p className="variant-label">Choose an option</p>
+              <div className="variant-options" role="radiogroup" aria-label="Choose a product option">
+                <button type="button" role="radio" aria-checked={variantId === 0} className={variantId === 0 ? "variant-option selected" : "variant-option"} onClick={() => { setVariantId(0); setQty(1); }}>Standard</button>
+                {variants.map((v) => (
+                  <button key={v.id} type="button" role="radio" aria-checked={variantId === v.id} disabled={v.stock === 0}
+                    className={variantId === v.id ? "variant-option selected" : "variant-option"}
+                    onClick={() => { setVariantId(v.id); setQty(1); }} title={v.stock === 0 ? "Out of stock" : `${v.label}`}>
+                    {v.label}{v.price_paisa !== null && v.price_paisa !== p.price_paisa && <span className="variant-price">{money(v.price_paisa)}</span>}
+                  </button>
+                ))}
+              </div>
+              {variant && <p className="muted">{variant.sku ? `SKU ${variant.sku} · ` : ""}{variant.stock > 0 ? `${variant.stock} in stock` : "Out of stock"}</p>}
+            </div>
+          )}
+          <p className={avail === 0 ? "stock-out" : p.low_stock && !variant ? "stock-low" : "muted"}>
+            {avail === 0 ? "Out of stock" : p.low_stock && !variant ? `Only ${avail} left — order soon` : `${avail} in stock`}
           </p>
           <div className="pd-actions">
-            <div className="quantity"><button onClick={() => setQty((n) => Math.max(1, n - 1))} disabled={qty <= 1} aria-label="Decrease quantity">−</button><span>{qty}</span><button onClick={() => setQty((n) => Math.min(p.stock, n + 1))} disabled={qty >= p.stock || p.stock === 0} aria-label="Increase quantity">+</button></div>
-            <button className="primary" disabled={p.stock === 0} onClick={() => { add(p, qty); toast(`${p.name} added to your basket.`); }}>Add to basket</button>
-            <button className="ghost" disabled={p.stock === 0} onClick={buyNow}>Buy now</button>
+            <div className="quantity"><button onClick={() => setQty((n) => Math.max(1, n - 1))} disabled={qty <= 1} aria-label="Decrease quantity">−</button><span>{qty}</span><button onClick={() => setQty((n) => Math.min(avail, n + 1))} disabled={qty >= avail || avail === 0} aria-label="Increase quantity">+</button></div>
+            <button className="primary" disabled={avail === 0} onClick={() => { add(p, qty, cartVariant); toast(`${variantName} added to your basket.`); }}>Add to basket</button>
+            <button className="ghost" disabled={avail === 0} onClick={buyNow}>Buy now</button>
           </div>
           <div className="pd-tools">
             <button className={wishlisted ? "tool active" : "tool"} onClick={() => toggleWish.mutate()} aria-label="Toggle wishlist" title={auth?.type === "buyer" ? "Wishlist" : "Log in to use the wishlist"}>♥ {wishlisted ? "Saved" : "Wishlist"}</button>
@@ -246,11 +466,12 @@ export function ProductPage({ id }: { id: number }) {
           <div className="pd-meta">
             <span>🚚 {deliveryNote}</span>
             <span>⚡ {expressNote}</span>
-            <span>↩ 7-day returns on delivered orders</span>
+            <span>↩ 30-day returns on delivered orders</span>
           </div>
           <div className="seller-card">
             <div><h3>{seller.store_name}</h3><p className="muted">{seller.location} · {seller.product_count} products</p>
               {seller.rating !== null && <Stars rating={seller.rating} />}
+              <p><button className="linklike" onClick={() => go(`/store/${p.seller_code}`)}>Visit this store →</button></p>
             </div>
             {seller.verified && <span className="verified-badge">✓ Verified seller</span>}
           </div>
@@ -259,18 +480,28 @@ export function ProductPage({ id }: { id: number }) {
 
       <section className="pd-desc"><h2>About this product</h2><p>{p.description}</p></section>
 
+      {specs.length > 0 && <section className="pd-specs"><h2>Specifications</h2><dl className="spec-table">{specs.map((s) => <div key={s.id}><dt>{s.label}</dt><dd>{s.value}</dd></div>)}</dl></section>}
+
       <section className="reviews"><h2>Verified buyers ({reviews.length})</h2>
         {reviews.length === 0 ? <p className="muted">No delivered-buyer reviews yet.</p> :
-          reviews.map((r) => <article key={r.id}><b>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</b><p>{r.body}</p><small>{r.reviewer_name} · {fmtDate(r.created_at)}</small></article>)}
+          reviews.map((r) => <article key={r.id}><b>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</b><p>{r.body}</p><small>{r.reviewer_name} · {fmtDate(r.created_at)}</small><ReportReviewLink reviewId={r.id} /></article>)}
         <button className="linklike" onClick={() => go("/track")}>Bought this? Write a verified review from your order page →</button>
       </section>
 
       {fbt.length > 0 && <SectionRow title="Frequently bought together" products={fbt} onOpen={(x) => go(`/product/${x.id}`)} onAdd={add} />}
-      {related.length > 0 && <SectionRow title="You may also like" products={related} onOpen={(x) => go(`/product/${x.id}`)} onAdd={add} />}
+      {recs.data && recs.data.products.length > 0 && (
+        <SectionRow
+          title="Recommended for you"
+          badge={recs.data.source === "ai" ? "✨ AI picks" : undefined}
+          products={recs.data.products}
+          onOpen={(x) => go(`/product/${x.id}`)}
+          onAdd={add}
+        />
+      )}
 
       <div className="sticky-buy">
-        <div><strong>{money(p.price_paisa)}</strong><small>{p.stock > 0 ? `${p.stock} in stock` : "Out of stock"}</small></div>
-        <button className="primary" disabled={p.stock === 0} onClick={() => { add(p, qty); toast("Added to your basket."); }}>Add to basket</button>
+        <div><strong>{money(unitPrice)}</strong><small>{avail > 0 ? `${avail} in stock` : "Out of stock"}</small></div>
+        <button className="primary" disabled={avail === 0} onClick={() => { add(p, qty, cartVariant); toast("Added to your basket."); }}>Add to basket</button>
         <button className="ghost" onClick={() => go("/cart")}>Basket</button>
       </div>
     </main>
@@ -289,19 +520,22 @@ export function CartPage() {
     <main className="track-page"><section className="track-intro"><p className="eyebrow">Your basket</p><h1>{count} item{count === 1 ? "" : "s"}.</h1>
       {auth?.type !== "buyer" && <p><button className="linklike" onClick={() => go("/login")}>Log in</button> to keep this basket on every device.</p>}</section>
       {cartError && <p className="form-error banner" role="alert">{cartError} <button className="linklike" onClick={dismissCartError}>Dismiss</button></p>}
-      <div className="cart-lines">{lines.map(({ product: p, quantity }) => (
-        <div className="cart-line" key={p.id}>
-          <button className="mini-thumb" onClick={() => go(`/product/${p.id}`)} aria-label={`View ${p.name}`}><ProductImage product={p} /></button>
-          <div><b>{p.name}</b><small>{money(p.price_paisa)} each · {p.store_name}</small></div>
-          <div className="quantity small">
-            <button onClick={() => setQty(p.id, quantity - 1)} aria-label="Decrease">−</button>
-            <span>{quantity}</span>
-            <button onClick={() => setQty(p.id, quantity + 1)} disabled={quantity >= p.stock} aria-label="Increase">+</button>
+      <div className="cart-lines">{lines.map((line) => {
+        const { product: p, quantity, variantId, variantLabel, unitPrice, stock } = line;
+        return (
+          <div className="cart-line" key={`${p.id}:${variantId}`}>
+            <button className="mini-thumb" onClick={() => go(`/product/${p.id}`)} aria-label={`View ${p.name}`}><ProductImage product={p} /></button>
+            <div><b>{p.name}</b>{variantLabel && <small>Option: {variantLabel}</small>}<small>{money(unitPrice)} each · {p.store_name}</small></div>
+            <div className="quantity small">
+              <button onClick={() => setQty(p.id, quantity - 1, variantId)} aria-label="Decrease">−</button>
+              <span>{quantity}</span>
+              <button onClick={() => setQty(p.id, quantity + 1, variantId)} disabled={quantity >= stock} aria-label="Increase">+</button>
+            </div>
+            <b>{money(unitPrice * quantity)}</b>
+            <button className="linklike text-danger" onClick={() => remove(p.id, variantId)}>Remove</button>
           </div>
-          <b>{money(p.price_paisa * quantity)}</b>
-          <button className="linklike text-danger" onClick={() => remove(p.id)}>Remove</button>
-        </div>
-      ))}</div>
+        );
+      })}</div>
       <div className="receipt">
         <span>Items <b>{money(subtotal)}</b></span>
         <span>Delivery (standard) <b>{money(delivery)}</b></span>
@@ -316,7 +550,7 @@ export function CartPage() {
 // --- checkout (5 steps) -------------------------------------------------------
 type PayMethod = "cod" | "esewa" | "khalti";
 type DeliveryKind = "standard" | "express" | "pickup";
-const EXPRESS_FEE = 12000; // paisa = Rs 120
+const EXPRESS_FEE_FALLBACK = 12000; // paisa = Rs 120; the live value comes from getShippingMethods
 
 const PROVINCES = ["Koshi", "Madhesh", "Bagmati", "Gandaki", "Lumbini", "Karnali", "Sudurpashchim"];
 
@@ -355,27 +589,71 @@ export function CheckoutPage() {
   const [couponCode, setCouponCode] = useState("");
   const [coupon, setCoupon] = useState<{ valid: boolean; discount_paisa: number; free_shipping: boolean; message: string } | null>(null);
   const [payMethod, setPayMethod] = useState<PayMethod>("cod");
+  const [codConfirmed, setCodConfirmed] = useState(false);
   const [guest, setGuest] = useState({ full_name: "", phone: "", province: "Bagmati", district: "", municipality: "", ward: "", landmark: "", note: "" });
   const [note, setNote] = useState("");
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState("");
   const [onlineError, setOnlineError] = useState("");
-  const [placed, setPlaced] = useState<{ order_code: string; total_paisa: number; payment_method: PayMethod; order_id: number } | null>(null);
+  const [placed, setPlaced] = useState<{ order_code: string; group_code: string; group_id: number; total_paisa: number; payment_method: PayMethod; order_id: number; orders: { order_id: number; order_code: string; store_name: string; total_paisa: number }[] } | null>(null);
+  // Idempotency key: generated once per checkout attempt and reused across
+  // retries, so double-tapping "Place order" (or a refresh mid-submit) can
+  // only ever create one order group.
+  const idempotencyKey = useRef("");
 
   const isBuyer = auth?.type === "buyer";
   const addresses = useQuery({ queryKey: ["addresses"], queryFn: () => api2.listAddresses({}), enabled: isBuyer });
+  // Analytics: record one checkout-start event per buyer per visit. The
+  // server validates the session and dedupes (one per 6 hours); failures
+  // are swallowed so tracking never breaks checkout.
+  const checkoutTracked = useRef(false);
+  useEffect(() => {
+    if (isBuyer && !checkoutTracked.current) {
+      checkoutTracked.current = true;
+      void api2.trackCheckoutStart({}).catch(() => {});
+    }
+  }, [isBuyer]);
   useEffect(() => {
     if (addresses.data && addresses.data.addresses.length === 0 && !addingAddress && addressId === null) setAddingAddress(true);
   }, [addresses.data, addingAddress, addressId]);
 
   const baseDelivery = lines.reduce((s, l) => s + l.product.delivery_fee_paisa * l.quantity, 0);
-  let deliveryFee = delivery === "pickup" ? 0 : baseDelivery + (delivery === "express" ? EXPRESS_FEE : 0);
+  const sellerCount = new Set(lines.map((l) => l.product.store_id)).size;
+  const pickupPoints = [...new Set(lines.map((l) => l.product.store_location).filter(Boolean))];
+  // Delivery methods and the express surcharge are admin-configurable on
+  // the server; the estimate below mirrors the server's authoritative
+  // total. Disabled methods are hidden from the list.
+  const shipMethods = useQuery({ queryKey: ["shipping-methods"], queryFn: () => api2.getShippingMethods({}), staleTime: 60_000 });
+  const expressFee = shipMethods.data?.express_fee_paisa ?? EXPRESS_FEE_FALLBACK;
+  const enabledDelivery = new Set<DeliveryKind>(shipMethods.data ? shipMethods.data.methods.filter((m) => m.enabled).map((m) => m.id) : ["standard", "express", "pickup"]);
+  useEffect(() => {
+    if (shipMethods.data && !enabledDelivery.has(delivery)) {
+      const first = shipMethods.data.methods.find((m) => m.enabled)?.id ?? "standard";
+      setDelivery(first);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shipMethods.data]);
+  // The express surcharge applies per seller: each seller ships their own
+  // parcel. The estimate matches the server's authoritative total.
+  let deliveryFee = delivery === "pickup" ? 0 : baseDelivery + (delivery === "express" ? expressFee * sellerCount : 0);
   if (coupon?.valid && coupon.free_shipping) deliveryFee = 0;
   const discount = coupon?.valid ? coupon.discount_paisa : 0;
   const total = Math.max(0, subtotal - discount) + deliveryFee;
+  // Per-seller breakdown for the summary step, so multi-seller baskets read
+  // clearly: each seller ships (and is paid for) separately.
+  const sellerBreakdown = useMemo(() => {
+    const by = new Map<number, { store_name: string; store_location: string; subtotal: number; items: number }>();
+    for (const l of lines) {
+      const e = by.get(l.product.store_id) ?? { store_name: l.product.store_name, store_location: l.product.store_location, subtotal: 0, items: 0 };
+      e.subtotal += l.unitPrice * l.quantity; e.items += l.quantity; by.set(l.product.store_id, e);
+    }
+    return [...by.values()];
+  }, [lines]);
 
   const applyCoupon = useMutation({
-    mutationFn: (code: string) => api2.validateCoupon({ code, subtotal_paisa: subtotal }),
+    // Guests have no account, so the phone number is their identity for the
+    // per-user coupon limit — send it so the preview is honest.
+    mutationFn: (code: string) => api2.validateCoupon({ code, subtotal_paisa: subtotal, phone: isBuyer ? undefined : guest.phone.trim() || undefined }),
     onSuccess: (r) => { setCoupon(r); if (r.valid) toast(`Coupon applied — ${money(r.discount_paisa)} off.`); },
   });
   const saveAddress = useMutation({
@@ -390,24 +668,29 @@ export function CheckoutPage() {
     if (!addressReady || lines.length === 0) return;
     setPlacing(true); setPlaceError(""); setOnlineError("");
     try {
-      const items = lines.map((l) => ({ product_id: l.product.id, quantity: l.quantity }));
+      if (!idempotencyKey.current) idempotencyKey.current = crypto.randomUUID();
+      const items = lines.map((l) => ({ product_id: l.product.id, quantity: l.quantity, variant_id: l.variantId }));
       const result = await placeOrder({
         customer_name: isBuyer ? (chosenAddress?.full_name ?? auth!.name) : guest.full_name,
         phone: isBuyer ? (chosenAddress?.phone ?? "") : guest.phone,
         address: isBuyer ? (chosenAddress ? addressLine(chosenAddress) : "") : addressLine(guest),
         note: isBuyer ? note : guest.note,
-        cod_confirmed: payMethod === "cod" ? true : undefined,
+        cod_confirmed: payMethod === "cod" ? codConfirmed : undefined,
         items,
         payment_method: payMethod,
         coupon_code: coupon?.valid ? couponCode.trim().toUpperCase() : undefined,
         address_id: addressId ?? undefined,
         delivery_method: delivery,
+        idempotency_key: idempotencyKey.current,
       });
-      sessionStorage.setItem("lastOrderCode", result.order_code);
+      const placedGroup = { order_code: result.group_code, group_code: result.group_code, group_id: result.group_id, total_paisa: result.total_paisa, payment_method: payMethod, order_id: result.order_id, orders: result.orders };
+      // The customer-facing order code is the group code — one checkout, one
+      // code, even when several sellers fulfil it.
+      sessionStorage.setItem("lastOrderCode", result.group_code);
       if (payMethod !== "cod") {
         try {
           const init = await api2.initiateOnlinePayment({
-            order_id: result.order_id, provider: payMethod,
+            group_id: result.group_id, provider: payMethod,
             phone: isBuyer ? chosenAddress?.phone : guest.phone,
           });
           clear();
@@ -423,20 +706,21 @@ export function CheckoutPage() {
             return; // leaving for eSewa
           }
           sessionStorage.setItem("khalti_pidx", init.pidx ?? "");
-          sessionStorage.setItem("khalti_order", String(result.order_id));
+          sessionStorage.setItem("khalti_group", String(result.group_id));
           window.location.href = init.payment_url;
           return; // leaving for Khalti
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          clear();
-          setPlaced({ order_code: result.order_code, total_paisa: result.total_paisa, payment_method: payMethod, order_id: result.order_id });
+          // The order is saved; only the wallet handoff failed. Keep the
+          // basket intact so the buyer can retry or switch to COD.
+          setPlaced(placedGroup);
           setOnlineError(msg);
           setStep(5);
           return;
         }
       }
       clear();
-      setPlaced({ order_code: result.order_code, total_paisa: result.total_paisa, payment_method: payMethod, order_id: result.order_id });
+      setPlaced(placedGroup);
       setStep(5);
     } catch (e) {
       setPlaceError(e instanceof Error ? e.message : "The order could not be placed.");
@@ -509,17 +793,29 @@ export function CheckoutPage() {
       {step === 2 && (
         <section className="studio-section"><h2>How should it travel?</h2>
           <div className="choice-list">
+            {enabledDelivery.has("standard") && (
             <label className={delivery === "standard" ? "selected" : ""}><input type="radio" checked={delivery === "standard"} onChange={() => setDelivery("standard")} /><div><b>Standard delivery</b><p className="muted">2–5 working days · {money(baseDelivery)}</p></div></label>
-            <label className={delivery === "express" ? "selected" : ""}><input type="radio" checked={delivery === "express"} onChange={() => setDelivery("express")} /><div><b>Express delivery</b><p className="muted">1–2 working days · {money(baseDelivery + EXPRESS_FEE)} (includes {money(EXPRESS_FEE)} express fee)</p></div></label>
-            <label className={delivery === "pickup" ? "selected" : ""}><input type="radio" checked={delivery === "pickup"} onChange={() => setDelivery("pickup")} /><div><b>Pick up from seller</b><p className="muted">Free · collect at {lines[0]?.product.store_location ?? "the seller's shop"}</p></div></label>
+            )}
+            {enabledDelivery.has("express") && (
+            <label className={delivery === "express" ? "selected" : ""}><input type="radio" checked={delivery === "express"} onChange={() => setDelivery("express")} /><div><b>Express delivery</b><p className="muted">1–2 working days · {money(baseDelivery + expressFee * sellerCount)} (includes {money(expressFee)} express fee{sellerCount > 1 ? " per seller" : ""})</p></div></label>
+            )}
+            {enabledDelivery.has("pickup") && (
+            <label className={delivery === "pickup" ? "selected" : ""}><input type="radio" checked={delivery === "pickup"} onChange={() => setDelivery("pickup")} /><div><b>Pick up from seller</b><p className="muted">Free · collect at {pickupPoints.length > 1 ? pickupPoints.join(" and ") : (pickupPoints[0] ?? "the seller's shop")}{sellerCount > 1 ? " (each seller separately)" : ""}</p></div></label>
+            )}
           </div>
+          <p className="muted">Sellers ship with their own couriers and add the tracking number once your parcel is on its way.</p>
           <div className="step-nav"><button className="ghost" onClick={() => setStep(1)}>Back</button><button className="primary" onClick={() => setStep(3)}>Continue to summary</button></div>
         </section>
       )}
 
       {step === 3 && (
         <section className="studio-section"><h2>Check every rupee</h2>
-          <div className="order-items">{lines.map((l) => <span key={l.product.id}>{l.quantity} × {l.product.name}<b>{money(l.product.price_paisa * l.quantity)}</b></span>)}</div>
+          <div className="order-items">{lines.map((l) => <span key={`${l.product.id}:${l.variantId}`}>{l.quantity} × {l.product.name}{l.variantLabel ? ` (${l.variantLabel})` : ""}<b>{money(l.unitPrice * l.quantity)}</b></span>)}</div>
+          {sellerBreakdown.length > 1 && (
+            <div className="seller-split"><p className="muted">Your basket spans {sellerBreakdown.length} sellers — each ships its own parcel:</p>
+              <div className="order-items">{sellerBreakdown.map((s) => <span key={s.store_name}>{s.store_name} · {s.items} item{s.items === 1 ? "" : "s"}<b>{money(s.subtotal)}</b></span>)}</div>
+            </div>
+          )}
           <div className="coupon-row">
             <input aria-label="Coupon code" placeholder="Coupon code (e.g. WELCOME10)" value={couponCode} onChange={(e) => { setCouponCode(e.target.value); setCoupon(null); }} />
             <button className="ghost" disabled={!couponCode.trim() || applyCoupon.isPending} onClick={() => applyCoupon.mutate(couponCode.trim())}>{applyCoupon.isPending ? "Checking…" : "Apply"}</button>
@@ -543,22 +839,58 @@ export function CheckoutPage() {
             <label className={payMethod === "khalti" ? "selected" : ""}><input type="radio" checked={payMethod === "khalti"} onChange={() => setPayMethod("khalti")} /><div><b>Khalti</b><p className="muted">Pay now through the Khalti wallet.</p></div></label>
           </div>
           {payMethod !== "cod" && <p className="muted">You will be taken to {payMethod === "esewa" ? "eSewa" : "Khalti"} to finish the payment, then returned here.</p>}
-          {payMethod === "cod" && <label className="check"><input type="checkbox" required id="cod-ok" /> I’ll respond when the seller confirms this COD order.</label>}
+          {payMethod === "cod" && <label className="check"><input type="checkbox" id="cod-ok" checked={codConfirmed} onChange={(e) => setCodConfirmed(e.target.checked)} /> I’ll respond when the seller confirms this COD order.</label>}
           {placeError && <p className="form-error">{placeError}</p>}
           <div className="step-nav"><button className="ghost" onClick={() => setStep(3)}>Back</button>
-            <button className="primary" disabled={placing} onClick={submitOrder}>{placing ? "Placing order…" : `Place order · ${money(total)}`}</button></div>
+            <button className="primary" disabled={placing || (payMethod === "cod" && !codConfirmed)} onClick={submitOrder}>{placing ? "Placing order…" : `Place order · ${money(total)}`}</button></div>
         </section>
       )}
 
       {step === 5 && placed && (
         <section className="studio-section"><h2>{onlineError ? "Order saved — payment not finished" : "Order placed."}</h2>
           <div className="order-trail">
-            <div className="order-heading"><div><p className="eyebrow">{placed.order_code}</p><h2>{onlineError ? "Needs your attention" : "Thank you"}</h2></div><strong>{money(placed.total_paisa)}</strong></div>
+            <div className="order-heading"><div><p className="eyebrow">{placed.group_code}</p><h2>{onlineError ? "Needs your attention" : "Thank you"}</h2></div><strong>{money(placed.total_paisa)}</strong></div>
+            {placed.orders.length > 1 && (
+              <div className="order-items">{placed.orders.map((o) => <span key={o.order_id}>{o.store_name} · {o.order_code}<b>{money(o.total_paisa)}</b></span>)}</div>
+            )}
             {onlineError ? (
               <>
                 <p className="form-error">{onlineError.replace(/^action \w+ (error|failed):\s*\d*\s*/, "").trim()}</p>
-                <p>The payment step could not start, so no money moved. Your order <b>{placed.order_code}</b> is saved but not paid. Please choose <b>Cash on delivery</b> at checkout instead — your basket is untouched.</p>
-                <div className="step-nav"><button className="primary" onClick={() => { setPlaced(null); setPayMethod("cod"); setStep(4); }}>Back to checkout — pay cash on delivery</button><button className="ghost" onClick={() => go("/track")}>Track the saved order</button></div>
+                <p>The payment step could not start, so no money moved. Your order <b>{placed.group_code}</b> is saved but not paid, and your basket is untouched. You can retry the wallet payment for this order, or cancel it and check out again with Cash on delivery.</p>
+                <div className="step-nav">
+                  <button className="primary" disabled={placing} onClick={async () => {
+                    setPlacing(true); setOnlineError("");
+                    try {
+                      const init = await api2.initiateOnlinePayment({ group_id: placed.group_id, provider: placed.payment_method === "cod" ? "esewa" : placed.payment_method, phone: isBuyer ? chosenAddress?.phone : guest.phone });
+                      if (placed.payment_method === "esewa") {
+                        const form = document.createElement("form");
+                        form.method = "POST"; form.action = init.payment_url;
+                        Object.entries(init.params ?? {}).forEach(([k, v]) => {
+                          const input = document.createElement("input");
+                          input.type = "hidden"; input.name = k; input.value = String(v ?? "");
+                          form.appendChild(input);
+                        });
+                        document.body.appendChild(form); form.submit(); return;
+                      }
+                      sessionStorage.setItem("khalti_pidx", init.pidx ?? "");
+                      sessionStorage.setItem("khalti_group", String(placed.group_id));
+                      window.location.href = init.payment_url;
+                    } catch (e) {
+                      setOnlineError(e instanceof Error ? e.message : "The payment could not be started.");
+                    } finally { setPlacing(false); }
+                  }}>{placing ? "Starting…" : `Retry ${placed.payment_method === "esewa" ? "eSewa" : "Khalti"} payment`}</button>
+                  <button className="ghost text-danger" disabled={placing} onClick={async () => {
+                    setPlacing(true);
+                    try {
+                      await api2.cancelOrder({ group_code: placed.group_code, phone: isBuyer ? undefined : guest.phone });
+                      toast("Order cancelled. Your basket is ready for a fresh checkout.");
+                      setPlaced(null); idempotencyKey.current = ""; setStep(1);
+                    } catch (e) {
+                      setOnlineError(e instanceof Error ? e.message : "Could not cancel the order.");
+                    } finally { setPlacing(false); }
+                  }}>Cancel order, keep basket</button>
+                  <button className="ghost" onClick={() => go("/track")}>Track the saved order</button>
+                </div>
               </>
             ) : (
               <>
@@ -590,39 +922,66 @@ function GuestBinder({ guest, setGuest }: { guest: GuestForm; setGuest: Dispatch
 // --- payment result -----------------------------------------------------------
 export function PaymentResultPage({ query }: { query: URLSearchParams }) {
   const provider = query.get("provider");
-  const orderId = Number(query.get("order_id") ?? sessionStorage.getItem("khalti_order") ?? 0);
+  // The wallet redirects carry the order GROUP id (one checkout = one
+  // payment). Older links may still carry order_id or session keys.
+  const groupId = Number(query.get("group_id") ?? sessionStorage.getItem("khalti_group") ?? query.get("order_id") ?? sessionStorage.getItem("khalti_order") ?? 0);
   const esewaData = query.get("data");
   const khaltiPidx = query.get("pidx") ?? sessionStorage.getItem("khalti_pidx") ?? "";
+  const { auth } = useAuth();
   const [state, setState] = useState<"working" | "ok" | "fail">("working");
   const [message, setMessage] = useState("");
+  const [releasePhone, setReleasePhone] = useState("");
+  const [releaseMsg, setReleaseMsg] = useState("");
+  const [released, setReleased] = useState(false);
   const ran = useRef(false);
 
   useEffect(() => {
     if (ran.current) return; ran.current = true;
     (async () => {
       try {
-        if (!provider || !orderId) throw new Error("This page needs payment details from the wallet to verify.");
+        if (!provider || !groupId) throw new Error("This page needs payment details from the wallet to verify.");
         if (provider === "esewa") {
           if (!esewaData) throw new Error("eSewa did not return payment data.");
-          await api2.verifyEsewaPayment({ order_id: orderId, data: esewaData });
+          await api2.verifyEsewaPayment({ group_id: groupId, data: esewaData });
         } else if (provider === "khalti") {
           if (!khaltiPidx) throw new Error("Khalti did not return a payment reference.");
-          await api2.verifyKhaltiPayment({ order_id: orderId, pidx: khaltiPidx });
+          await api2.verifyKhaltiPayment({ group_id: groupId, pidx: khaltiPidx });
         } else throw new Error(`Unknown payment provider “${provider}”.`);
-        sessionStorage.removeItem("khalti_pidx"); sessionStorage.removeItem("khalti_order");
+        sessionStorage.removeItem("khalti_pidx"); sessionStorage.removeItem("khalti_group"); sessionStorage.removeItem("khalti_order");
         setState("ok");
       } catch (e) {
         setMessage(e instanceof Error ? e.message.replace(/^action \w+ (error|failed):\s*\d*\s*/, "").trim() : "Verification failed.");
         setState("fail");
       }
     })();
-  }, [provider, orderId, esewaData, khaltiPidx]);
+  }, [provider, groupId, esewaData, khaltiPidx]);
+
+  const release = async () => {
+    setReleaseMsg("");
+    try {
+      await api2.cancelOnlinePayment({ group_id: groupId, phone: auth?.type === "buyer" ? undefined : releasePhone });
+      setReleased(true);
+    } catch (e) {
+      setReleaseMsg(e instanceof Error ? e.message.replace(/^action \w+ (error|failed):\s*\d*\s*/, "").trim() : "Could not release the order.");
+    }
+  };
 
   return (
     <main className="track-page"><section className="track-intro"><p className="eyebrow">Payment result</p><h1>{state === "working" ? "Confirming payment…" : state === "ok" ? "Payment confirmed." : "Payment not confirmed."}</h1></section>
       {state === "working" && <p className="muted">Checking with the wallet — this takes a few seconds.</p>}
       {state === "ok" && <div className="empty-state"><span>PAYMENT RECEIVED</span><h3>Your order is confirmed.</h3><p>The seller has been notified and will pack your parcel. You can follow it from the tracking page.</p><button className="primary" onClick={() => go("/track")}>Track my order</button></div>}
-      {state === "fail" && <div className="empty-state"><span>PAYMENT UNCLEAR</span><h3>We could not confirm this payment.</h3><p>{message || "No money was taken according to the wallet. You can try again or choose cash on delivery."}</p><div className="step-nav"><button className="primary" onClick={() => go("/track")}>Check the order</button><button className="ghost" onClick={() => go("/help")}>Contact support</button></div></div>}
+      {state === "fail" && <div className="empty-state"><span>PAYMENT UNCLEAR</span><h3>We could not confirm this payment.</h3><p>{message || "No money was taken according to the wallet. You can try again or choose cash on delivery."}</p>
+        <div className="step-nav"><button className="primary" onClick={() => go("/track")}>Check the order</button><button className="ghost" onClick={() => go("/help")}>Contact support</button></div>
+        {!released ? (
+          <div className="release-box"><h4>Done with this attempt?</h4><p>Release the unpaid order so it no longer waits for this payment. You can then check out again with another method.</p>
+            {auth?.type !== "buyer" && <label>Order phone number<input type="tel" value={releasePhone} onChange={(e) => setReleasePhone(e.target.value)} placeholder="98XXXXXXXX" minLength={7} /></label>}
+            {releaseMsg && <p className="form-error">{releaseMsg}</p>}
+            <button className="ghost" onClick={release}>Release this order</button>
+          </div>
+        ) : (
+          <p className="muted">Released. The order no longer waits for this payment — check out again whenever you are ready.</p>
+        )}
+      </div>}
     </main>
   );
 }
@@ -722,7 +1081,7 @@ function CompareTable({ ids, onRemove }: { ids: number[]; onRemove: (id: number)
         {cell("Stock", rows.map((p) => (p.stock === 0 ? "Out of stock" : `${p.stock} in stock`)))}
         {cell("Seller", rows.map((p) => `${p.store_name} · ${p.store_location}`))}
         {cell("Delivery fee", rows.map((p) => money(p.delivery_fee_paisa)))}
-        {cell("Returns", rows.map(() => "7-day returns on delivered orders"))}
+        {cell("Returns", rows.map(() => "30-day returns on delivered orders"))}
       </tbody>
     </table></div>
   );
@@ -795,7 +1154,7 @@ export function AssistantPage() {
 // --- order status labels (extended) -----------------------------------------------
 export const STATUS_LABEL: Record<string, string> = {
   confirmation_needed: "Needs confirmation", confirmed: "Confirmed", packed: "Packed",
-  shipped: "On the way", out_for_delivery: "Out for delivery", delivered: "Delivered",
+  shipped: "On the way", out_for_delivery: "Out for delivery", delivery_failed: "Delivery failed", delivered: "Delivered",
   return_requested: "Return requested", returned: "Returned", refunded: "Refunded", cancelled: "Cancelled",
 };
 export const PAY_LABEL: Record<string, string> = { pending: "Payment pending", processing: "Payment processing", paid: "Paid", failed: "Payment failed", refunded: "Refunded", cancelled: "Cancelled" };

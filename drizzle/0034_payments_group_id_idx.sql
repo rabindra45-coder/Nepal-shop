@@ -1,0 +1,1 @@
+CREATE INDEX `payments_group_id_idx` ON `payments` (`group_id`);

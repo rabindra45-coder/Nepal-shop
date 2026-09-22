@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# environment & secrets
+.env
+.env.local
+.env.*.local
+
+# sqlite databases
+*.db
+*.db-wal
+*.db-shm
+
+# build output
+client/dist/
+server/dist/
+
+# typescript build info
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+
+# scratch
+/tmp/

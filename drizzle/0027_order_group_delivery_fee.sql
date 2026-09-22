@@ -1,0 +1,1 @@
+ALTER TABLE `order_groups` ADD COLUMN `delivery_fee_paisa` integer NOT NULL DEFAULT 0;

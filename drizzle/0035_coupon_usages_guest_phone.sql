@@ -1,0 +1,1 @@
+ALTER TABLE `coupon_usages` ADD COLUMN `guest_phone` text;

@@ -1,0 +1,1 @@
+ALTER TABLE `order_groups` ADD COLUMN `delivery_method` text NOT NULL DEFAULT 'standard';

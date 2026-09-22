@@ -1,10 +1,12 @@
 // Buyer account screens: notifications, hub, address book, help & tickets.
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "./api";
 import { api2, fmtDate, type P2Address } from "./phase2api";
 import { useAuth, go } from "./session";
 import { useCart } from "./cart";
 import { EmptyBlock, Loading, PageError, useToast } from "./ui";
+import { ChangePasswordForm } from "./screens";
 
 // --- notifications -------------------------------------------------------------
 export function NotificationsPage() {
@@ -55,6 +57,46 @@ export function useUnreadCount(): number {
   return auth?.type === "buyer" ? notes.data?.unread_count ?? 0 : 0;
 }
 
+// --- notification preferences -------------------------------------------------
+// Minimal, honest toggle: the buyer can switch order-update emails on or off.
+// Security emails (password reset, verification) always go through.
+function NotificationPrefs() {
+  const { auth } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const prefs = useQuery({ queryKey: ["notification-prefs"], queryFn: () => api.getNotificationPrefs({}), enabled: auth?.type === "buyer" });
+  const update = useMutation({
+    mutationFn: (order_update_emails: boolean) => api.updateNotificationPrefs({ order_update_emails }),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["notification-prefs"] }); toast("Preference saved."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not save.", "err"),
+  });
+  const resend = useMutation({
+    mutationFn: () => api.resendBuyerVerification({}),
+    onSuccess: (r) => { void queryClient.invalidateQueries({ queryKey: ["notification-prefs"] }); toast(r.email_sent ? "Verification email sent." : "Your email is already verified."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not send.", "err"),
+  });
+  if (auth?.type !== "buyer" || prefs.isPending) return null;
+  if (prefs.error || !prefs.data) return null;
+  const p = prefs.data;
+  return (
+    <section className="pref-card">
+      <h3>Email preferences</h3>
+      {p.email && !p.email_verified && (
+        <p className="muted">Your email {p.email} is not verified yet. <button className="linklike" onClick={() => resend.mutate()} disabled={resend.isPending}>{resend.isPending ? "Sending…" : "Resend verification email"}</button></p>
+      )}
+      <label className="pref-row">
+        <input
+          type="checkbox"
+          checked={p.order_update_emails}
+          disabled={update.isPending}
+          onChange={(e) => update.mutate(e.target.checked)}
+        />
+        <span><b>Order update emails</b><small className="muted">Order confirmations, payment receipts, dispatch and delivery updates, returns and refunds. Password and security emails are always sent.</small></span>
+      </label>
+    </section>
+  );
+}
+
 // --- account hub ------------------------------------------------------------------
 export function AccountHub() {
   const { auth, signOut } = useAuth();
@@ -75,7 +117,9 @@ export function AccountHub() {
       <div className="tile-grid">{tiles.map((t) => (
         <button key={t.path} className="tile" onClick={() => go(t.path)}><b>{t.label}</b><span>{t.desc}</span></button>
       ))}</div>
+      <NotificationPrefs />
       <button className="ghost" onClick={signOut}>Log out</button>
+      <ChangePasswordForm kind="buyer" />
     </main>
   );
 }
@@ -171,7 +215,7 @@ const FAQS: { q: string; a: string }[] = [
   { q: "How does cash on delivery work?", a: "You pay nothing now. Your order stays “Needs confirmation” until the seller accepts it, then it moves through Packed → On the way → Delivered. Pay the courier in cash when it arrives." },
   { q: "Why can't I pay with eSewa or Khalti?", a: "Online wallets need approved merchant credentials on our side. If they are not connected yet, checkout says so honestly and cash on delivery always works." },
   { q: "How long does delivery take?", a: "Standard delivery takes 2–5 working days; express takes 1–2 working days for an extra Rs 120. Picking up from the seller is free." },
-  { q: "Can I return something?", a: "Yes — within 7 days of delivery, open your order on the tracking page and choose “Request return” with a reason. The seller accepts or declines; accepted returns are refunded after the item comes back." },
+  { q: "Can I return something?", a: "Yes — within 30 days of delivery, open your order on the tracking page and choose “Request return” with a reason. The seller accepts or declines (the marketplace team can overrule); accepted returns are refunded by our team after the item comes back." },
   { q: "How do I track my order?", a: "Open “My order” and enter your order code plus the mobile number used at checkout. Signed-in buyers also see every order under My account." },
   { q: "Are the sellers trustworthy?", a: "Sellers are approved by our team before their products appear. Look for the “Verified seller” badge on product pages, and read reviews — only delivered buyers can leave them." },
   { q: "How do coupons work?", a: "Enter a coupon code at checkout (step 3). If it is valid for your basket — for example WELCOME10 for 10% off orders over Rs 1,000 — the discount applies before delivery is added." },

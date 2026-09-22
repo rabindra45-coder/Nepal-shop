@@ -1,0 +1,1 @@
+CREATE TABLE `checkout_idempotency` (`key` text PRIMARY KEY NOT NULL, `group_id` integer NOT NULL REFERENCES `order_groups`(`id`), `created_at` integer NOT NULL);

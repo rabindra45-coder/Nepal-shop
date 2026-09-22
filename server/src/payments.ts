@@ -7,7 +7,9 @@
 //
 // Webhook/redirect architecture: neither provider calls us server-to-server.
 // Both redirect the buyer's browser to
-//   {PUBLIC_BASE_URL}/#/payment-result?provider=<esewa|khalti>&order_id=<id>
+//   {PUBLIC_BASE_URL}/#/payment-result?provider=<esewa|khalti>&group_id=<id>
+// (the id is the customer-facing order GROUP; one checkout = one payment,
+// even when it spans several sellers)
 // (see buildEsewaParams / initiateKhalti return_url), and that page calls the
 // verifyEsewaPayment / verifyKhaltiPayment actions, which do the real
 // server-side verification below before marking anything paid.
@@ -39,7 +41,7 @@ export function esewaFormUrl(mode: PaymentMode): string {
 }
 
 // eSewa amounts are rupees; our DB stores paisa.
-function paisaToRs(paisa: number): string {
+export function paisaToRs(paisa: number): string {
   return (paisa / 100).toString();
 }
 
@@ -77,8 +79,8 @@ export async function buildEsewaParams(args: {
     product_code: merchantId,
     product_service_charge: "0",
     product_delivery_charge: paisaToRs(args.deliveryPaisa),
-    success_url: `${baseUrl}/#/payment-result?provider=esewa&order_id=${args.orderId}`,
-    failure_url: `${baseUrl}/#/payment-result?provider=esewa&order_id=${args.orderId}`,
+    success_url: `${baseUrl}/#/payment-result?provider=esewa&group_id=${args.orderId}`,
+    failure_url: `${baseUrl}/#/payment-result?provider=esewa&group_id=${args.orderId}`,
     signed_field_names: "total_amount,transaction_uuid,product_code",
   };
   const signedString = `total_amount=${total},transaction_uuid=${args.orderCode},product_code=${merchantId}`;
@@ -174,7 +176,7 @@ export async function initiateKhalti(args: {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Key ${secretKey}` },
       body: JSON.stringify({
-        return_url: `${baseUrl}/#/payment-result?provider=khalti&order_id=${args.orderId}`,
+        return_url: `${baseUrl}/#/payment-result?provider=khalti&group_id=${args.orderId}`,
         website_url: baseUrl,
         amount: args.totalPaisa,
         purchase_order_id: args.orderCode,
@@ -194,8 +196,9 @@ export async function initiateKhalti(args: {
 }
 
 // Server-side lookup of a Khalti payment. Returns the status string
-// ("Completed" when the money moved) or null when unreachable.
-export async function lookupKhalti(pidx: string): Promise<string | null> {
+// ("Completed" when the money moved) and the amount in paisa when Khalti
+// reports it, or nulls when unreachable.
+export async function lookupKhalti(pidx: string): Promise<{ status: string | null; amountPaisa: number | null }> {
   const { secretKey, mode } = khaltiConfig();
   if (!secretKey) {
     throw new Error("Khalti payments are not configured yet. Please choose Cash on Delivery.");
@@ -206,10 +209,10 @@ export async function lookupKhalti(pidx: string): Promise<string | null> {
       headers: { "Content-Type": "application/json", Authorization: `Key ${secretKey}` },
       body: JSON.stringify({ pidx }),
     });
-    if (!res.ok) return null;
-    const json = (await res.json().catch(() => null)) as { status?: string } | null;
-    return json?.status ?? null;
+    if (!res.ok) return { status: null, amountPaisa: null };
+    const json = (await res.json().catch(() => null)) as { status?: string; total_amount?: number } | null;
+    return { status: json?.status ?? null, amountPaisa: typeof json?.total_amount === "number" ? json.total_amount : null };
   } catch {
-    return null;
+    return { status: null, amountPaisa: null };
   }
 }

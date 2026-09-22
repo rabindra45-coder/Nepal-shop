@@ -1,7 +1,8 @@
 // Admin panel phase-2 tabs: coupons, categories, homepage, analytics, tickets.
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api2, fmtDate, money, type P2Coupon, type P2Ticket } from "./phase2api";
+import { api2, fmtDate, money, uploadBannerImage, type P2Coupon, type P2Ticket } from "./phase2api";
+import { api } from "./api";
 import { STATUS_LABEL } from "./screens";
 import { useToast } from "./ui";
 
@@ -34,6 +35,7 @@ export function AdminCoupons() {
       kind: kind as "percent" | "fixed" | "free_shipping",
       value: kind === "percent" ? Number(d.get("value")) : Math.round(Number(d.get("value")) * 100),
       min_order_paisa: d.get("min_order") ? Math.round(Number(d.get("min_order")) * 100) : undefined,
+      max_discount_paisa: kind === "percent" && d.get("max_discount") ? Math.round(Number(d.get("max_discount")) * 100) : null,
       max_uses: d.get("max_uses") ? Number(d.get("max_uses")) : null,
       per_user_limit: Number(d.get("per_user_limit") ?? 1) || 1,
       expires_at: expires ? new Date(expires).toISOString() : null,
@@ -50,7 +52,7 @@ export function AdminCoupons() {
       <div className="admin-table">{list.data?.coupons.map((c) => (
         <article key={c.id}>
           <div><h3>{c.code}</h3>
-            <p className="muted">{c.kind === "percent" ? `${c.value}% off` : c.kind === "fixed" ? `${money(c.value)} off` : "Free shipping"} · min order {money(c.min_order_paisa)}{c.expires_at ? ` · expires ${fmtDate(c.expires_at)}` : ""}</p>
+            <p className="muted">{c.kind === "percent" ? `${c.value}% off` : c.kind === "fixed" ? `${money(c.value)} off` : "Free shipping"} · min order {money(c.min_order_paisa)}{c.kind === "percent" && c.max_discount_paisa != null ? ` · capped at ${money(c.max_discount_paisa)}` : ""}{c.expires_at ? ` · expires ${fmtDate(c.expires_at)}` : ""}</p>
             <small>{c.max_uses ? `Max ${c.max_uses} uses · ` : ""}{c.per_user_limit} per buyer · {c.is_active ? "Active" : "Disabled"}</small></div>
           <div className="order-actions">
             <button onClick={() => toggle.mutate({ id: c.id, is_active: !c.is_active })}>{c.is_active ? "Disable" : "Enable"}</button>
@@ -74,7 +76,10 @@ export function AdminCoupons() {
             <label>Per-buyer limit<input name="per_user_limit" type="number" min="1" defaultValue={editing?.per_user_limit ?? 1} /></label>
           </div>
           <div className="form-pair">
+            <label>Max discount, rupees (percent coupons only — empty = no cap)<input name="max_discount" type="number" min="0" step="0.01" defaultValue={editing?.max_discount_paisa != null ? editing.max_discount_paisa / 100 : ""} /></label>
             <label>Expiry date<input name="expires_at" type="date" defaultValue={toDateInput(editing?.expires_at ?? null)} /></label>
+          </div>
+          <div className="form-pair">
             <label className="check"><input name="is_active" type="checkbox" defaultChecked={editing?.is_active ?? true} /> Active</label>
           </div>
           <div className="form-pair">
@@ -129,10 +134,25 @@ export function AdminCategories() {
 export function AdminHomepage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [banner, setBanner] = useState<{ id?: number; title: string; subtitle: string; link: string; is_active: boolean; sort_order: number } | null>(null);
+  const [banner, setBanner] = useState<{ id?: number; title: string; subtitle: string; link: string; image_url: string; is_active: boolean; sort_order: number } | null>(null);
+  const [uploading, setUploading] = useState(false);
   const banners = useQuery({ queryKey: ["admin-banners"], queryFn: () => api2.adminListBanners({}) });
   const sections = useQuery({ queryKey: ["admin-sections"], queryFn: () => api2.adminListSections({}) });
   const refresh = () => { void queryClient.invalidateQueries({ queryKey: ["admin-banners"] }); void queryClient.invalidateQueries({ queryKey: ["admin-sections"] }); };
+
+  const pickBannerImage = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadBannerImage(file);
+      setBanner((b) => (b ? { ...b, image_url: url } : b));
+      toast("Banner image uploaded.");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Upload failed.", "err");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const saveBanner = useMutation({
     mutationFn: (args: Parameters<typeof api2.adminSaveBanner>[0]) => api2.adminSaveBanner(args),
@@ -151,22 +171,34 @@ export function AdminHomepage() {
 
   return (
     <div className="studio-layout">
-      <section className="studio-section wide"><div className="section-title"><h2>Promo banners</h2>{!banner && <button onClick={() => setBanner({ title: "", subtitle: "", link: "", is_active: true, sort_order: 0 })}>+ New banner</button>}</div>
-        {banners.isPending && <p className="muted">Loading banners…</p>}
+      <section className="studio-section wide"><div className="section-title"><h2>Advertisements</h2>{!banner && <button onClick={() => setBanner({ title: "", subtitle: "", link: "", image_url: "", is_active: true, sort_order: 0 })}>+ New advertisement</button>}</div>
+        <p className="muted">Advertisements appear as an image carousel on the homepage. Every advertisement is shown with its image, so an image is required.</p>
+        {banners.isPending && <p className="muted">Loading advertisements…</p>}
         <div className="admin-table">{banners.data?.banners.map((b) => (
           <article key={b.id}>
-            <div><h3>{b.title}</h3><p className="muted">{b.subtitle ?? "—"} · link {b.link ?? "—"} · order {b.sort_order} · {b.is_active ? "Active" : "Hidden"}</p></div>
+            <div className="banner-row">
+              {b.image_url ? <img src={b.image_url} alt="" className="banner-thumb" /> : <span className="banner-thumb empty">No image</span>}
+              <div><h3>{b.title}</h3><p className="muted">{b.subtitle ?? "—"} · link {b.link ?? "—"} · order {b.sort_order} · {b.is_active ? "Active" : "Hidden"}</p></div>
+            </div>
             <div className="order-actions">
-              <button onClick={() => setBanner({ id: b.id, title: b.title, subtitle: b.subtitle ?? "", link: b.link ?? "", is_active: b.is_active, sort_order: b.sort_order })}>Edit</button>
-              <button className="text-danger" onClick={() => { if (window.confirm("Delete this banner?")) deleteBanner.mutate(b.id); }}>Delete</button>
+              <button onClick={() => setBanner({ id: b.id, title: b.title, subtitle: b.subtitle ?? "", link: b.link ?? "", image_url: b.image_url ?? "", is_active: b.is_active, sort_order: b.sort_order })}>Edit</button>
+              <button className="text-danger" onClick={() => { if (window.confirm("Delete this advertisement?")) deleteBanner.mutate(b.id); }}>Delete</button>
             </div>
           </article>
         ))}</div>
         {banner && (
           <form className="stack-form" onSubmit={(e) => {
             e.preventDefault();
-            saveBanner.mutate({ id: banner.id, title: banner.title, subtitle: banner.subtitle || null, link: banner.link || null, is_active: banner.is_active, sort_order: banner.sort_order });
+            if (!banner.image_url) { toast("Please upload a banner image first.", "err"); return; }
+            saveBanner.mutate({ id: banner.id, title: banner.title, subtitle: banner.subtitle || null, link: banner.link || null, image_url: banner.image_url, is_active: banner.is_active, sort_order: banner.sort_order });
           }}>
+            <label>Advertisement image (required)
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploading}
+                onChange={(e) => { void pickBannerImage(e.target.files?.[0]); e.target.value = ""; }} />
+              <small>JPG, PNG, WebP or GIF, up to 5 MB. Wide images (about 16:9) look best.</small>
+            </label>
+            {uploading && <p className="muted">Uploading image…</p>}
+            {banner.image_url && <img src={banner.image_url} alt="Advertisement preview" className="banner-preview" />}
             <label>Title<input value={banner.title} onChange={(e) => setBanner({ ...banner, title: e.target.value })} required /></label>
             <label>Subtitle<input value={banner.subtitle} onChange={(e) => setBanner({ ...banner, subtitle: e.target.value })} /></label>
             <div className="form-pair">
@@ -174,7 +206,7 @@ export function AdminHomepage() {
               <label>Sort order<input type="number" value={banner.sort_order} onChange={(e) => setBanner({ ...banner, sort_order: Number(e.target.value) })} /></label>
             </div>
             <label className="check"><input type="checkbox" checked={banner.is_active} onChange={(e) => setBanner({ ...banner, is_active: e.target.checked })} /> Active</label>
-            <div className="form-pair"><button className="primary" disabled={saveBanner.isPending}>Save banner</button><button type="button" className="ghost" onClick={() => setBanner(null)}>Cancel</button></div>
+            <div className="form-pair"><button className="primary" disabled={saveBanner.isPending || uploading || !banner.image_url}>Save advertisement</button><button type="button" className="ghost" onClick={() => setBanner(null)}>Cancel</button></div>
           </form>
         )}
       </section>
@@ -201,16 +233,40 @@ export function AdminAnalytics() {
   if (a.isPending) return <p className="muted">Loading marketplace numbers…</p>;
   if (a.error) return <p className="form-error">Analytics could not load.</p>;
   const d = a.data!;
+  const f = d.funnel;
   const maxDay = Math.max(1, ...d.revenue_by_day.map((r) => r.revenue_paisa));
+  const funnelEmpty = f.views_30d === 0 && f.add_to_cart_30d === 0;
   return (
     <div className="studio-layout">
       <section className="studio-section wide"><h2>Marketplace health</h2>
         <div className="stat-grid">
           <div><b>{d.conversion_pct.toFixed(1)}%</b><span>View → order conversion (30d)</span></div>
           <div><b>{money(d.aov_paisa)}</b><span>Average order value</span></div>
+          <div><b>{money(d.totals.revenue_paisa_30d)}</b><span>Revenue (30d)</span></div>
+          <div><b>{d.totals.customers_30d}</b><span>Customers (30d)</span></div>
           <div><b>{Object.values(d.orders_by_status).reduce((s, c) => s + c, 0)}</b><span>Total orders</span></div>
           <div className={d.low_stock_products.length ? "alert" : ""}><b>{d.low_stock_products.length}</b><span>Products low on stock</span></div>
         </div>
+      </section>
+      <section className="studio-section wide"><h2>Purchase funnel (30d)</h2>
+        {funnelEmpty ? (
+          <p className="muted">No shopper activity recorded yet. The funnel fills in as customers browse products, add items to their carts and check out.</p>
+        ) : (
+          <>
+            <div className="stat-grid">
+              <div><b>{f.views_30d}</b><span>Product views</span></div>
+              <div><b>{f.add_to_cart_30d}</b><span>Added to cart</span></div>
+              <div><b>{f.checkout_start_30d}</b><span>Checkout started</span></div>
+              <div><b>{f.purchases_30d}</b><span>Orders placed</span></div>
+            </div>
+            <div className="kv">
+              <span><b>{f.view_to_cart_pct.toFixed(1)}%</b> of views led to a cart</span>
+              <span><b>{f.cart_to_checkout_pct.toFixed(1)}%</b> of carts reached checkout</span>
+              <span><b>{f.checkout_to_purchase_pct.toFixed(1)}%</b> of checkouts became orders</span>
+              <span><b>{f.cart_abandonment_pct.toFixed(1)}%</b> cart abandonment</span>
+            </div>
+          </>
+        )}
       </section>
       <section className="studio-section wide"><h2>Revenue by day (30d)</h2>
         <div className="bars">{d.revenue_by_day.map((r) => (
@@ -292,5 +348,559 @@ export function AdminTickets() {
         </article>
       ))}</div>
     </section>
+  );
+}
+
+// --- payments -----------------------------------------------------------------------
+// Real payment rows from the database, with the live commission rules,
+// payout queue and ledger-derived seller balances underneath.
+export function AdminPayments() {
+  const [filter, setFilter] = useState<string>("all");
+  const list = useQuery({
+    queryKey: ["admin-payments", filter],
+    queryFn: () => api.adminListPayments(filter === "all" ? {} : { status: filter as "pending" | "processing" | "paid" | "failed" | "refunded" | "cancelled" }),
+  });
+  const rows = list.data?.payments ?? [];
+  const paidTotal = rows.filter((p) => p.status === "paid").reduce((n, p) => n + p.amount_paisa, 0);
+  const refundedTotal = rows.filter((p) => p.status === "refunded").reduce((n, p) => n + p.amount_paisa, 0);
+  return (
+    <div className="studio-layout">
+      <section className="studio-section wide"><div className="section-title"><h2>Payments</h2><span>{rows.length}</span>
+        <label className="muted">Status <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <option value="all">All</option><option value="pending">Pending</option><option value="processing">Processing</option>
+          <option value="paid">Paid</option><option value="failed">Failed</option><option value="refunded">Refunded</option><option value="cancelled">Cancelled</option>
+        </select></label></div>
+        <div className="stat-grid">
+          <div><b>{money(paidTotal)}</b><span>Collected (paid)</span></div>
+          <div><b>{money(refundedTotal)}</b><span>Refunded</span></div>
+        </div>
+        {list.isPending && <p className="muted">Loading payments…</p>}
+        {list.error && <p className="form-error">Could not load payments.</p>}
+        {rows.length === 0 && !list.isPending && <p className="muted">No payment records yet.</p>}
+        <div className="admin-table">{rows.map((p) => (
+          <article key={p.id}>
+            <div><h3>{p.group_code ?? p.order_code}</h3><p className="muted">{p.store_name} · {p.provider === "cod" ? "Cash on delivery" : p.provider}{p.group_code ? ` · fulfilment ${p.order_code}` : ""}</p><small>{fmtDate(p.created_at)}</small></div>
+            <div className="order-actions"><b>{money(p.amount_paisa)}</b><span className={`status ${p.status}`}>{p.status}</span></div>
+          </article>
+        ))}</div>
+      </section>
+      <section className="studio-section wide"><h2>Commission rules</h2><AdminCommission /></section>
+      <section className="studio-section wide"><h2>Payout queue</h2><AdminPayouts /></section>
+      <section className="studio-section wide"><h2>Seller balances</h2><AdminSellerBalances /></section>
+    </div>
+  );
+}
+
+// --- review moderation --------------------------------------------------------------
+const REPORT_REASONS: Record<string, string> = { spam: "Spam", abuse: "Abusive content", fake: "Fake review", other: "Other" };
+export function AdminReviewReports() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<string>("open");
+  const list = useQuery({
+    queryKey: ["admin-review-reports", filter],
+    queryFn: () => api.adminListReviewReports(filter === "all" ? {} : { status: filter as "open" | "resolved" }),
+  });
+  const refresh = () => { void queryClient.invalidateQueries({ queryKey: ["admin-review-reports"] }); void queryClient.invalidateQueries({ queryKey: ["admin-stats"] }); };
+  const resolve = useMutation({
+    mutationFn: (v: { report_id: number; decision: "dismiss" | "delete_review" }) => api.adminResolveReviewReport(v),
+    onSuccess: () => { refresh(); toast("Report handled."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not handle the report.", "err"),
+  });
+  const rows = list.data?.reports ?? [];
+  return (
+    <section className="studio-section wide"><div className="section-title"><h2>Review reports</h2><span>{rows.length}</span>
+      <label className="muted">Status <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+        <option value="open">Open</option><option value="resolved">Resolved</option><option value="all">All</option>
+      </select></label></div>
+      {list.isPending && <p className="muted">Loading reports…</p>}
+      {list.error && <p className="form-error">Could not load reports.</p>}
+      {rows.length === 0 && !list.isPending && <p className="muted">No review reports here.</p>}
+      <div className="issues">{rows.map((r) => (
+        <article key={r.id}>
+          <div>
+            <p className="eyebrow">{REPORT_REASONS[r.reason] ?? r.reason} · reported by {r.reporter_name} · {fmtDate(r.created_at)} · {r.status}</p>
+            {r.review ? (<>
+              <p><b>{r.review.product_name}</b> <span className="muted">· {r.review.store_name}</span></p>
+              <p><b>{"★".repeat(r.review.rating)}{"☆".repeat(5 - r.review.rating)}</b> — “{r.review.body}”</p>
+              <small className="muted">Written by {r.review.reviewer_name}</small>
+            </>) : <p className="muted">The review was already removed.</p>}
+            {r.detail && <p><small>Reporter's note: {r.detail}</small></p>}
+          </div>
+          {r.status === "open" && r.review && <div className="order-actions">
+            <button disabled={resolve.isPending} onClick={() => resolve.mutate({ report_id: r.id, decision: "dismiss" })}>Dismiss report</button>
+            <button className="text-danger" disabled={resolve.isPending} onClick={() => { if (window.confirm("Delete this review? This cannot be undone.")) resolve.mutate({ report_id: r.id, decision: "delete_review" }); }}>Delete review</button>
+          </div>}
+        </article>
+      ))}</div>
+    </section>
+  );
+}
+
+// --- audit log ------------------------------------------------------------------------
+export function AdminAuditLog() {
+  const PAGE = 50;
+  const [offset, setOffset] = useState(0);
+  const list = useQuery({ queryKey: ["admin-audit", offset], queryFn: () => api.adminListAuditLogs({ limit: PAGE, offset }) });
+  const rows = list.data?.entries ?? [];
+  const total = list.data?.total ?? 0;
+  return (
+    <section className="studio-section wide"><div className="section-title"><h2>Audit log</h2><span>{total}</span></div>
+      <p className="muted">Append-only record of sensitive actions: seller status changes, buyer suspensions, product visibility, order changes, refunds, password changes and moderation decisions.</p>
+      {list.isPending && <p className="muted">Loading audit entries…</p>}
+      {list.error && <p className="form-error">Could not load the audit log.</p>}
+      {rows.length === 0 && !list.isPending && <p className="muted">No audit entries yet.</p>}
+      <div className="admin-table">{rows.map((e) => (
+        <article key={e.id}>
+          <div><h3>{e.action.replace(/_/g, " ")}</h3>
+            <p className="muted">{e.actor_type} {e.actor_id}{e.entity_type ? ` · ${e.entity_type} ${e.entity_id}` : ""}</p>
+            {e.detail && <p><small>{e.detail}</small></p>}
+            <small>{fmtDate(e.created_at)}</small></div>
+        </article>
+      ))}</div>
+      <div className="form-pair">
+        <button className="ghost" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>← Newer</button>
+        <button className="ghost" disabled={offset + PAGE >= total} onClick={() => setOffset(offset + PAGE)}>Older →</button>
+      </div>
+    </section>
+  );
+}
+
+// --- returns -----------------------------------------------------------------
+// Marketplace-level return review: a seller's accept or reject can be
+// overruled here (buyer protection). Every decision is recorded with who
+// made it and when.
+export function AdminReturns() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<string>("all");
+  const list = useQuery({
+    queryKey: ["admin-returns", filter],
+    queryFn: () => api2.adminListReturns(filter === "all" ? {} : { status: filter as "requested" | "accepted" | "rejected" }),
+  });
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: ["admin-returns"] });
+  const decide = useMutation({
+    mutationFn: (v: { order_id: number; decision: "accepted" | "rejected" }) => api2.adminUpdateReturnStatus(v),
+    onSuccess: () => { refresh(); toast("Return decision recorded."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not update.", "err"),
+  });
+  const rows = list.data?.returns ?? [];
+  const statusLabel: Record<string, string> = { requested: "Awaiting decision", accepted: "Accepted", rejected: "Rejected" };
+  return (
+    <section className="studio-section wide"><div className="section-title"><h2>Returns</h2><span>{rows.length}</span>
+      <label className="muted">Status <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+        <option value="all">All</option><option value="requested">Awaiting decision</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option>
+      </select></label></div>
+      {list.isPending && <p className="muted">Loading returns…</p>}
+      {list.error && <p className="form-error">Could not load returns.</p>}
+      {rows.length === 0 && !list.isPending && <p className="muted">No returns here yet.</p>}
+      <div className="order-admin">{rows.map((r) => (
+        <article key={r.id}>
+          <div>
+            <p className="eyebrow">{r.order_code} · {r.store_name} · {statusLabel[r.status] ?? r.status}</p>
+            <h3>Reason given</h3>
+            <p>{r.reason}</p>
+            <p className="muted">Requested by {r.requested_by === "buyer" ? "the buyer" : r.requested_by === "admin" ? "admin" : r.requested_by}{r.decided_by ? ` · decided by ${r.decided_by}` : ""} · {fmtDate(r.created_at)}</p>
+          </div>
+          <div className="order-actions">
+            <button className="primary" disabled={decide.isPending} onClick={() => decide.mutate({ order_id: r.order_id, decision: "accepted" })}>Accept return</button>
+            <button disabled={decide.isPending} onClick={() => decide.mutate({ order_id: r.order_id, decision: "rejected" })}>Reject</button>
+          </div>
+        </article>
+      ))}</div>
+    </section>
+  );
+}
+
+// --- refunds -----------------------------------------------------------------
+// The only honest place a refund moves: the marketplace team completes each
+// refund manually (wallet/bank transfer) and records a reference. Nothing
+// here pretends money moved before this queue says so.
+export function AdminRefunds() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<string>("pending");
+  const [reference, setReference] = useState<Record<number, string>>({});
+  const list = useQuery({
+    queryKey: ["admin-refunds", filter],
+    queryFn: () => api2.adminListRefunds(filter === "all" ? {} : { status: filter as "not_required" | "pending" | "completed" | "failed" }),
+  });
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: ["admin-refunds"] });
+  const resolve = useMutation({
+    mutationFn: (v: { refund_id: number; decision: "completed" | "failed"; reference: string }) => api2.adminResolveRefund(v),
+    onSuccess: () => { refresh(); toast("Refund decision recorded."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not resolve.", "err"),
+  });
+  const rows = list.data?.refunds ?? [];
+  const statusLabel: Record<string, string> = { not_required: "Not required", pending: "Waiting on the team", completed: "Completed", failed: "Failed — retry" };
+  return (
+    <section className="studio-section wide"><div className="section-title"><h2>Refunds</h2><span>{rows.length}</span>
+      <label className="muted">Status <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+        <option value="pending">Waiting on the team</option><option value="failed">Failed</option><option value="completed">Completed</option><option value="not_required">Not required</option><option value="all">All</option>
+      </select></label></div>
+      <p className="muted">Refunds are completed manually by the marketplace team — eSewa/Khalti refunds are initiated in the provider’s own dashboard. Partial provider refunds are not supported, so a multi-seller group is only marked fully refunded once every fulfilment’s refund is complete.</p>
+      {list.isPending && <p className="muted">Loading refunds…</p>}
+      {list.error && <p className="form-error">Could not load refunds.</p>}
+      {rows.length === 0 && !list.isPending && <p className="muted">Nothing waiting in this queue.</p>}
+      <div className="order-admin">{rows.map((r) => (
+        <article key={r.id}>
+          <div>
+            <p className="eyebrow">{r.order_code} · {r.store_name} · {statusLabel[r.status] ?? r.status}</p>
+            <h3>{money(r.amount_paisa)} · {r.provider.toUpperCase()}</h3>
+            {r.note && <p>{r.note}</p>}
+            <p className="muted">Requested by {r.requested_by} · {fmtDate(r.created_at)}{r.resolved_by ? ` · resolved by ${r.resolved_by}` : ""}</p>
+          </div>
+          {(r.status === "pending" || r.status === "failed") && (
+            <div className="order-actions">
+              <label>Reference<input placeholder="e.g. eSewa txn id" value={reference[r.id] ?? ""} onChange={(e) => setReference({ ...reference, [r.id]: e.target.value })} maxLength={160} /></label>
+              <button className="primary" disabled={resolve.isPending} onClick={() => { const ref = (reference[r.id] ?? "").trim(); if (!ref) { toast("A reference is required so the refund stays traceable.", "err"); return; } resolve.mutate({ refund_id: r.id, decision: "completed", reference: ref }); }}>Mark completed</button>
+              <button className="text-danger" disabled={resolve.isPending} onClick={() => { const ref = (reference[r.id] ?? "").trim(); if (!ref) { toast("A reference is required — note why it failed.", "err"); return; } resolve.mutate({ refund_id: r.id, decision: "failed", reference: ref }); }}>Mark failed</button>
+            </div>
+          )}
+        </article>
+      ))}</div>
+    </section>
+  );
+}
+
+// --- shipping settings --------------------------------------------------------
+// Admin-configurable delivery methods and the express surcharge. The
+// checkout reads these live; there is no separate courier integration, so
+// sellers ship with their own couriers and attach tracking numbers.
+export function AdminShippingSettings() {
+  const { toast } = useToast();
+  const settings = useQuery({ queryKey: ["admin-shipping-settings"], queryFn: () => api2.adminGetShippingSettings({}) });
+  const [fee, setFee] = useState("");
+  const [standard, setStandard] = useState(true);
+  const [express, setExpress] = useState(true);
+  const [pickup, setPickup] = useState(true);
+  const data = settings.data;
+  useEffect(() => {
+    if (data) {
+      setFee(String((data.express_fee_paisa / 100).toFixed(0)));
+      setStandard(data.standard_enabled);
+      setExpress(data.express_enabled);
+      setPickup(data.pickup_enabled);
+    }
+  }, [data]);
+  const save = useMutation({
+    mutationFn: () => api2.adminSaveShippingSettings({
+      express_fee_paisa: Math.max(0, Math.round(Number(fee) * 100) || 0),
+      standard_enabled: standard, express_enabled: express, pickup_enabled: pickup,
+    }),
+    onSuccess: () => { toast("Shipping settings saved."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not save.", "err"),
+  });
+  if (settings.isPending) return <p className="muted">Loading shipping settings…</p>;
+  if (settings.error) return <p className="form-error">Could not load shipping settings.</p>;
+  return (
+    <section className="studio-section"><div className="section-title"><h2>Shipping settings</h2></div>
+      <p className="muted">The express surcharge applies per seller, since each seller ships their own parcel. There is no courier integration yet — sellers ship with their own couriers and add the tracking number to each order.</p>
+      <form className="stack-form" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+        <label>Express surcharge per seller, rupees<input type="number" min="0" step="1" value={fee} onChange={(e) => setFee(e.target.value)} required /></label>
+        <label className="check"><input type="checkbox" checked={standard} onChange={(e) => setStandard(e.target.checked)} /> Standard delivery offered</label>
+        <label className="check"><input type="checkbox" checked={express} onChange={(e) => setExpress(e.target.checked)} /> Express delivery offered</label>
+        <label className="check"><input type="checkbox" checked={pickup} onChange={(e) => setPickup(e.target.checked)} /> Pick up from seller offered</label>
+        <button className="primary" disabled={save.isPending}>{save.isPending ? "Saving…" : "Save shipping settings"}</button>
+      </form>
+    </section>
+  );
+}
+
+// --- commission + payouts (money checkpoint) ------------------------------------
+// Real rules engine, payout queue and ledger-derived balances. No invented
+// numbers anywhere: every figure comes from the seller_ledger.
+type CommissionScope = "platform" | "category" | "seller" | "product" | "campaign";
+type CommissionRule = {
+  id: number; scope: CommissionScope; scope_id: string; percent: number; label: string;
+  starts_at: string | null; ends_at: string | null; is_active: boolean; created_at: string;
+};
+type PayoutRow = {
+  id: number; store_id: number; store_name: string; seller_code: string; amount_paisa: number;
+  status: "requested" | "processing" | "completed" | "failed" | "cancelled";
+  method: "bank" | "esewa" | "khalti"; destination: string; reference: string | null; note: string;
+  created_at: string; updated_at: string;
+};
+const SCOPE_LABEL: Record<CommissionScope, string> = {
+  platform: "Platform default", category: "Category", seller: "Seller", product: "Product", campaign: "Campaign",
+};
+const PAYOUT_STATUS_LABEL: Record<string, string> = {
+  requested: "Requested", processing: "Processing", completed: "Completed", failed: "Failed", cancelled: "Cancelled",
+};
+const PAYOUT_METHOD_LABEL: Record<string, string> = { bank: "Bank transfer", esewa: "eSewa", khalti: "Khalti" };
+
+function scopeTargetLabel(r: CommissionRule): string {
+  if (r.scope === "platform") return "everywhere";
+  if (r.scope === "campaign") return `${r.scope_id}${r.label ? ` — ${r.label}` : ""}`;
+  return r.scope_id;
+}
+
+export function AdminCommission() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const rules = useQuery({ queryKey: ["admin-commission-rules"], queryFn: () => api.adminListCommissionRules({}) });
+  const settings = useQuery({ queryKey: ["admin-money-settings"], queryFn: () => api.adminGetMoneySettings({}) });
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [scope, setScope] = useState<CommissionScope>("platform");
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ["admin-commission-rules"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-money-settings"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-seller-balances"] });
+  };
+  const save = useMutation({
+    mutationFn: (v: { scope: CommissionScope; scope_id: string; percent: number; label?: string; starts_at?: string; ends_at?: string; is_active: boolean }) =>
+      api.adminSaveCommissionRule(v),
+    onSuccess: () => { setEditingId(null); refresh(); toast("Commission rule saved — it prices new sales from now on."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not save the rule.", "err"),
+  });
+  const remove = useMutation({
+    mutationFn: (rule_id: number) => api.adminDeleteCommissionRule({ rule_id }),
+    onSuccess: () => { setConfirmDelete(null); refresh(); toast("Rule deleted."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not delete the rule.", "err"),
+  });
+  const saveSettings = useMutation({
+    mutationFn: (v: { commission_default_percent: number; payout_available_after_days: number; payout_min_paisa: number }) =>
+      api.adminSaveMoneySettings(v),
+    onSuccess: () => { refresh(); toast("Money settings saved."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not save.", "err"),
+  });
+  const rows: CommissionRule[] = rules.data?.rules ?? [];
+  const editing: CommissionRule | undefined = editingId != null && editingId !== -1 ? rows.find((r) => r.id === editingId) : undefined;
+  const effScope = editing?.scope ?? scope;
+  const toLocal = (iso: string | null) => (iso ? iso.slice(0, 16) : "");
+  const submitRule = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const d = new FormData(e.currentTarget);
+    const s = (editing?.scope ?? String(d.get("scope"))) as CommissionScope;
+    const percent = Math.round(Number(d.get("percent")));
+    if (!Number.isInteger(percent) || percent < 0 || percent > 90) { toast("Commission must be 0–90%.", "err"); return; }
+    const v: { scope: CommissionScope; scope_id: string; percent: number; label?: string; starts_at?: string; ends_at?: string; is_active: boolean } = {
+      scope: s,
+      scope_id: s === "platform" ? "" : String(d.get("scope_id") ?? "").trim(),
+      percent,
+      label: String(d.get("label") ?? "").trim() || undefined,
+      is_active: d.get("is_active") === "on",
+    };
+    if (s === "campaign") {
+      const st = String(d.get("starts_at") ?? "").trim(), en = String(d.get("ends_at") ?? "").trim();
+      if (st) v.starts_at = new Date(st).toISOString();
+      if (en) v.ends_at = new Date(en).toISOString();
+    }
+    save.mutate(v);
+  };
+  const submitSettings = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const d = new FormData(e.currentTarget);
+    saveSettings.mutate({
+      commission_default_percent: Math.round(Number(d.get("default_percent"))),
+      payout_available_after_days: Math.round(Number(d.get("hold_days"))),
+      payout_min_paisa: Math.round(Number(d.get("min_payout")) * 100),
+    });
+  };
+  const scopeIdHint: Record<CommissionScope, string> = {
+    platform: "", category: "Category name, exactly as on products", seller: "Seller id (number)",
+    product: "Product id (number)", campaign: "Campaign code, e.g. dashain-sale",
+  };
+  return (
+    <div>
+      {rules.isPending ? <p className="muted">Loading rules…</p> : rules.error ? <p className="form-error">Rules could not load.</p> : (
+        <>
+          {rows.length === 0 && <p className="muted">No rules yet — sales use the platform default below.</p>}
+          <div className="kv">{rows.map((r) => (
+            <span key={r.id} className={!r.is_active ? "muted" : undefined}>
+              <b>{r.percent}%</b> {SCOPE_LABEL[r.scope]} · {scopeTargetLabel(r)}
+              {r.scope === "campaign" && (r.starts_at || r.ends_at) && <small> · {r.starts_at ? fmtDate(r.starts_at) : "…"} → {r.ends_at ? fmtDate(r.ends_at) : "…"}</small>}
+              {!r.is_active && <small> · inactive</small>}
+              <span className="variant-actions">
+                <button type="button" onClick={() => { setEditingId(r.id); setScope(r.scope); setConfirmDelete(null); }}>Edit</button>
+                {confirmDelete === r.id
+                  ? <button type="button" className="text-danger" disabled={remove.isPending} onClick={() => remove.mutate(r.id)}>Confirm</button>
+                  : <button type="button" onClick={() => setConfirmDelete(r.id)}>Delete</button>}
+              </span>
+            </span>
+          ))}</div>
+        </>
+      )}
+      {editingId === -1 || editing ? (
+        <form className="stack-form compact" key={editing?.id ?? "new"} onSubmit={submitRule}>
+          <div className="form-pair">
+            <label>Scope<select name="scope" defaultValue={editing?.scope ?? scope} disabled={!!editing} onChange={(e) => setScope(e.target.value as CommissionScope)}>
+              {(Object.keys(SCOPE_LABEL) as CommissionScope[]).map((s) => <option key={s} value={s}>{SCOPE_LABEL[s]}</option>)}
+            </select></label>
+            <label>Commission %<input name="percent" type="number" min={0} max={90} defaultValue={editing?.percent ?? 5} required /></label>
+          </div>
+          {effScope !== "platform" && (
+            <label>Target <small>{scopeIdHint[effScope]}</small>
+              <input name="scope_id" defaultValue={editing?.scope_id ?? ""} required disabled={!!editing} maxLength={80} />
+            </label>
+          )}
+          <label>Label (optional)<input name="label" defaultValue={editing?.label ?? ""} maxLength={80} placeholder='e.g. "Festive offer"' /></label>
+          {effScope === "campaign" && (
+            <div className="form-pair">
+              <label>Starts<input name="starts_at" type="datetime-local" defaultValue={toLocal(editing?.starts_at ?? null)} /></label>
+              <label>Ends<input name="ends_at" type="datetime-local" defaultValue={toLocal(editing?.ends_at ?? null)} /></label>
+            </div>
+          )}
+          <label className="check"><input name="is_active" type="checkbox" defaultChecked={editing?.is_active ?? true} /> Active</label>
+          <div className="form-row">
+            <button className="primary" disabled={save.isPending}>{save.isPending ? "Saving…" : editing ? "Save rule" : "Add rule"}</button>
+            <button type="button" onClick={() => setEditingId(null)}>Cancel</button>
+          </div>
+          <small className="muted">Resolution per order line: product → seller → category → active campaign → platform → default. Rules price new sales only; past ledger rows never change.</small>
+        </form>
+      ) : (
+        <p><button type="button" className="up-add-inline" onClick={() => { setEditingId(-1); setConfirmDelete(null); }}>+ Add a commission rule</button></p>
+      )}
+      <h3>Platform money settings</h3>
+      {settings.isPending ? <p className="muted"><small>Loading…</small></p> : settings.error ? <p className="form-error">Settings could not load.</p> : (
+        <form className="stack-form compact" key={JSON.stringify(settings.data)} onSubmit={submitSettings}>
+          <div className="form-pair">
+            <label>Default commission %<input name="default_percent" type="number" min={0} max={90} defaultValue={settings.data!.commission_default_percent} required /></label>
+            <label>Earnings hold, days after delivery<input name="hold_days" type="number" min={0} max={90} defaultValue={settings.data!.payout_available_after_days} required /></label>
+          </div>
+          <label>Minimum payout, rupees<input name="min_payout" type="number" min={0} step={0.01} defaultValue={settings.data!.payout_min_paisa / 100} required /></label>
+          <button className="primary" disabled={saveSettings.isPending}>{saveSettings.isPending ? "Saving…" : "Save money settings"}</button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+export function AdminPayouts() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [refNote, setRefNote] = useState<Record<number, string>>({});
+  const queue = useQuery({
+    queryKey: ["admin-payouts-queue"],
+    queryFn: async () => {
+      const [req, proc] = await Promise.all([api.adminListPayouts({ status: "requested" }), api.adminListPayouts({ status: "processing" })]);
+      return [...req.payouts, ...proc.payouts].sort((a, b) => a.id - b.id) as PayoutRow[];
+    },
+  });
+  const history = useQuery({ queryKey: ["admin-payouts-history"], queryFn: () => api.adminListPayouts({}) });
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ["admin-payouts-queue"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-payouts-history"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-seller-balances"] });
+  };
+  const setStatus = useMutation({
+    mutationFn: (v: { payout_id: number; status: "processing" | "completed" | "failed" | "cancelled"; reference?: string; note?: string }) =>
+      api.adminSetPayoutStatus(v),
+    onSuccess: (_, v) => {
+      setRefNote((m) => { const c = { ...m }; delete c[v.payout_id]; return c; });
+      refresh();
+      toast(v.status === "completed" ? "Payout completed — the seller's balance was debited." : `Payout ${v.status}.`);
+    },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not update the payout.", "err"),
+  });
+  const rows = queue.data ?? [];
+  const past: PayoutRow[] = (history.data?.payouts ?? []).filter((p) => p.status === "completed" || p.status === "failed" || p.status === "cancelled");
+  const act = (p: PayoutRow, status: "processing" | "completed" | "failed" | "cancelled") => {
+    const text = (refNote[p.id] ?? "").trim();
+    if (status === "completed" && text.length < 2) { toast("Enter the bank/wallet transaction reference to complete.", "err"); return; }
+    setStatus.mutate({ payout_id: p.id, status, reference: status === "completed" ? text : undefined, note: status === "completed" ? undefined : text || undefined });
+  };
+  return (
+    <div>
+      <h3>Waiting ({rows.length})</h3>
+      {queue.isPending ? <p className="muted">Loading queue…</p> : queue.error ? <p className="form-error">Queue could not load.</p> :
+        rows.length === 0 ? <p className="muted">Nothing waiting — the queue is clear.</p> : (
+          <div className="issues">{rows.map((p) => (
+            <article key={p.id}>
+              <div>
+                <p className="eyebrow">{p.store_name} · {p.seller_code} · {fmtDate(p.created_at)}</p>
+                <h3>{money(p.amount_paisa)} <small>· {PAYOUT_METHOD_LABEL[p.method]} · {p.destination}</small></h3>
+                <p><span className={`status ${p.status}`}>{PAYOUT_STATUS_LABEL[p.status]}</span></p>
+                <label><small>{p.status === "processing" ? "Transaction reference (required to complete)" : "Reference / note (optional)"}</small>
+                  <input value={refNote[p.id] ?? ""} onChange={(e) => setRefNote((m) => ({ ...m, [p.id]: e.target.value }))} maxLength={160} placeholder={p.status === "processing" ? "e.g. NBLFT20260922001" : "Optional note"} />
+                </label>
+              </div>
+              <div className="order-actions">
+                {p.status === "requested" && <button className="primary" disabled={setStatus.isPending} onClick={() => act(p, "processing")}>Start processing</button>}
+                {p.status === "processing" && <button className="primary" disabled={setStatus.isPending} onClick={() => act(p, "completed")}>Complete payout</button>}
+                <button disabled={setStatus.isPending} onClick={() => act(p, "failed")}>Fail</button>
+                {p.status === "requested" && <button disabled={setStatus.isPending} onClick={() => act(p, "cancelled")}>Cancel</button>}
+              </div>
+            </article>
+          ))}</div>
+        )}
+      <h3>History</h3>
+      {history.isPending ? <p className="muted"><small>Loading…</small></p> :
+        past.length === 0 ? <p className="muted">No completed payouts yet.</p> : (
+          <div className="kv">{past.slice(0, 30).map((p) => (
+            <span key={p.id}>
+              <b>{money(p.amount_paisa)}</b> {p.store_name} · {PAYOUT_METHOD_LABEL[p.method]} · {PAYOUT_STATUS_LABEL[p.status]}
+              {p.reference && <small> · ref {p.reference}</small>}{p.note && <small> · {p.note}</small>}
+              <small> ({fmtDate(p.updated_at)})</small>
+            </span>
+          ))}</div>
+        )}
+      <AdminAdjustment onDone={refresh} />
+    </div>
+  );
+}
+
+function AdminAdjustment({ onDone }: { onDone: () => void }) {
+  const { toast } = useToast();
+  const balances = useQuery({ queryKey: ["admin-seller-balances"], queryFn: () => api.adminGetSellerBalances({}) });
+  const adjust = useMutation({
+    mutationFn: (v: { store_id: number; amount_paisa: number; reason: string }) => api.adminCreateAdjustment(v),
+    onSuccess: () => { onDone(); toast("Adjustment posted to the seller's ledger."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not post the adjustment.", "err"),
+  });
+  const submit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const d = new FormData(e.currentTarget);
+    const store_id = Number(d.get("store_id"));
+    const rupees = Number(d.get("amount"));
+    const reason = String(d.get("reason") ?? "").trim();
+    if (!store_id || !Number.isFinite(rupees) || rupees === 0) { toast("Pick a seller and a non-zero amount.", "err"); return; }
+    if (reason.length < 3) { toast("A reason is required — it goes on the ledger.", "err"); return; }
+    adjust.mutate({ store_id, amount_paisa: Math.round(rupees * 100), reason });
+    e.currentTarget.reset();
+  };
+  const sellers = balances.data?.sellers ?? [];
+  return (
+    <div>
+      <h3>Manual adjustment (admin only)</h3>
+      <form className="stack-form compact" onSubmit={submit}>
+        <div className="form-pair">
+          <label>Seller<select name="store_id" required defaultValue="">
+            <option value="" disabled>Choose a seller</option>
+            {sellers.map((s) => <option key={s.store_id} value={s.store_id}>{s.store_name} ({s.seller_code})</option>)}
+          </select></label>
+          <label>Amount, rupees (negative takes back)<input name="amount" type="number" step={0.01} required placeholder="e.g. -500 or 250" /></label>
+        </div>
+        <label>Reason (required, shown on the ledger)<input name="reason" required maxLength={280} placeholder="Why is this correction needed?" /></label>
+        <button className="primary" disabled={adjust.isPending}>{adjust.isPending ? "Posting…" : "Post adjustment"}</button>
+        <small className="muted">Adjustments hit the available balance immediately and are audit-logged. Corrections only — never routine earnings.</small>
+      </form>
+    </div>
+  );
+}
+
+export function AdminSellerBalances() {
+  const list = useQuery({ queryKey: ["admin-seller-balances"], queryFn: () => api.adminGetSellerBalances({}) });
+  if (list.isPending) return <p className="muted">Loading balances…</p>;
+  if (list.error) return <p className="form-error">Balances could not load.</p>;
+  const sellers = list.data?.sellers ?? [];
+  return (
+    <div>
+      <p className="muted"><small>Derived from the ledger at read time — never stored. “Held” is money reserved by payouts awaiting processing.</small></p>
+      {sellers.length === 0 ? <p className="muted">No sellers yet.</p> : (
+        <div className="admin-table">{sellers.map((s) => (
+          <article key={s.store_id}>
+            <div><h3>{s.store_name}</h3><p className="muted">{s.seller_code} · {s.status}</p></div>
+            <div className="order-actions">
+              <span><b>{money(s.available_paisa)}</b> <small>available</small></span>
+              <span><b>{money(s.pending_paisa)}</b> <small>pending</small></span>
+              {s.reserved_paisa > 0 && <span><b>{money(s.reserved_paisa)}</b> <small>held</small></span>}
+              <span><b>{money(s.paid_paisa)}</b> <small>paid out</small></span>
+            </div>
+          </article>
+        ))}</div>
+      )}
+    </div>
   );
 }

@@ -1,0 +1,1 @@
+CREATE TABLE `buyer_email_verifications` (`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL, `token_hash` text NOT NULL UNIQUE, `user_id` text NOT NULL, `expires_at` integer NOT NULL, `used_at` integer, `created_at` integer NOT NULL, FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade);

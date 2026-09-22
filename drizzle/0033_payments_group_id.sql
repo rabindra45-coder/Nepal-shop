@@ -1,0 +1,1 @@
+ALTER TABLE `payments` ADD COLUMN `group_id` integer REFERENCES `order_groups`(`id`);

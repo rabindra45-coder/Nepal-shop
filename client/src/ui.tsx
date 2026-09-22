@@ -1,6 +1,7 @@
 // Shared client UI kit: toasts, product imagery, cards, ratings, states.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { money, type P2Product } from "./phase2api";
+import { go } from "./session";
 
 // --- toasts ----------------------------------------------------------------
 interface Toast { id: number; message: string; kind: "ok" | "err"; }
@@ -28,10 +29,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 // --- imagery ---------------------------------------------------------------
 const HUES = ["#d94829", "#e8a31a", "#2f6b4f", "#3e6b8f", "#8f3e6b", "#5f655f"];
 export function ProductImage({ product, className }: { product: P2Product; className?: string }) {
-  if (product.image_url) {
+  // Seller-uploaded photos win; the pasted image URL is next; otherwise a
+  // styled monogram placeholder.
+  const src = product.images?.[0] ?? product.image_url ?? null;
+  if (src) {
     return (
-      <div className={`product-mark img ${className ?? ""}`} aria-hidden="true">
-        <img src={product.image_url} alt="" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+      <div className={`product-mark img ${className ?? ""}`}>
+        <img src={src} alt={product.name} loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
       </div>
     );
   }
@@ -54,6 +58,9 @@ export function Stars({ rating, count }: { rating: number | null; count?: number
 export function ProductCard({ product, onOpen, onAdd, showSeller }: {
   product: P2Product; onOpen: () => void; onAdd?: (p: P2Product) => void; showSeller?: boolean;
 }) {
+  // The seller name doubles as a store link. It sits inside the card's open
+  // button, so it stops propagation and handles Enter itself.
+  const openStore = (e: { stopPropagation: () => void }) => { e.stopPropagation(); go(`/store/${product.seller_code}`); };
   return (
     <article className="product">
       <button className="product-open" onClick={onOpen} aria-label={`View ${product.name}`}>
@@ -61,7 +68,13 @@ export function ProductCard({ product, onOpen, onAdd, showSeller }: {
         <div className="product-body">
           <p>{product.category}{product.brand ? ` · ${product.brand}` : ""}</p>
           <h3>{product.name}</h3>
-          {showSeller && <small className="seller-line">{product.store_name} · {product.store_location}</small>}
+          {showSeller && (
+            <span className="seller-link" role="link" tabIndex={0} aria-label={`Visit ${product.store_name}`}
+              onClick={openStore}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); go(`/store/${product.seller_code}`); } }}>
+              {product.store_name} · {product.store_location}
+            </span>
+          )}
           <div className="price-line">
             <span><strong>{money(product.price_paisa)}</strong>
               {product.original_price_paisa && product.original_price_paisa > product.price_paisa && (

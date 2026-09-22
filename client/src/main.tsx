@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import "./theme.css";
+import "./a11y.css";
 
 const rootEl = document.querySelector<HTMLElement>("[data-generated-space-root]");
 if (!rootEl) {

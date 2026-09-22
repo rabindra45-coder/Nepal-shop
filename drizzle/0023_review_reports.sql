@@ -1,0 +1,3 @@
+CREATE TABLE `review_reports` (`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL, `review_id` integer NOT NULL REFERENCES `reviews`(`id`) ON DELETE CASCADE, `reason` text NOT NULL, `detail` text NOT NULL DEFAULT '', `reporter_name` text NOT NULL DEFAULT '', `status` text NOT NULL DEFAULT 'open', `created_at` integer NOT NULL, `updated_at` integer);
+--> statement-breakpoint
+CREATE INDEX `review_reports_review_id_idx` ON `review_reports` (`review_id`);

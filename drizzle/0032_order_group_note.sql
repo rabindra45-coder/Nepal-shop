@@ -1,0 +1,1 @@
+ALTER TABLE `order_groups` ADD COLUMN `note` text NOT NULL DEFAULT '';
