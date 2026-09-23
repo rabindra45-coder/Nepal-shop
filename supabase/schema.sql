@@ -965,3 +965,16 @@ CREATE INDEX IF NOT EXISTS "seller_payouts_store_id_idx" ON "seller_payouts" ("s
 CREATE INDEX IF NOT EXISTS "stock_movements_product_id_idx" ON "stock_movements" ("product_id");
 
 CREATE INDEX IF NOT EXISTS "audit_logs_created_at_idx" ON "audit_logs" ("created_at");
+
+CREATE TABLE IF NOT EXISTS "category_requests" (
+  "id" SERIAL PRIMARY KEY NOT NULL,
+  "store_id" INTEGER NOT NULL REFERENCES "store_settings"("id") ON DELETE CASCADE,
+  "name" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'pending',
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "decided_at" TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "category_requests_pending_unique" ON "category_requests" ("store_id", lower("name")) WHERE "status" = 'pending';
+
+CREATE INDEX IF NOT EXISTS "category_requests_status_idx" ON "category_requests" ("status");

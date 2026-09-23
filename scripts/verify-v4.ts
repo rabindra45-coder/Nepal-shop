@@ -123,7 +123,10 @@ try {
     ok(`GET /${p} 200`, r.status === 200);
   }
   const man = await (await fetch(`${BASE}/manifest.webmanifest`)).json();
-  ok("manifest has icons", Array.isArray(man.icons) && man.icons.length === 2, JSON.stringify(man.icons));
+  // v12: 192 + 512 + a separate maskable icon (the maskable one was split
+  // out so install icons render correctly on Android launchers).
+  const iconSrcs = Array.isArray(man.icons) ? man.icons.map((i) => i.src) : [];
+  ok("manifest has icons", iconSrcs.includes("/icon-192.png") && iconSrcs.includes("/icon-512.png") && man.icons.some((i) => i.purpose === "maskable"), JSON.stringify(man.icons));
   for (const p of ["icon-192.png", "icon-512.png", "favicon.svg", "apple-touch-icon.png"]) {
     const r = await fetch(`${BASE}/${p}`);
     ok(`GET /${p} 200`, r.status === 200);

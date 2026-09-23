@@ -160,6 +160,13 @@ function getTransporter(cfg: SmtpConfig): Transporter {
       port: cfg.port,
       secure: cfg.port === 465,
       auth: { user: cfg.username, pass: cfg.password },
+      // Hard timeouts: a stalled SMTP server must fail fast with its real
+      // error instead of hanging the request forever (the "Load failed"
+      // symptom on the admin test-email button, and verification emails
+      // that never arrive because the send never completes).
+      connectionTimeout: 15000, // wait for the TCP connection
+      greetingTimeout: 15000, // wait for the SMTP greeting after connect
+      socketTimeout: 30000, // inactivity during the session
     });
     transporterKey = key;
   }

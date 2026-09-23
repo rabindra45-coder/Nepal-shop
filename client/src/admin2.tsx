@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api2, fmtDate, money, uploadBannerImage, type P2Coupon, type P2Ticket } from "./phase2api";
 import { api, getAuth, type ApiResponse } from "./api";
+import { go } from "./session";
 import { STATUS_LABEL } from "./screens";
 import { useToast } from "./ui";
 
@@ -164,7 +165,53 @@ export function AdminCategories() {
         <div className="form-pair"><label>New category<input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Home & Kitchen" /></label>
           <span style={{ alignSelf: "end" }}><button className="primary" disabled={!name.trim() || save.isPending}>Add category</button></span></div>
       </form>
+      <CategoryRequestReview />
     </section>
+  );
+}
+
+// v12: admin review of seller-proposed categories. Approval inserts the name
+// into the shared categories table (visible to every seller); rejection just
+// records the decision. Duplicate names are impossible — the server re-checks
+// the slug at decision time.
+function CategoryRequestReview() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const list = useQuery({ queryKey: ["admin-category-requests"], queryFn: () => api2.adminListCategoryRequests({}) });
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ["admin-category-requests"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
+  };
+  const decide = useMutation({
+    mutationFn: (args: { id: number; approve: boolean }) => api2.adminDecideCategoryRequest(args),
+    onSuccess: (_d, v) => { toast(v.approve ? "Category approved — it is now available to all sellers." : "Request declined."); refresh(); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not decide.", "err"),
+  });
+  const pending = list.data?.requests.filter((r) => r.status === "pending") ?? [];
+  const decided = list.data?.requests.filter((r) => r.status !== "pending") ?? [];
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div className="section-title"><h2>Category requests</h2><span>{pending.length} pending</span></div>
+      {list.isPending && <p className="muted">Loading requests…</p>}
+      {list.error && <p className="form-error">Could not load requests.</p>}
+      {list.data && pending.length === 0 && <p className="muted">No pending requests.</p>}
+      <div className="admin-table">{pending.map((r) => (
+        <article key={r.id}>
+          <div><h3>{r.name}</h3><p className="muted">Requested by {r.store_name} ({r.seller_code})</p></div>
+          <div className="order-actions">
+            <button className="primary" disabled={decide.isPending} onClick={() => decide.mutate({ id: r.id, approve: true })}>Approve</button>
+            <button className="text-danger" disabled={decide.isPending} onClick={() => { if (window.confirm(`Decline the category “${r.name}”?`)) decide.mutate({ id: r.id, approve: false }); }}>Decline</button>
+          </div>
+        </article>
+      ))}</div>
+      {decided.length > 0 && <details style={{ marginTop: 12 }}><summary className="muted">Decided requests ({decided.length})</summary>
+        <div className="admin-table">{decided.map((r) => (
+          <div key={r.id} className="admin-row"><span><b>{r.name}</b><small className="muted"> · {r.store_name}</small></span>
+            <span className={r.status === "approved" ? "success" : "text-danger"}>{r.status === "approved" ? "Approved" : "Declined"}</span>
+          </div>
+        ))}</div>
+      </details>}
+    </div>
   );
 }
 
@@ -1153,12 +1200,13 @@ const ADMIN_SHELL_CSS = `
 .admin-content{min-width:0}
 @media (max-width:767px){
   .admin-shell{grid-template-columns:1fr;margin-top:18px}
-  .admin-hamburger{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:var(--surface);color:inherit;border-radius:7px;padding:10px 14px;font-weight:800;font-size:14px;min-height:44px;cursor:pointer}
-  .admin-sidebar{position:fixed;top:0;left:0;bottom:0;width:min(300px,82vw);background:var(--bg);z-index:70;padding:18px 16px;overflow-y:auto;transform:translateX(-105%);transition:transform .22s ease;box-shadow:8px 0 24px rgba(0,0,0,.25);border-top:0}
+  .admin-hamburger{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:var(--surface);color:inherit;border-radius:7px;padding:10px 14px;font-weight:800;font-size:14px;min-height:44px;cursor:pointer;justify-self:end}
+  .admin-sidebar{position:fixed;top:0;right:0;bottom:0;width:min(300px,82vw);background:var(--bg);z-index:70;padding:18px 16px;overflow-y:auto;transform:translateX(105%);transition:transform .22s ease;box-shadow:-8px 0 24px rgba(0,0,0,.25);border-top:0}
   .admin-sidebar.open{transform:none}
   .admin-drawer-close{display:inline-grid;place-items:center;border:1px solid var(--border);background:transparent;color:inherit;border-radius:7px;width:44px;height:44px;font-size:16px;cursor:pointer}
   .admin-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:65;border:0;padding:0;cursor:pointer}
   .admin-overlay.visible{display:block}
+  .admin-home-li{margin-top:8px;border-top:1px solid var(--border);padding-top:8px}
 }
 `;
 
@@ -1188,7 +1236,9 @@ export function AdminShell({ tabs, tab, setTab, children }: { tabs: AdminShellTa
           </div>
           <ul>{tabs.map((t) => (
             <li key={t.id}><button type="button" className={tab === t.id ? "selected" : ""} aria-current={tab === t.id ? "page" : undefined} onClick={() => pick(t.id)}>{t.label}</button></li>
-          ))}</ul>
+          ))}
+            <li className="admin-home-li"><button type="button" onClick={() => { setOpen(false); go("/"); }}>Homepage</button></li>
+          </ul>
         </nav>
         <div className="admin-content">{children}</div>
       </div>

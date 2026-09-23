@@ -144,7 +144,7 @@ export function App() {
             <SiteHeader path={path} />
             <div id="main-content"><RouteView path={path} query={query} invalidate={invalidate} /></div>
             <footer className="site-footer">
-              <span>Nepal Shop · a local marketplace</span>
+              <img className="footer-wordmark" src="/wordmark.png" alt="NepalShop" />
               <nav>
                 <button className="linklike" onClick={() => go("/about")}>About</button>
                 <button className="linklike" onClick={() => go("/contact")}>Contact</button>
@@ -158,7 +158,7 @@ export function App() {
                 <button className="linklike" onClick={() => go("/seller-terms")}>Seller terms</button>
                 <button className="linklike" onClick={() => go(auth?.type === "admin" ? "/admin" : "/admin/login")}>Admin</button>
               </nav>
-              <small className="muted">© 2026 Nepal Shop</small>
+              <small className="muted">© 2026 Nepal Shop · Built by Tanetra Technologies</small>
             </footer>
             <CookieBanner />
             <MobileNav path={path} />
@@ -185,12 +185,18 @@ function SiteHeader({ path }: { path: string }) {
   const home = useQuery({ queryKey: ["homepage"], queryFn: () => api2.getHomepage({}) });
   const siteLogoUrl = (home.data as unknown as { site_logo_url?: string | null } | undefined)?.site_logo_url ?? null;
   const avatarUrl = useBuyerAvatar();
+  // Dashboard pages (buyer account, seller studio, admin panel) have their
+  // own hamburger + drawer — the storefront hamburger stays hidden there so
+  // there is never a second, competing menu button.
+  const isDashboard = /^\/(account|seller|admin)(\/|$)/.test(path);
   return (<>
     <header className="topbar">
-      <button className="nav-hamburger" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button>
-      {siteLogoUrl
-        ? <button className="brand brand-img" onClick={() => go("/")} aria-label="Nepal Shop home"><img src={siteLogoUrl} alt="Nepal Shop" /></button>
-        : <button className="brand" onClick={() => go("/")} aria-label="Nepal Shop home">Nepal&nbsp;Shop</button>}
+      {/* Brand lockup: the uploaded site logo (left corner) with the "Nepal Shop"
+          name always immediately to its right — never the tagline. */}
+      <button className="brand brand-lockup" onClick={() => go("/")} aria-label="Nepal Shop home">
+        {siteLogoUrl && <img src={siteLogoUrl} alt="" />}
+        <span>Nepal&nbsp;Shop</span>
+      </button>
       <nav aria-label="Main sections" className="tabs">
         <button className={path === "/" ? "active" : ""} onClick={() => go("/")}>Home</button>
         <button className={path === "/shop" ? "active" : ""} onClick={() => go("/shop")}>Shop</button>
@@ -224,10 +230,16 @@ function SiteHeader({ path }: { path: string }) {
         </>}
         {auth?.type === "buyer" && <span className="account-name" title={auth.name}>{auth.name}</span>}
         {auth?.type === "buyer" && <button onClick={signOut} title="Log out">⎋</button>}
-        <button className="cart-button" onClick={() => setShowCart(true)} aria-label={`Open basket with ${count} items`}>Basket <span>{count}</span></button>
+        <button className="cart-button" onClick={() => setShowCart(true)} aria-label={`Open basket with ${count} items`}>
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M4 7.5h16l-1.4 10.4a1.5 1.5 0 0 1-1.5 1.1H6.9a1.5 1.5 0 0 1-1.5-1.1L4 7.5z" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" /><path d="M8.5 10V6.8a3.5 3.5 0 0 1 7 0V10" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" /></svg>
+          Basket <span className="cart-count">{count}</span>
+        </button>
       </div>
+      {/* Storefront hamburger sits at the top-right (CSS) and is hidden on
+          dashboard pages, where each dashboard shows only its own menu. */}
+      {!isDashboard && <button className="nav-hamburger" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button>}
     </header>
-    <NavDrawer open={menuOpen} onClose={() => setMenuOpen(false)} path={path} />
+    {!isDashboard && <NavDrawer open={menuOpen} onClose={() => setMenuOpen(false)} path={path} />}
     {showCart && <CheckoutSheet close={() => setShowCart(false)} onPlaced={(code) => { setShowCart(false); go("/track"); sessionStorage.setItem("lastOrderCode", code); }} />}
   </>);
 }
@@ -262,6 +274,26 @@ function NavDrawer({ open, onClose, path }: { open: boolean; onClose: () => void
         {isSeller && <button type="button" className={path.startsWith("/seller") ? "active" : ""} onClick={() => goAndClose("/seller")}><b>Seller studio</b><small>Inventory, orders, earnings</small></button>}
         {auth?.type === "admin" && <button type="button" className={path.startsWith("/admin") ? "active" : ""} onClick={() => goAndClose("/admin")}><b>Admin panel</b><small>Marketplace control</small></button>}
         {auth && <button type="button" className="drawer-logout" onClick={() => { onClose(); signOut(); }}><b>Log out</b></button>}
+        {/* v12: info & legal pages, below the account actions. These routes
+            already exist (same pages the footer links to) — nothing is
+            recreated here. */}
+        <div className="drawer-section" role="group" aria-label="Information and legal">
+          <span className="drawer-heading">Information</span>
+          {[
+            { label: "About", to: "/about" },
+            { label: "Contact", to: "/contact" },
+            { label: "Help", to: "/help" },
+            { label: "Shipping", to: "/shipping" },
+            { label: "Returns", to: "/returns" },
+            { label: "Refunds", to: "/refund" },
+            { label: "Privacy", to: "/privacy" },
+            { label: "Cookies", to: "/cookies" },
+            { label: "Terms", to: "/terms" },
+            { label: "Seller terms", to: "/seller-terms" },
+          ].map((l) => (
+            <button key={l.to} type="button" className={path === l.to ? "active" : ""} aria-current={path === l.to ? "page" : undefined} onClick={() => goAndClose(l.to)}><b>{l.label}</b></button>
+          ))}
+        </div>
       </nav>
     </Drawer>
   );
@@ -653,6 +685,61 @@ function SellerLogin() {
 }
 
 type StudioTab = "inventory" | "orders" | "returns" | "issues" | "questions" | "analytics" | "earnings" | "settings";
+// v12: category picker for the seller product form. Lists the active
+// categories from the shared category system; the seller's previously saved
+// free-text category is kept as an option so older products still edit cleanly.
+function CategorySelect({ editingCategory }: { editingCategory?: string }) {
+  const cats = useQuery({ queryKey: ["public-categories"], queryFn: () => api.getPublicCategories({}) });
+  const names = (cats.data?.categories ?? []).map((c) => c.name);
+  const options = editingCategory && !names.includes(editingCategory) ? [editingCategory, ...names] : names;
+  return (
+    <label>Category
+      <select name="category" defaultValue={editingCategory ?? ""} required>
+        {cats.isPending && <option value="">Loading categories…</option>}
+        {options.map((n) => <option key={n} value={n}>{n}</option>)}
+      </select>
+    </label>
+  );
+}
+
+// v12: "request new category" box for the seller product workflow. The seller
+// proposes a name; the admin reviews it in the Categories tab; approval adds
+// it to the shared category list for every seller.
+function CategoryRequestBox({ callArgs }: { callArgs: { authToken?: string; seller_code?: string; seller_key?: string } }) {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const mine = useQuery({ queryKey: ["my-category-requests"], queryFn: () => api2.sellerListMyCategoryRequests({ ...callArgs }) });
+  const send = useMutation({
+    mutationFn: (n: string) => api2.sellerRequestCategory({ ...callArgs, name: n }),
+    onSuccess: () => {
+      setName(""); setMsg("Request sent — the admin will review it. Approved categories appear in the list above.");
+      void queryClient.invalidateQueries({ queryKey: ["my-category-requests"] });
+    },
+    onError: (e) => setMsg(e instanceof Error ? e.message : "Could not send the request."),
+  });
+  return (
+    <section className="studio-section">
+      <div className="section-title"><h2>Request a new category</h2></div>
+      <p className="muted">Can’t find the right category for your products? Propose one — once the admin approves it, every seller can use it.</p>
+      <form className="form-row" onSubmit={(e) => { e.preventDefault(); const n = name.trim(); if (n) send.mutate(n); }}>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Handmade Soaps" maxLength={40} aria-label="Proposed category name" />
+        <button className="primary" disabled={!name.trim() || send.isPending}>{send.isPending ? "Sending…" : "Send request"}</button>
+      </form>
+      {msg && <p className={msg.startsWith("Request sent") ? "success" : "form-error"}>{msg}</p>}
+      {mine.data && mine.data.requests.length > 0 && (
+        <div className="admin-table">{mine.data.requests.map((r) => (
+          <div key={r.id} className="admin-row"><span><b>{r.name}</b></span>
+            <span className={r.status === "approved" ? "success" : r.status === "rejected" ? "text-danger" : "muted"}>
+              {r.status === "pending" ? "Awaiting review" : r.status === "approved" ? "Approved" : "Declined"}
+            </span>
+          </div>
+        ))}</div>
+      )}
+    </section>
+  );
+}
+
 function Studio({ invalidate }: { invalidate: () => void }) {
   const { auth, signOut } = useAuth();
   const queryClient = useQueryClient();
@@ -743,8 +830,8 @@ function Studio({ invalidate }: { invalidate: () => void }) {
     {notice && <p className="success banner">{notice}</p>}
     <SellerStatusBanners store={store} />
     <div className="mobile-bar">
-      <button className="nav-hamburger" aria-label="Open studio menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button>
       <strong>{tabs.find((t) => t.id === tab)?.label ?? "Seller studio"}</strong>
+      <button className="nav-hamburger" aria-label="Open studio menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button>
     </div>
     <div className="studio-shell">
       <aside className="sidebar desktop-only" aria-label="Studio sections">
@@ -756,7 +843,7 @@ function Studio({ invalidate }: { invalidate: () => void }) {
       <section className="studio-section"><div className="section-title"><h2>{editing ? "Edit product" : "New product"}</h2>{editing && <button onClick={() => { setEditing(null); setConfirmDeleteProduct(false); }}>Cancel edit</button>}</div>
       <form className="stack-form" key={editing?.id ?? "new"} onSubmit={saveProduct}>
         <label>Product name<input name="name" defaultValue={editing?.name} required /></label>
-        <div className="form-pair"><label>Category<input name="category" defaultValue={editing?.category} required /></label><label>Stock<input name="stock" type="number" min="0" defaultValue={editing?.stock ?? 1} required /></label></div>
+        <div className="form-pair"><CategorySelect editingCategory={editing?.category} /><label>Stock<input name="stock" type="number" min="0" defaultValue={editing?.stock ?? 1} required /></label></div>
         <label>Description<textarea name="description" defaultValue={editing?.description} minLength={8} required /></label>
         <div className="form-pair"><label>Price, rupees<input name="price" type="number" min="0.01" step="0.01" defaultValue={editing ? editing.price_paisa / 100 : ""} required /></label><label>Delivery, rupees<input name="delivery" type="number" min="0" step="0.01" defaultValue={editing ? editing.delivery_fee_paisa / 100 : 0} required /></label></div>
         <ProductExtraFields editing={editing} productId={editing?.id} callArgs={callArgs} />
@@ -786,6 +873,7 @@ function Studio({ invalidate }: { invalidate: () => void }) {
         </div>;
       })}</div></section>
       <section className="studio-section"><div className="section-title"><h2>Stock history</h2></div><StockHistory callArgs={callArgs} /></section>
+      <CategoryRequestBox callArgs={callArgs} />
       <section className="studio-section wide"><div className="section-title"><h2>Bulk import</h2></div><SellerCsvImport callArgs={callArgs} /></section>
     </div>}
 
@@ -821,6 +909,9 @@ function StudioTabNav({ tabs, tab, pick }: { tabs: { id: StudioTab; label: strin
           <b>{t.label}</b>
         </button>
       ))}
+      <button type="button" className="sidebar-home" onClick={() => go("/")}>
+        <b>Homepage</b><small>Return to the storefront</small>
+      </button>
     </nav>
   );
 }

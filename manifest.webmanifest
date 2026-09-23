@@ -1,1 +1,28 @@
-{"background_color":"#fff9ed","description":"A customer-facing online shopping site for Nepal.","display":"standalone","name":"Nepal Shop","scope":"/","short_name":"Nepal Shop","start_url":"/#/","theme_color":"#d94829"}
+{
+  "name": "Nepal Shop",
+  "short_name": "NepalShop",
+  "description": "A customer-facing online shopping site for Nepal.",
+  "start_url": "/#/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#A10417",
+  "theme_color": "#A10417",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

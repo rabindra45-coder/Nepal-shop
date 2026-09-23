@@ -17836,6 +17836,14 @@ var categories = pgTable("categories", {
   nameIdx: uniqueIndex("categories_name_unique").on(table.name),
   slugIdx: uniqueIndex("categories_slug_unique").on(table.slug)
 }));
+var categoryRequests = pgTable("category_requests", {
+  id: serial("id").primaryKey(),
+  storeId: integer2("store_id").notNull().references(() => storeSettings.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date),
+  decidedAt: timestamp("decided_at", { mode: "date", withTimezone: true })
+});
 var invoices = pgTable("invoices", {
   id: serial("id").primaryKey(),
   invoiceNo: text("invoice_no").notNull(),
@@ -40190,7 +40198,10 @@ function getTransporter(cfg) {
       host: cfg.host,
       port: cfg.port,
       secure: cfg.port === 465,
-      auth: { user: cfg.username, pass: cfg.password }
+      auth: { user: cfg.username, pass: cfg.password },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000
     });
     transporterKey = key;
   }
@@ -41565,6 +41576,9 @@ function parseCsv(text2) {
     rows.push(row);
   }
   return rows;
+}
+function categorySlug(name2) {
+  return name2.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 }
 var Actions = {
   getStorefront: defineAction({
@@ -45953,7 +45967,7 @@ If you have any questions, please contact support.`);
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
       const name2 = args.name.trim();
-      const slug = name2.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+      const slug = categorySlug(name2);
       if (!slug)
         throw new Error("That category name cannot be used.");
       const db = fullDb(ctx);
@@ -45989,6 +46003,94 @@ If you have any questions, please contact support.`);
       if (inUse)
         throw new Error(`Cannot delete "${category.name}": products still use this category.`);
       await db.delete(categories).where(eq(categories.id, args.id));
+      ctx.invalidateQueries();
+      return { ok: true };
+    }
+  }),
+  sellerRequestCategory: defineAction({
+    request: exports_external.object({ ...sellerAuthFields, name: exports_external.string().trim().min(2).max(40) }),
+    response: exports_external.object({ id: exports_external.number() }),
+    async handler(ctx, args) {
+      const store = await resolveSeller(ctx, args);
+      const name2 = args.name.trim();
+      const slug = categorySlug(name2);
+      if (!slug)
+        throw new Error("That category name cannot be used.");
+      const db = fullDb(ctx);
+      const existing = (await db.select({ id: categories.id }).from(categories).where(eq(categories.slug, slug)).limit(1))[0];
+      if (existing)
+        throw new Error(`The category "${name2}" already exists.`);
+      const pending = await db.select({ name: categoryRequests.name }).from(categoryRequests).where(and(eq(categoryRequests.storeId, store.id), eq(categoryRequests.status, "pending")));
+      if (pending.some((r) => r.name.toLowerCase() === name2.toLowerCase()))
+        throw new Error(`You already have a pending request for "${name2}".`);
+      const row = (await db.insert(categoryRequests).values({ storeId: store.id, name: name2, status: "pending" }).returning({ id: categoryRequests.id }))[0];
+      if (!row)
+        throw new Error("The request could not be saved.");
+      await notifyAdminUser(ctx, { type: "category_request", title: "New category request", body: `${store.storeName} requested the category "${name2}".`, link: "/admin" });
+      ctx.invalidateQueries();
+      return { id: row.id };
+    }
+  }),
+  sellerListMyCategoryRequests: defineAction({
+    request: exports_external.object({ ...sellerAuthFields }),
+    response: exports_external.object({ requests: exports_external.array(exports_external.object({ id: exports_external.number(), name: exports_external.string(), status: exports_external.string(), created_at: exports_external.string() })) }),
+    async handler(ctx, args) {
+      const store = await resolveSeller(ctx, args);
+      const db = fullDb(ctx);
+      const rows = await db.select().from(categoryRequests).where(eq(categoryRequests.storeId, store.id)).orderBy(desc(categoryRequests.createdAt));
+      return { requests: rows.map((r) => ({ id: r.id, name: r.name, status: r.status, created_at: r.createdAt.toISOString() })) };
+    }
+  }),
+  adminListCategoryRequests: defineAction({
+    request: exports_external.object({ authToken: authTokenField }),
+    response: exports_external.object({ requests: exports_external.array(exports_external.object({ id: exports_external.number(), name: exports_external.string(), status: exports_external.string(), store_name: exports_external.string(), seller_code: exports_external.string(), created_at: exports_external.string(), decided_at: exports_external.string().nullable() })) }),
+    async handler(ctx, args) {
+      await requireAuth(ctx, args.authToken, "admin");
+      const db = fullDb(ctx);
+      const rows = await db.select({
+        req: categoryRequests,
+        storeName: storeSettings.storeName,
+        sellerCode: storeSettings.sellerCode
+      }).from(categoryRequests).leftJoin(storeSettings, eq(categoryRequests.storeId, storeSettings.id)).orderBy(desc(categoryRequests.createdAt));
+      const pendingFirst = [...rows].sort((a, b) => (a.req.status === "pending" ? 0 : 1) - (b.req.status === "pending" ? 0 : 1));
+      return {
+        requests: pendingFirst.map((r) => ({
+          id: r.req.id,
+          name: r.req.name,
+          status: r.req.status,
+          store_name: r.storeName ?? "\u2014",
+          seller_code: r.sellerCode ?? "\u2014",
+          created_at: r.req.createdAt.toISOString(),
+          decided_at: r.req.decidedAt ? r.req.decidedAt.toISOString() : null
+        }))
+      };
+    }
+  }),
+  adminDecideCategoryRequest: defineAction({
+    request: exports_external.object({ authToken: authTokenField, id: exports_external.number().int().positive(), approve: exports_external.boolean() }),
+    response: exports_external.object({ ok: exports_external.literal(true) }),
+    async handler(ctx, args) {
+      const auth = await requireAuth(ctx, args.authToken, "admin");
+      const db = fullDb(ctx);
+      const req = (await db.select().from(categoryRequests).where(eq(categoryRequests.id, args.id)).limit(1))[0];
+      if (!req)
+        throw new Error("Request not found.");
+      if (req.status !== "pending")
+        throw new Error("This request has already been decided.");
+      const name2 = req.name.trim();
+      if (args.approve) {
+        const slug = categorySlug(name2);
+        if (!slug)
+          throw new Error("That category name cannot be used.");
+        const clash = (await db.select({ id: categories.id }).from(categories).where(eq(categories.slug, slug)).limit(1))[0];
+        if (!clash)
+          await db.insert(categories).values({ name: name2, slug, isActive: true });
+        await notifySeller(ctx, req.storeId, { type: "category_request", title: "Category approved", body: `Your requested category "${name2}" was approved and is now available to every seller.`, link: "/seller" });
+      } else {
+        await notifySeller(ctx, req.storeId, { type: "category_request", title: "Category request declined", body: `Your requested category "${name2}" was declined.`, link: "/seller" });
+      }
+      await db.update(categoryRequests).set({ status: args.approve ? "approved" : "rejected", decidedAt: new Date }).where(eq(categoryRequests.id, args.id));
+      await audit(ctx, "admin", auth.id, "category_request_decided", "category_requests", String(args.id), `${args.approve ? "approved" : "rejected"} "${name2}"`);
       ctx.invalidateQueries();
       return { ok: true };
     }

@@ -1368,6 +1368,12 @@ function parseCsv(text: string): string[][] {
   return rows;
 }
 
+// Category slug rule, shared by adminSaveCategory and the v12
+// category-request approval path so both enforce identical naming.
+function categorySlug(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+}
+
 export const Actions = {
   // ---------- public storefront ----------
   getStorefront: defineAction({
@@ -5725,6 +5731,8 @@ export const Actions = {
       };
     },
   }),
+  // Shared slug rule for categories: used by adminSaveCategory and by the
+  // v12 category-request approval path, so both enforce identical naming.
   adminListCategories: defineAction({
     request: z.object({ authToken: authTokenField }),
     response: z.object({ categories: z.array(z.object({ id: z.number(), name: z.string(), slug: z.string(), is_active: z.boolean(), seo_title: z.string().nullable(), seo_description: z.string().nullable(), intro_content: z.string().nullable() })) }),
@@ -5741,7 +5749,7 @@ export const Actions = {
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
       const name = args.name.trim();
-      const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+      const slug = categorySlug(name);
       if (!slug) throw new Error("That category name cannot be used.");
       const db = fullDb(ctx);
       const clash = (await db.select({ id: schema.categories.id }).from(schema.categories).where(eq(schema.categories.slug, slug)).limit(1))[0];
@@ -5770,6 +5778,95 @@ export const Actions = {
       const inUse = (await db.select({ id: schema.products.id }).from(schema.products).where(eq(schema.products.category, category.name)).limit(1)).length;
       if (inUse) throw new Error(`Cannot delete "${category.name}": products still use this category.`);
       await db.delete(schema.categories).where(eq(schema.categories.id, args.id));
+      ctx.invalidateQueries();
+      return { ok: true };
+    },
+  }),
+  // ---------- v12: seller category requests ----------
+  // Sellers propose new categories from the product workflow; admins review
+  // them in the Categories tab. Approval inserts into `categories` — the
+  // same table every seller picks from — so there is one category system,
+  // and duplicate names are impossible (slug check + one pending request
+  // per seller per name).
+  sellerRequestCategory: defineAction({
+    request: z.object({ ...sellerAuthFields, name: z.string().trim().min(2).max(40) }),
+    response: z.object({ id: z.number() }),
+    async handler(ctx, args) {
+      const store = await resolveSeller(ctx, args);
+      const name = args.name.trim();
+      const slug = categorySlug(name);
+      if (!slug) throw new Error("That category name cannot be used.");
+      const db = fullDb(ctx);
+      const existing = (await db.select({ id: schema.categories.id }).from(schema.categories).where(eq(schema.categories.slug, slug)).limit(1))[0];
+      if (existing) throw new Error(`The category "${name}" already exists.`);
+      const pending = await db.select({ name: schema.categoryRequests.name }).from(schema.categoryRequests)
+        .where(and(eq(schema.categoryRequests.storeId, store.id), eq(schema.categoryRequests.status, "pending")));
+      if (pending.some((r) => r.name.toLowerCase() === name.toLowerCase())) throw new Error(`You already have a pending request for "${name}".`);
+      const row = (await db.insert(schema.categoryRequests).values({ storeId: store.id, name, status: "pending" }).returning({ id: schema.categoryRequests.id }))[0];
+      if (!row) throw new Error("The request could not be saved.");
+      await notifyAdminUser(ctx, { type: "category_request", title: "New category request", body: `${store.storeName} requested the category "${name}".`, link: "/admin" });
+      ctx.invalidateQueries();
+      return { id: row.id };
+    },
+  }),
+  sellerListMyCategoryRequests: defineAction({
+    request: z.object({ ...sellerAuthFields }),
+    response: z.object({ requests: z.array(z.object({ id: z.number(), name: z.string(), status: z.string(), created_at: z.string() })) }),
+    async handler(ctx, args) {
+      const store = await resolveSeller(ctx, args);
+      const db = fullDb(ctx);
+      const rows = await db.select().from(schema.categoryRequests)
+        .where(eq(schema.categoryRequests.storeId, store.id)).orderBy(desc(schema.categoryRequests.createdAt));
+      return { requests: rows.map((r) => ({ id: r.id, name: r.name, status: r.status, created_at: r.createdAt.toISOString() })) };
+    },
+  }),
+  adminListCategoryRequests: defineAction({
+    request: z.object({ authToken: authTokenField }),
+    response: z.object({ requests: z.array(z.object({ id: z.number(), name: z.string(), status: z.string(), store_name: z.string(), seller_code: z.string(), created_at: z.string(), decided_at: z.string().nullable() })) }),
+    async handler(ctx, args) {
+      await requireAuth(ctx, args.authToken, "admin");
+      const db = fullDb(ctx);
+      const rows = await db.select({
+        req: schema.categoryRequests,
+        storeName: schema.storeSettings.storeName,
+        sellerCode: schema.storeSettings.sellerCode,
+      }).from(schema.categoryRequests)
+        .leftJoin(schema.storeSettings, eq(schema.categoryRequests.storeId, schema.storeSettings.id))
+        .orderBy(desc(schema.categoryRequests.createdAt));
+      const pendingFirst = [...rows].sort((a, b) => (a.req.status === "pending" ? 0 : 1) - (b.req.status === "pending" ? 0 : 1));
+      return {
+        requests: pendingFirst.map((r) => ({
+          id: r.req.id, name: r.req.name, status: r.req.status,
+          store_name: r.storeName ?? "—", seller_code: r.sellerCode ?? "—",
+          created_at: r.req.createdAt.toISOString(),
+          decided_at: r.req.decidedAt ? r.req.decidedAt.toISOString() : null,
+        })),
+      };
+    },
+  }),
+  adminDecideCategoryRequest: defineAction({
+    request: z.object({ authToken: authTokenField, id: z.number().int().positive(), approve: z.boolean() }),
+    response: z.object({ ok: z.literal(true) }),
+    async handler(ctx, args): Promise<{ ok: true }> {
+      const auth = await requireAuth(ctx, args.authToken, "admin");
+      const db = fullDb(ctx);
+      const req = (await db.select().from(schema.categoryRequests).where(eq(schema.categoryRequests.id, args.id)).limit(1))[0];
+      if (!req) throw new Error("Request not found.");
+      if (req.status !== "pending") throw new Error("This request has already been decided.");
+      const name = req.name.trim();
+      if (args.approve) {
+        const slug = categorySlug(name);
+        if (!slug) throw new Error("That category name cannot be used.");
+        // Same uniqueness rule as adminSaveCategory: if the category appeared
+        // while the request was pending, approve without creating a duplicate.
+        const clash = (await db.select({ id: schema.categories.id }).from(schema.categories).where(eq(schema.categories.slug, slug)).limit(1))[0];
+        if (!clash) await db.insert(schema.categories).values({ name, slug, isActive: true });
+        await notifySeller(ctx, req.storeId, { type: "category_request", title: "Category approved", body: `Your requested category "${name}" was approved and is now available to every seller.`, link: "/seller" });
+      } else {
+        await notifySeller(ctx, req.storeId, { type: "category_request", title: "Category request declined", body: `Your requested category "${name}" was declined.`, link: "/seller" });
+      }
+      await db.update(schema.categoryRequests).set({ status: args.approve ? "approved" : "rejected", decidedAt: new Date() }).where(eq(schema.categoryRequests.id, args.id));
+      await audit(ctx, "admin", auth.id, "category_request_decided", "category_requests", String(args.id), `${args.approve ? "approved" : "rejected"} "${name}"`);
       ctx.invalidateQueries();
       return { ok: true };
     },

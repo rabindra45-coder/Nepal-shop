@@ -42,7 +42,7 @@ if (!DATABASE_URL) {
 // --- Release version ----------------------------------------------------------
 // Bumped by hand on each packaged release; surfaced by /api/health so a
 // health check can confirm which build is actually running.
-const APP_VERSION = "v11";
+const APP_VERSION = "v12";
 const BOOT_MS = Date.now();
 
 // --- Structured server logging ------------------------------------------------
@@ -543,11 +543,12 @@ Bun.serve({
           start_url: "/#/",
           scope: "/",
           display: "standalone",
-          background_color: "#fff9ed",
-          theme_color: "#d94829",
+          background_color: "#A10417",
+          theme_color: "#A10417",
           icons: [
             { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
-            { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+            { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
+            { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
           ],
         },
         { headers: { "content-type": "application/manifest+json" } }

@@ -305,13 +305,14 @@ export function AccountShell({ initial }: { initial: AccountSection }) {
         </button>
       ))}
       <button type="button" className="sidebar-logout" onClick={() => { setMenuOpen(false); signOut(); }}>Log out</button>
+      <button type="button" className="sidebar-home" onClick={() => { setMenuOpen(false); go("/"); }}><b>Homepage</b><small>Return to the storefront</small></button>
     </nav>
   );
   return (
     <main className="account-page">
       <div className="mobile-bar">
-        <button className="nav-hamburger" aria-label="Open account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button>
         <strong>{labelFor(section)}</strong>
+        <button className="nav-hamburger" aria-label="Open account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button>
       </div>
       <div className="account-shell">
         <aside className="sidebar desktop-only" aria-label="Account sections">

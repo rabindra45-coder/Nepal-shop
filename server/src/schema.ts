@@ -408,6 +408,21 @@ export const categories = pgTable("categories", {
   slugIdx: uniqueIndex("categories_slug_unique").on(table.slug),
 }));
 
+// ---------- v12: seller category requests ----------
+// A seller proposes a new category from the product workflow; an admin
+// approves or rejects it. Approval inserts the category into `categories`,
+// which is the same table every seller picks from — no duplicate systems,
+// no duplicate names (pending requests are unique per seller by
+// lower(name); approval reuses the categories slug-uniqueness check).
+export const categoryRequests = pgTable("category_requests", {
+  id: serial("id").primaryKey(),
+  storeId: integer("store_id").notNull().references(() => storeSettings.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date()),
+  decidedAt: timestamp("decided_at", { mode: "date", withTimezone: true }),
+});
+
 // ---------- v9: invoices, product Q&A, product approval ----------
 
 // Invoices. One row is created per checkout group right after placeOrder

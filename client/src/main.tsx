@@ -27,3 +27,14 @@ createRoot(rootEl).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+// Dismiss the branded launch splash (rendered inline in index.html) once the
+// app has booted. A fallback timer in the inline script handles the case
+// where the bundle fails to load.
+requestAnimationFrame(() => {
+  const splash = document.getElementById("launch-splash");
+  if (splash) {
+    splash.classList.add("done");
+    window.setTimeout(() => splash.remove(), 450);
+  }
+});

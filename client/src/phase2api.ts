@@ -441,6 +441,23 @@ const p2Actions = {
     response: z.object({ id: z.number() }),
   },
   adminDeleteCategory: { request: z.object({ authToken, id: z.number() }), response: z.object({ ok: z.boolean() }) },
+  // v12: seller category requests (mirrors server/src/actions.ts).
+  sellerRequestCategory: {
+    request: z.object({ authToken, name: z.string().trim().min(2).max(40) }),
+    response: z.object({ id: z.number() }),
+  },
+  sellerListMyCategoryRequests: {
+    request: z.object({ authToken }),
+    response: z.object({ requests: z.array(z.object({ id: z.number(), name: z.string(), status: z.string(), created_at: z.string() })) }),
+  },
+  adminListCategoryRequests: {
+    request: z.object({ authToken }),
+    response: z.object({ requests: z.array(z.object({ id: z.number(), name: z.string(), status: z.string(), store_name: z.string(), seller_code: z.string(), created_at: z.string(), decided_at: z.string().nullable() })) }),
+  },
+  adminDecideCategoryRequest: {
+    request: z.object({ authToken, id: z.number(), approve: z.boolean() }),
+    response: z.object({ ok: z.boolean() }),
+  },
   adminListBanners: {
     request: z.object({ authToken }),
     response: z.object({ banners: z.array(z.object({ id: z.number(), title: z.string(), subtitle: z.string().nullable(), link: z.string().nullable(), image_url: z.string().nullable(), is_active: z.boolean(), sort_order: z.number() })) }),

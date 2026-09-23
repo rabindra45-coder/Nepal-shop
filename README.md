@@ -1,4 +1,4 @@
-# Nepal Shopping Site v9 (self-hosted)
+# Nepal Shopping Site v12 (self-hosted)
 
 A full-stack marketplace web app for Nepal — a customer-facing online shop
 built to rival Daraz, with the things Daraz lacks: native eSewa/Khalti

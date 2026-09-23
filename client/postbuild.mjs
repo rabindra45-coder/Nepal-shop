@@ -28,13 +28,20 @@ if (!html.includes(js) || !html.includes(css)) throw new Error("postbuild: built
 console.log(`postbuild: ok (${js}, ${css})`);
 
 // icons: copy client/icons/*.{png,svg} to dist root with stable filenames
-// (favicons, PWA icons and apple-touch-icon must never be hashed).
+// (favicons, PWA icons, maskable icon, apple-touch-icon and iOS splash
+// screens must never be hashed).
 const iconsDir = new URL("./icons/", import.meta.url);
 const distRoot = join(dist.pathname);
 let copied = 0;
-for (const name of ["favicon.svg", "favicon-32.png", "icon-192.png", "icon-512.png", "apple-touch-icon.png"]) {
+for (const name of ["favicon.svg", "favicon-32.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "wordmark.png"]) {
   await copyFile(join(iconsDir.pathname, name), join(distRoot, name));
   copied++;
 }
-console.log(`postbuild: copied ${copied} icons to dist/`);
+for (const f of await readdir(iconsDir)) {
+  if (/^splash-\d+x\d+\.png$/.test(f)) {
+    await copyFile(join(iconsDir.pathname, f), join(distRoot, f));
+    copied++;
+  }
+}
+console.log(`postbuild: copied ${copied} icons/splash screens to dist/`);
 

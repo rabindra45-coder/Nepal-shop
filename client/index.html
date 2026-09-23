@@ -4,7 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#d94829" />
+    <meta name="theme-color" content="#A10417" />
+    <!-- iOS PWA: installable, standalone, branded status bar -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="NepalShop" />
     <meta name="description" content="Nepal Shop — a local marketplace. Verified sellers, honest prices in rupees, cash on delivery, eSewa and Khalti support." />
     <meta property="og:title" content="Nepal Shop — Local Marketplace" />
     <meta property="og:description" content="Shop local. Know who packed it. Verified sellers, honest prices, cash on delivery." />
@@ -23,6 +28,18 @@
     <link rel="icon" href="./icons/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="./icons/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <!-- iOS launch splash screens (portrait). Generated from the dedicated
+         app icon on the crimson brand background. -->
+    <link rel="apple-touch-startup-image" href="./icons/splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)" />
+    <link rel="apple-touch-startup-image" href="./icons/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" />
+    <link rel="apple-touch-startup-image" href="./icons/splash-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" />
+    <link rel="apple-touch-startup-image" href="./icons/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" />
+    <link rel="apple-touch-startup-image" href="./icons/splash-1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)" />
+    <link rel="apple-touch-startup-image" href="./icons/splash-1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" />
+    <link rel="apple-touch-startup-image" href="./icons/splash-1536x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" />
+    <link rel="apple-touch-startup-image" href="./icons/splash-1668x2224.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)" />
+    <link rel="apple-touch-startup-image" href="./icons/splash-1668x2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" />
+    <link rel="apple-touch-startup-image" href="./icons/splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
     <title>Nepal Shop — Local Marketplace</title>
     <script src="./src/main.tsx" type="module"></script>
     <script type="application/ld+json">
@@ -30,6 +47,25 @@
     </script>
   </head>
   <body>
+    <!-- Branded launch splash: shown instantly on cold start (PWA, browser and
+         the Android WebView alike) and dismissed by main.tsx once the app
+         boots. The inline fallback timer covers a failed/slow bundle load. -->
+    <style>
+      #launch-splash{position:fixed;inset:0;z-index:200;background:#A10417;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .4s ease}
+      #launch-splash.done{opacity:0;pointer-events:none}
+      #launch-splash img{width:104px;height:104px;border-radius:24px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+      #launch-splash span{font:700 32px Georgia,serif;color:#fff;letter-spacing:.01em}
+    </style>
+    <div id="launch-splash" aria-hidden="true">
+      <img src="./icons/icon-192.png" alt="" />
+      <span>NepalShop</span>
+    </div>
+    <script>
+      setTimeout(function () {
+        var s = document.getElementById("launch-splash");
+        if (s) { s.classList.add("done"); setTimeout(function () { s.remove(); }, 450); }
+      }, 4000);
+    </script>
     <div
       data-generated-space-root=""
       data-generated-space-slug="nepal-shopping-site"

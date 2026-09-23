@@ -204,23 +204,29 @@ export function Homepage() {
 
   return (
     <main>
-      <section className="hero">
-        <div className="hero-copy">
-          <p className="eyebrow">Local marketplace</p>
-          <h1>Shop local.<br />Know who packed it.</h1>
-          <p>Verified sellers, honest prices in rupees, cash on delivery — and eSewa/Khalti where available.</p>
-          <div className="hero-actions">
-            <button className="primary" onClick={() => go("/shop")}>Browse everything</button>
-            <button className="ghost" onClick={() => go("/search")}>Search</button>
+      {/* v12: the oversized hero and trust blocks are gone. The page opens
+          with the admin-managed banner board (v6 system), kept compact so the
+          first products are visible without scrolling. */}
+      {banners.length > 0 && (
+        <div className="home-banners" role="region" aria-label="Advertisements">
+          <div className="hero-track">
+            {banners.map((b, i) => (
+              <a key={i} className="hero-slide" href={b.link ?? "#/shop"}>
+                {b.image_url ? (
+                  <img src={b.image_url} alt={b.title} loading="lazy" />
+                ) : (
+                  <span className="hero-slide-fallback" aria-hidden="true" />
+                )}
+                <span className="hero-slide-copy">
+                  <span className="eyebrow">Advertisement</span>
+                  <strong>{b.title}</strong>
+                  {b.subtitle && <span className="hero-slide-sub">{b.subtitle}</span>}
+                </span>
+              </a>
+            ))}
           </div>
         </div>
-      </section>
-
-      <section className="trust-strip" aria-label="Shopping protections">
-        <div><b>01</b><span>Total shown before ordering</span></div>
-        <div><b>02</b><span>COD waits for seller confirmation</span></div>
-        <div><b>03</b><span>Reviews require delivery</span></div>
-      </section>
+      )}
 
       {categories.length > 1 && (
         <nav className="category-list home-cats" aria-label="Shop by category">
@@ -233,26 +239,6 @@ export function Homepage() {
       <div className="home-wrap">
         {home.isPending && <p className="muted">Opening the market…</p>}
         {home.error && <p className="form-error">The homepage could not load. The shop is still open — <button className="linklike" onClick={() => go("/shop")}>browse everything</button>.</p>}
-        {banners.length > 0 && (
-          <div className="hero-carousel" role="region" aria-label="Advertisements">
-            <div className="hero-track">
-              {banners.map((b, i) => (
-                <a key={i} className="hero-slide" href={b.link ?? "#/shop"}>
-                  {b.image_url ? (
-                    <img src={b.image_url} alt={b.title} loading="lazy" />
-                  ) : (
-                    <span className="hero-slide-fallback" aria-hidden="true" />
-                  )}
-                  <span className="hero-slide-copy">
-                    <span className="eyebrow">Advertisement</span>
-                    <strong>{b.title}</strong>
-                    {b.subtitle && <span className="hero-slide-sub">{b.subtitle}</span>}
-                  </span>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
         {sections.map((s) => <SectionRow key={s.key} title={s.title} products={s.products} onOpen={open} onAdd={add} />)}
         {!home.isPending && !home.error && sections.length === 0 && (
           <EmptyBlock kicker="FRESH MARKET" title="The shelves are being arranged." body="Product sections appear here as sellers publish listings. Meanwhile you can browse the full catalogue." actionLabel="Browse the shop" onAction={() => go("/shop")} />
