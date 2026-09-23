@@ -40138,7 +40138,7 @@ function captureEnabled() {
   return process.env.EMAIL_TEST_CAPTURE === "1";
 }
 function emailConfigured() {
-  return getSmtpConfig().then((cfg) => captureEnabled() || cfg !== null);
+  return Promise.resolve(captureEnabled() || brevoConfig() !== null).then((fast) => fast ? true : getSmtpConfig().then((cfg) => cfg !== null));
 }
 var dbProvider = null;
 function envSmtpConfig() {
@@ -40207,11 +40207,64 @@ function getTransporter(cfg) {
   }
   return transporter;
 }
+function brevoConfig() {
+  const apiKey = (process.env.BREVO_API_KEY ?? "").trim();
+  if (!apiKey)
+    return null;
+  const senderEmail = (process.env.BREVO_SENDER_EMAIL ?? "").trim() || (process.env.SMTP_FROM ?? "").trim() || (process.env.SMTP_USER ?? "").trim();
+  if (!senderEmail)
+    return null;
+  return {
+    apiKey,
+    senderEmail,
+    apiUrl: (process.env.BREVO_API_URL ?? "").trim() || "https://api.brevo.com/v3/smtp/email"
+  };
+}
+async function sendViaBrevo(msg, cfg) {
+  const body = {
+    sender: { email: cfg.senderEmail, name: "Nepal Shop" },
+    to: [{ email: msg.to }],
+    subject: msg.subject,
+    textContent: msg.text
+  };
+  if (msg.html)
+    body.htmlContent = msg.html;
+  let res;
+  try {
+    res = await fetch(cfg.apiUrl, {
+      method: "POST",
+      headers: {
+        "api-key": cfg.apiKey,
+        "Content-Type": "application/json",
+        Accept: "application/json"
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000)
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error(`[email] brevo request to ${msg.to} failed: ${message}`);
+    return { sent: false, error: message };
+  }
+  if (res.ok)
+    return { sent: true };
+  let detail = `Brevo API error ${res.status}`;
+  try {
+    const data = await res.json();
+    if (data?.message)
+      detail = data.code ? `${data.message} (${data.code})` : data.message;
+  } catch {}
+  console.error(`[email] brevo send to ${msg.to} failed: ${detail}`);
+  return { sent: false, error: detail };
+}
 async function sendEmail(msg) {
   if (captureEnabled()) {
     captured.push({ to: msg.to, subject: msg.subject, text: msg.text, html: msg.html, at: new Date().toISOString() });
     return { sent: true, captured: true };
   }
+  const brevo = brevoConfig();
+  if (brevo)
+    return sendViaBrevo(msg, brevo);
   const cfg = await getSmtpConfig();
   if (!cfg) {
     console.warn(`[email] not configured \u2014 email to ${msg.to} ("${msg.subject}") was not sent`);
@@ -44356,18 +44409,23 @@ We will try again \u2014 you do not need to do anything.`);
       smtp_user: exports_external.string().nullable(),
       smtp_from: exports_external.string().nullable(),
       password_set: exports_external.boolean(),
-      effective_source: exports_external.enum(["env", "db", "none"])
+      effective_source: exports_external.enum(["env", "db", "none"]),
+      brevo_configured: exports_external.boolean(),
+      email_provider: exports_external.enum(["brevo", "smtp", "none"])
     }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
       const cfg = await getSmtpConfig();
+      const brevo = brevoConfig();
       return {
         smtp_host: cfg?.host ?? null,
         smtp_port: cfg?.port ?? null,
         smtp_user: cfg?.username ?? null,
         smtp_from: cfg?.from ?? null,
         password_set: cfg !== null,
-        effective_source: cfg?.source ?? "none"
+        effective_source: cfg?.source ?? "none",
+        brevo_configured: brevo !== null,
+        email_provider: brevo ? "brevo" : cfg ? "smtp" : "none"
       };
     }
   }),

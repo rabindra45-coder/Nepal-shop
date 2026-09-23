@@ -1047,16 +1047,20 @@ export function AdminSellerBalances() {
 // Marketplace email settings: host, port, username, password and the from
 // address used for every transactional email.
 //
-// Precedence (shown honestly on the tab): SMTP_* environment variables win
-// when set; otherwise these saved settings are used; when neither is set,
-// emails are logged on the server and never sent. The password is never
-// returned by the server — only a "saved" indicator — and the password
-// field is always submitted blank unless the admin types a new one.
+// Precedence (shown honestly on the tab): the Brevo HTTPS API wins when
+// BREVO_API_KEY is set (the production path on Render, whose free tier
+// blocks outbound SMTP ports 25/465/587 — Gmail SMTP can never work there);
+// otherwise SMTP_* environment variables win when set; otherwise these
+// saved settings are used; when none is set, emails are logged on the
+// server and never sent. The password is never returned by the server —
+// only a "saved" indicator — and the password field is always submitted
+// blank unless the admin types a new one.
 //
 // Server contract (implemented in server/src/actions.ts):
 //   api.adminGetSmtpSettings() -> { smtp_host, smtp_port, smtp_user,
 //     smtp_from (each nullable when nothing is configured),
-//     password_set, effective_source: "env"|"db"|"none" }
+//     password_set, effective_source: "env"|"db"|"none",
+//     brevo_configured, email_provider: "brevo"|"smtp"|"none" }
 //   api.adminSaveSmtpSettings({ host, port, username, password, from })
 //     -> { ok: true }  (port/username/password/from optional; an empty or
 //     omitted password keeps the existing stored password)
@@ -1068,6 +1072,12 @@ type AdminSmtpSettings = ApiResponse<typeof api, "adminGetSmtpSettings">;
 const SMTP_SOURCE_LABEL: Record<AdminSmtpSettings["effective_source"], string> = {
   env: "environment variables",
   db: "saved settings",
+  none: "not configured",
+};
+
+const EMAIL_PROVIDER_LABEL: Record<AdminSmtpSettings["email_provider"], string> = {
+  brevo: "Brevo API (HTTPS)",
+  smtp: "SMTP",
   none: "not configured",
 };
 
@@ -1131,11 +1141,12 @@ export function AdminEmail() {
 
   return (
     <div className="studio-layout">
-      <section className="studio-section wide"><div className="section-title"><h2>Email / SMTP</h2></div>
+      <section className="studio-section wide"><div className="section-title"><h2>Email settings</h2></div>
         <p className="muted">Environment variables take precedence: when <b>SMTP_HOST</b> is set, the <b>SMTP_HOST</b>, <b>SMTP_PORT</b>, <b>SMTP_USER</b>, <b>SMTP_PASS</b> and <b>SMTP_FROM</b> variables are used and the fields below are ignored. Otherwise these saved settings are used. When neither is set, emails are logged on the server and never sent.</p>
+        <p className="form-error" style={{ marginTop: 12 }}>Heads up: Render's free hosting blocks outbound SMTP ports (25, 465, 587), so Gmail SMTP can never work on the live shop — it always fails with "Connection timeout". For production email, set a <b>BREVO_API_KEY</b> environment variable in Render (free at brevo.com, 300 emails/day) and add your sender address there. The test button below will then send through Brevo.</p>
         {settings.isPending && <p className="muted">Loading SMTP settings…</p>}
         {settings.error && <p className="form-error">Could not load the SMTP settings.</p>}
-        {data && <p className="muted">Using: <b>{SMTP_SOURCE_LABEL[data.effective_source]}</b></p>}
+        {data && <p className="muted">Sending via: <b>{EMAIL_PROVIDER_LABEL[data.email_provider]}</b>{data.email_provider === "smtp" && <> (SMTP settings from {SMTP_SOURCE_LABEL[data.effective_source]})</>}</p>}
         {data && (
           <form className="stack-form" onSubmit={submit}>
             <div className="form-pair">

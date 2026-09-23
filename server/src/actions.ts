@@ -9,7 +9,7 @@ import { recommendForProduct } from "./recommender";
 import { buildEsewaParams, esewaConfig, esewaFormUrl, esewaTransactionStatus, initiateKhalti, lookupKhalti, verifyEsewaSignature } from "./payments";
 import { deleteFromBucket, isExpectedUploadUrl, parseStoredUploadUrl, STORAGE_BUCKETS, type StorageKind, UPLOAD_FILENAME_PATTERNS } from "./storage";
 import {
-  adminAlertEmail, adminEmailAddress, buyerVerificationEmail, buyerWelcomeEmail,
+  adminAlertEmail, adminEmailAddress, brevoConfig, buyerVerificationEmail, buyerWelcomeEmail,
   capturedEmails, clearCapturedEmails, commissionChangeEmail, emailConfigured, lowStockEmail,
   getSmtpConfig,
   orderCancelledBuyerEmail, orderCancelledSellerEmail, orderConfirmationEmail, orderEmail,
@@ -4169,10 +4169,17 @@ export const Actions = {
       smtp_from: z.string().nullable(),
       password_set: z.boolean(),
       effective_source: z.enum(["env", "db", "none"]),
+      // Brevo HTTPS API status: on Render's free tier outbound SMTP ports
+      // are blocked, so Brevo is the working production path. The key is
+      // env-only (never returned); email_provider names the provider that
+      // will actually send the next email.
+      brevo_configured: z.boolean(),
+      email_provider: z.enum(["brevo", "smtp", "none"]),
     }),
-    async handler(ctx, args): Promise<{ smtp_host: string | null; smtp_port: number | null; smtp_user: string | null; smtp_from: string | null; password_set: boolean; effective_source: "env" | "db" | "none" }> {
+    async handler(ctx, args): Promise<{ smtp_host: string | null; smtp_port: number | null; smtp_user: string | null; smtp_from: string | null; password_set: boolean; effective_source: "env" | "db" | "none"; brevo_configured: boolean; email_provider: "brevo" | "smtp" | "none" }> {
       await requireAuth(ctx, args.authToken, "admin");
       const cfg = await getSmtpConfig();
+      const brevo = brevoConfig();
       return {
         smtp_host: cfg?.host ?? null,
         smtp_port: cfg?.port ?? null,
@@ -4180,6 +4187,8 @@ export const Actions = {
         smtp_from: cfg?.from ?? null,
         password_set: cfg !== null,
         effective_source: cfg?.source ?? "none",
+        brevo_configured: brevo !== null,
+        email_provider: brevo ? "brevo" : cfg ? "smtp" : "none",
       };
     },
   }),

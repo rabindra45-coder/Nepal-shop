@@ -25,10 +25,15 @@ on Render" and "Supabase cutover". This file is the checklist you tick off.
 - [ ] `PUBLIC_BASE_URL` set to the real public URL, e.g.
       `https://nepal-shop-2.onrender.com`. Payment callbacks, the sitemap
       and `robots.txt` all use it.
-- [ ] `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM`
-      set, so order/payment/shipment emails and admin alerts actually send.
-      Without them the shop keeps working but every email honestly reports
-      "not configured" in the logs.
+- [ ] `BREVO_API_KEY` set (Brevo transactional-email API key — the
+      production email path on Render, whose free tier blocks outbound
+      SMTP ports 25/465/587 entirely, so Gmail SMTP can never work there),
+      plus `BREVO_SENDER_EMAIL` (a sender address verified in the Brevo
+      account; falls back to `SMTP_FROM`, then `SMTP_USER`). SMTP
+      (`SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM`)
+      remains the fallback for local dev and hosts that allow outbound
+      SMTP. Without any provider the shop keeps working but every email
+      honestly reports "not configured" in the logs.
 - [ ] `GEMINI_API_KEY` set for AI product recommendations (optional — the
       shop falls back to rule-based picks without it).
 - [ ] `EMAIL_TEST_CAPTURE` is **not** set. It captures emails in memory

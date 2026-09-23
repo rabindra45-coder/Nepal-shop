@@ -1,10 +1,13 @@
 // Outgoing email for Nepal Shop.
 //
-// Configuration comes from environment variables OR the admin-managed
-// smtp_settings table (single row, id=1), with this precedence:
-//   ENV (SMTP_HOST + SMTP_USER + SMTP_PASS all set) > DB row > none.
-//   SMTP_PORT (default 587, use 465 for implicit TLS),
-//   SMTP_FROM (defaults to SMTP_USER).
+// Two providers, in this precedence:
+//   1. Brevo HTTPS API (BREVO_API_KEY) — the production path on Render,
+//      whose free tier blocks outbound SMTP ports entirely.
+//   2. SMTP — configuration from environment variables OR the admin-managed
+//      smtp_settings table (single row, id=1), with this precedence:
+//        ENV (SMTP_HOST + SMTP_USER + SMTP_PASS all set) > DB row > none.
+//        SMTP_PORT (default 587, use 465 for implicit TLS),
+//        SMTP_FROM (defaults to SMTP_USER).
 //
 // Env values live outside the repo as before; the DB row is managed from
 // the admin panel (adminSaveSmtpSettings). The stored password is never
@@ -29,8 +32,8 @@ export interface EmailMessage {
 }
 
 // Result of an attempted send. `sent` is only ever true when the message
-// genuinely left this server (SMTP) or was deliberately captured by the
-// test harness — never faked.
+// genuinely left this server (Brevo API or SMTP) or was deliberately
+// captured by the test harness — never faked.
 export interface EmailResult {
   sent: boolean;
   error?: string;
@@ -64,7 +67,9 @@ function captureEnabled(): boolean {
 export function emailConfigured(): Promise<boolean> {
   // EMAIL_TEST_CAPTURE=1 counts as configured so test flows can exercise
   // the send path; production never sets that flag.
-  return getSmtpConfig().then((cfg) => captureEnabled() || cfg !== null);
+  return Promise.resolve(captureEnabled() || brevoConfig() !== null).then((fast) =>
+    fast ? true : getSmtpConfig().then((cfg) => cfg !== null),
+  );
 }
 
 // --- SMTP configuration: env > DB > none ------------------------------------
@@ -173,11 +178,89 @@ function getTransporter(cfg: SmtpConfig): Transporter {
   return transporter;
 }
 
+// --- Brevo HTTPS email provider ------------------------------------------------
+// Render's free tier blocks outbound SMTP ports (25/465/587) at the network
+// level, so no SMTP credentials can ever work there — every attempt fails
+// with "Connection timeout". Brevo's transactional API speaks plain HTTPS
+// (port 443, never blocked) and has a free tier (300 emails/day), so it is
+// the production email path on Render. SMTP is kept for local development
+// and hosts that allow outbound SMTP.
+//
+//   BREVO_API_KEY        — the v3 API key from Brevo (SMTP & API settings).
+//   BREVO_SENDER_EMAIL   — the From address; must be added and verified as a
+//                          sender in the Brevo account. Falls back to
+//                          SMTP_FROM, then SMTP_USER.
+//   BREVO_API_URL        — override for tests only; defaults to the real API.
+//
+// Precedence (highest first): test capture > BREVO_API_KEY > SMTP (env > db)
+// > unconfigured. The key lives in the environment, never in the repo.
+
+export interface BrevoConfig {
+  apiKey: string;
+  senderEmail: string;
+  apiUrl: string;
+}
+
+export function brevoConfig(): BrevoConfig | null {
+  const apiKey = (process.env.BREVO_API_KEY ?? "").trim();
+  if (!apiKey) return null;
+  const senderEmail =
+    (process.env.BREVO_SENDER_EMAIL ?? "").trim() ||
+    (process.env.SMTP_FROM ?? "").trim() ||
+    (process.env.SMTP_USER ?? "").trim();
+  if (!senderEmail) return null;
+  return {
+    apiKey,
+    senderEmail,
+    apiUrl: (process.env.BREVO_API_URL ?? "").trim() || "https://api.brevo.com/v3/smtp/email",
+  };
+}
+
+async function sendViaBrevo(msg: EmailMessage, cfg: BrevoConfig): Promise<EmailResult> {
+  const body: Record<string, unknown> = {
+    sender: { email: cfg.senderEmail, name: "Nepal Shop" },
+    to: [{ email: msg.to }],
+    subject: msg.subject,
+    textContent: msg.text,
+  };
+  if (msg.html) body.htmlContent = msg.html;
+  let res: Response;
+  try {
+    res = await fetch(cfg.apiUrl, {
+      method: "POST",
+      headers: {
+        "api-key": cfg.apiKey,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+      // Fail fast with Brevo's real error instead of hanging the request.
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error(`[email] brevo request to ${msg.to} failed: ${message}`);
+    return { sent: false, error: message };
+  }
+  if (res.ok) return { sent: true };
+  let detail = `Brevo API error ${res.status}`;
+  try {
+    const data = (await res.json()) as { message?: string; code?: string };
+    if (data?.message) detail = data.code ? `${data.message} (${data.code})` : data.message;
+  } catch {
+    // Non-JSON error body — keep the status-based detail.
+  }
+  console.error(`[email] brevo send to ${msg.to} failed: ${detail}`);
+  return { sent: false, error: detail };
+}
+
 export async function sendEmail(msg: EmailMessage): Promise<EmailResult> {
   if (captureEnabled()) {
     captured.push({ to: msg.to, subject: msg.subject, text: msg.text, html: msg.html, at: new Date().toISOString() });
     return { sent: true, captured: true };
   }
+  const brevo = brevoConfig();
+  if (brevo) return sendViaBrevo(msg, brevo);
   const cfg = await getSmtpConfig();
   if (!cfg) {
     console.warn(`[email] not configured — email to ${msg.to} ("${msg.subject}") was not sent`);
