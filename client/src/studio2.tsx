@@ -85,7 +85,7 @@ export function ProductImageUploader({ productId, callArgs }: { productId: numbe
           ))}
           {slotsLeft > 0 && (
             <label className="up-add">
-              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden disabled={busy}
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple className="sr-only" disabled={busy}
                 onChange={(e) => { void onFiles(e.target.files); e.target.value = ""; }} />
               <span aria-hidden="true">+</span>
               <small>{busy ? "Uploading…" : "Add photos"}</small>
@@ -488,7 +488,7 @@ export function StoreAssetUploader({ kind, currentUrl, callArgs, onSaved }: {
           </div>
         )}
         <label className="up-add">
-          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden disabled={busy}
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" disabled={busy}
             onChange={(e) => { void onFiles(e.target.files); e.target.value = ""; }} />
           <span aria-hidden="true">+</span>
           <small>{busy ? "Uploading…" : currentUrl ? `Replace ${kind}` : `Add ${kind}`}</small>

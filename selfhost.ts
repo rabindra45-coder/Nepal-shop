@@ -42,7 +42,7 @@ if (!DATABASE_URL) {
 // --- Release version ----------------------------------------------------------
 // Bumped by hand on each packaged release; surfaced by /api/health so a
 // health check can confirm which build is actually running.
-const APP_VERSION = "v13";
+const APP_VERSION = "v14";
 const BOOT_MS = Date.now();
 
 // --- Structured server logging ------------------------------------------------

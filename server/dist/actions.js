@@ -41641,7 +41641,7 @@ var Actions = {
       const db = fullDb(ctx);
       const stores = await db.select({ id: storeSettings.id, status: storeSettings.status }).from(storeSettings);
       const activeIds = new Set(stores.filter((s) => s.status === "active").map((s) => s.id));
-      const products2 = (await productRows(ctx)).filter((p) => p.is_active && activeIds.has(p.store_id));
+      const products2 = publicOnly(await productRows(ctx), activeIds);
       return { seller_count: activeIds.size, products: products2 };
     }
   }),

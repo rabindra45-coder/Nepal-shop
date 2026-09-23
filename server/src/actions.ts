@@ -1382,7 +1382,7 @@ export const Actions = {
       const db = fullDb(ctx);
       const stores = await db.select({ id: schema.storeSettings.id, status: schema.storeSettings.status }).from(schema.storeSettings);
       const activeIds = new Set(stores.filter((s) => s.status === "active").map((s) => s.id));
-      const products = (await productRows(ctx)).filter((p) => p.is_active && activeIds.has(p.store_id));
+      const products = publicOnly(await productRows(ctx), activeIds);
       return { seller_count: activeIds.size, products };
     },
   }),

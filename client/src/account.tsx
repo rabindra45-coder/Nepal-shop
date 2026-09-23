@@ -262,7 +262,7 @@ function AccountHead({ avatarUrl, name }: { avatarUrl: string | null; name: stri
         <button type="button" className="ghost photo-btn" disabled={upload.isPending} onClick={() => fileRef.current?.click()}>
           {upload.isPending ? "Uploading…" : "Upload profile photo"}
         </button>
-        <input ref={fileRef} type="file" accept="image/*" onChange={onFile} disabled={upload.isPending} hidden aria-hidden="true" tabIndex={-1} />
+        <input ref={fileRef} type="file" accept="image/*" onChange={onFile} disabled={upload.isPending} className="sr-only" aria-label="Upload profile photo" />
         {upload.isPending && <p className="muted"><small>Uploading your photo…</small></p>}
         {error && <p className="form-error" role="alert">{error}</p>}
       </div>
