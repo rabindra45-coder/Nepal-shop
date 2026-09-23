@@ -95,6 +95,12 @@ export const products = pgTable("products", {
   // their behaviour; products created by not-yet-approved sellers start at
   // "pending" (see createProduct).
   approvalStatus: text("approval_status", { enum: ["approved", "pending", "rejected"] }).notNull().default("approved"),
+  // v15: gender for the Gender filter (men/women/kids/unisex, null = unset).
+  gender: text("gender", { enum: ["men", "women", "kids", "unisex"] }),
+  // v15: flash sale scheduling — flashSale marks the product for the homepage
+  // flash-sale strip; flashSaleEndsAt (null = no end) bounds it.
+  flashSale: boolean("flash_sale").notNull().default(false),
+  flashSaleEndsAt: timestamp("flash_sale_ends_at", { mode: "date", withTimezone: true }),
   createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date()),
   updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().$defaultFn(() => new Date()),
 }, (table) => ({

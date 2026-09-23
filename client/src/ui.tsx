@@ -55,43 +55,94 @@ export function Stars({ rating, count }: { rating: number | null; count?: number
 }
 
 // --- cards ------------------------------------------------------------------
+// v15: modern marketplace card (Meesho/Daraz-style): square image with a
+// discount badge, two-line name, price + struck-through original + % off,
+// stars with review count, and a real "N sold" label (never invented).
+export function formatSold(n: number): string {
+  if (n >= 1000) {
+    const k = n / 1000;
+    return `${k >= 100 ? Math.round(k) : k.toFixed(1).replace(/\.0$/, "")}k sold`;
+  }
+  return `${n} sold`;
+}
+
 export function ProductCard({ product, onOpen, onAdd, showSeller }: {
   product: P2Product; onOpen: () => void; onAdd?: (p: P2Product) => void; showSeller?: boolean;
 }) {
   // The seller name doubles as a store link. It sits inside the card's open
   // button, so it stops propagation and handles Enter itself.
   const openStore = (e: { stopPropagation: () => void }) => { e.stopPropagation(); go(`/store/${product.seller_code}`); };
+  const img = product.images?.[0] ?? product.image_url ?? null;
+  const off = product.discount_pct > 0 && product.original_price_paisa != null && product.original_price_paisa > product.price_paisa;
+  const out = product.stock === 0;
+  const initials = (product.brand ?? product.name).trim().slice(0, 2).toUpperCase();
   return (
-    <article className="product">
-      <button className="product-open" onClick={onOpen} aria-label={`View ${product.name}`}>
-        <ProductImage product={product} />
-        <div className="product-body">
-          <p>{product.category}{product.brand ? ` · ${product.brand}` : ""}</p>
-          <h3>{product.name}</h3>
+    <article className="m-card">
+      <button className="m-card-open" onClick={onOpen} aria-label={`View ${product.name}`}>
+        <span className="m-card-img">
+          {img ? (
+            <img src={img} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+          ) : (
+            <span className="m-card-ph" aria-hidden="true">{initials}</span>
+          )}
+          {off && <span className="m-off">-{product.discount_pct}%</span>}
+          {product.flash_sale && <span className="m-flash">⚡ Flash</span>}
+          {out && <span className="m-soldout">Out of stock</span>}
+        </span>
+        <span className="m-card-body">
+          <span className="m-name">{product.name}</span>
           {showSeller && (
-            <span className="seller-link" role="link" tabIndex={0} aria-label={`Visit ${product.store_name}`}
+            <span className="m-seller" role="link" tabIndex={0} aria-label={`Visit ${product.store_name}`}
               onClick={openStore}
               onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); go(`/store/${product.seller_code}`); } }}>
-              {product.store_name} · {product.store_location}
+              {product.store_name}
             </span>
           )}
-          <div className="price-line">
-            <span><strong>{money(product.price_paisa)}</strong>
-              {product.original_price_paisa && product.original_price_paisa > product.price_paisa && (
-                <> <s className="was">{money(product.original_price_paisa)}</s> <span className="off">-{product.discount_pct}%</span></>
-              )}
-            </span>
-            <small>{product.stock > 0 ? (product.low_stock ? `Only ${product.stock} left` : `${product.stock} in stock`) : "Out of stock"}</small>
-          </div>
-          <Stars rating={product.rating} count={product.review_count} />
-        </div>
+          <span className="m-price-row">
+            <span className="m-price">{money(product.price_paisa)}</span>
+            {off && <s className="m-was">{money(product.original_price_paisa!)}</s>}
+          </span>
+          {off && <span className="m-off-txt">{product.discount_pct}% off</span>}
+          <span className="m-meta">
+            <Stars rating={product.rating} count={product.review_count} />
+            {product.sold_count > 0 && <span className="m-sold"> · {formatSold(product.sold_count)}</span>}
+          </span>
+        </span>
       </button>
       {onAdd && (
-        <button className="add" disabled={product.stock === 0} onClick={() => onAdd(product)}>
-          {product.stock === 0 ? "Out of stock" : "Add to basket"}
+        <button className="m-add" disabled={out} onClick={() => onAdd(product)}>
+          {out ? "Out of stock" : "Add to basket"}
         </button>
       )}
     </article>
+  );
+}
+
+// v15: circular category tile for the homepage category strip.
+export function CategoryCircle({ name, image, count, onOpen }: {
+  name: string; image?: string | null; count?: number; onOpen: () => void;
+}) {
+  const initials = name.trim().slice(0, 2).toUpperCase();
+  return (
+    <button className="cat-circle" onClick={onOpen} aria-label={`Shop ${name}`}>
+      <span className="cat-circle-img">
+        {image ? <img src={image} alt="" loading="lazy" decoding="async" /> : <span aria-hidden="true">{initials}</span>}
+      </span>
+      <span className="cat-circle-name">{name}</span>
+      {count !== undefined && <span className="cat-circle-count">{count}</span>}
+    </button>
+  );
+}
+
+// v15: section header with a "view all" link, used across the new homepage.
+export function SectionHead({ title, actionLabel, onAction }: {
+  title: string; actionLabel?: string; onAction?: () => void;
+}) {
+  return (
+    <div className="m-sec-head">
+      <h2>{title}</h2>
+      {actionLabel && onAction && <button className="linklike" onClick={onAction}>{actionLabel} →</button>}
+    </div>
   );
 }
 

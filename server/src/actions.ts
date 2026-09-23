@@ -98,7 +98,7 @@ async function deleteStoredUpload(url: string | null | undefined): Promise<void>
   await unlink(join(dir, fname)).catch(() => { /* already gone */ });
 }
 
-const productShape = z.object({ id: z.number(), store_id: z.number(), seller_code: z.string(), store_name: z.string(), store_location: z.string(), name: z.string(), category: z.string(), description: z.string(), price_paisa: z.number(), delivery_fee_paisa: z.number(), stock: z.number(), is_active: z.boolean(), approval_status: z.string().optional(), rating: z.number().nullable(), review_count: z.number(), created_at: z.string(), brand: z.string().nullable(), original_price_paisa: z.number().nullable(), discount_pct: z.number(), image_url: z.string().nullable(), images: z.array(z.string()), low_stock: z.boolean(), sku: z.string().nullable() });
+const productShape = z.object({ id: z.number(), store_id: z.number(), seller_code: z.string(), store_name: z.string(), store_location: z.string(), name: z.string(), category: z.string(), description: z.string(), price_paisa: z.number(), delivery_fee_paisa: z.number(), stock: z.number(), is_active: z.boolean(), approval_status: z.string().optional(), rating: z.number().nullable(), review_count: z.number(), created_at: z.string(), brand: z.string().nullable(), original_price_paisa: z.number().nullable(), discount_pct: z.number(), image_url: z.string().nullable(), images: z.array(z.string()), low_stock: z.boolean(), sku: z.string().nullable(), sold_count: z.number(), gender: z.string().nullable(), flash_sale: z.boolean(), flash_sale_ends_at: z.string().nullable() });
 // Customer-facing variant (size, colour, …). Only active variants of public
 // products are ever exposed; the seller studio (Seller checkpoint) manages them.
 const variantShape = z.object({ id: z.number(), label: z.string(), sku: z.string().nullable(), price_paisa: z.number().nullable(), stock: z.number(), is_active: z.boolean() });
@@ -461,7 +461,7 @@ async function cancelFulfilmentsTx(tx: DbTx, orderIds: number[], actorType: stri
   }
 }
 
-async function productRows(ctx: Ctx, storeId?: number) {
+async function productRows(ctx: Ctx, storeId?: number, soldCounts?: Map<number, number>) {
   const db = fullDb(ctx);
   const products = storeId
     ? await db.select().from(schema.products).where(eq(schema.products.storeId, storeId)).orderBy(desc(schema.products.createdAt))
@@ -502,10 +502,15 @@ async function productRows(ctx: Ctx, storeId?: number) {
     reviewsByProduct.set(r.productId, list);
   }
   const storeById = new Map(stores.map((s) => [s.id, s]));
+  // v15: real units sold per product (non-cancelled orders only) for the
+  // "N sold" labels and sold progress bars. Never invented. Callers that
+  // already computed counts (getHomepage) pass them in to avoid rescanning
+  // the orders table.
+  const counts = soldCounts ?? await popularityCounts(ctx);
   return products.map((p) => {
     const rs = reviewsByProduct.get(p.id) ?? [], store = storeById.get(p.storeId);
     const original = p.originalPricePaisa;
-    return { id: p.id, store_id: p.storeId, seller_code: store?.sellerCode ?? "", store_name: store?.storeName ?? "Seller", store_location: store?.location ?? "", name: p.name, category: p.category, description: p.description, price_paisa: p.pricePaisa, delivery_fee_paisa: p.deliveryFeePaisa, stock: p.stock, is_active: p.isActive, approval_status: p.approvalStatus ?? "approved", rating: rs.length ? rs.reduce((n, r) => n + r.rating, 0) / rs.length : null, review_count: rs.length, created_at: p.createdAt.toISOString(), brand: p.brand ?? null, original_price_paisa: original ?? null, discount_pct: original && original > p.pricePaisa ? Math.round((original - p.pricePaisa) / original * 100) : 0, image_url: p.imageUrl ?? null, images: imagesByProduct.get(p.id) ?? [], low_stock: p.stock > 0 && p.stock <= (p.lowStockThreshold ?? 5), sku: p.sku ?? null };
+    return { id: p.id, store_id: p.storeId, seller_code: store?.sellerCode ?? "", store_name: store?.storeName ?? "Seller", store_location: store?.location ?? "", name: p.name, category: p.category, description: p.description, price_paisa: p.pricePaisa, delivery_fee_paisa: p.deliveryFeePaisa, stock: p.stock, is_active: p.isActive, approval_status: p.approvalStatus ?? "approved", rating: rs.length ? rs.reduce((n, r) => n + r.rating, 0) / rs.length : null, review_count: rs.length, created_at: p.createdAt.toISOString(), brand: p.brand ?? null, original_price_paisa: original ?? null, discount_pct: original && original > p.pricePaisa ? Math.round((original - p.pricePaisa) / original * 100) : 0, image_url: p.imageUrl ?? null, images: imagesByProduct.get(p.id) ?? [], low_stock: p.stock > 0 && p.stock <= (p.lowStockThreshold ?? 5), sku: p.sku ?? null, sold_count: counts.get(p.id) ?? 0, gender: p.gender ?? null, flash_sale: p.flashSale ?? false, flash_sale_ends_at: p.flashSaleEndsAt ? p.flashSaleEndsAt.toISOString() : null };
   });
 }
 
@@ -1858,7 +1863,7 @@ export const Actions = {
     },
   }),
   createProduct: defineAction({
-    request: z.object({ ...sellerAuthFields, name: z.string().trim().min(2).max(80), category: z.string().trim().min(2).max(40), description: z.string().trim().min(8).max(500), price_paisa: z.number().int().positive(), delivery_fee_paisa: z.number().int().min(0), stock: z.number().int().min(0).max(100000), brand: z.string().trim().max(40).optional(), original_price_paisa: z.number().int().positive().optional(), image_url: imageUrlField.optional(), low_stock_threshold: z.number().int().min(0).max(1000).optional(), sku: z.string().trim().max(40).optional(), is_active: z.boolean().optional().default(false) }), response: z.object({ id: z.number(), is_active: z.boolean() }),
+    request: z.object({ ...sellerAuthFields, name: z.string().trim().min(2).max(80), category: z.string().trim().min(2).max(40), description: z.string().trim().min(8).max(500), price_paisa: z.number().int().positive(), delivery_fee_paisa: z.number().int().min(0), stock: z.number().int().min(0).max(100000), brand: z.string().trim().max(40).optional(), original_price_paisa: z.number().int().positive().optional(), image_url: imageUrlField.optional(), low_stock_threshold: z.number().int().min(0).max(1000).optional(), sku: z.string().trim().max(40).optional(), is_active: z.boolean().optional().default(false), gender: z.enum(["men", "women", "kids", "unisex"]).optional() }), response: z.object({ id: z.number(), is_active: z.boolean() }),
     async handler(ctx, args) {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
@@ -1877,7 +1882,7 @@ export const Actions = {
       // approved sellers keep the v7 behaviour (their products are approved
       // on creation and go live when published).
       const approvalStatus = store.status === "active" ? "approved" : "pending";
-      const result = await db.insert(schema.products).values({ storeId: store.id, name: args.name, category: args.category, description: args.description, pricePaisa: args.price_paisa, deliveryFeePaisa: args.delivery_fee_paisa, stock: args.stock, brand: args.brand?.trim() || null, originalPricePaisa: args.original_price_paisa ?? null, imageUrl: args.image_url ?? null, lowStockThreshold: args.low_stock_threshold ?? 5, sku, isActive, approvalStatus, updatedAt: new Date() }).returning({ id: schema.products.id });
+      const result = await db.insert(schema.products).values({ storeId: store.id, name: args.name, category: args.category, description: args.description, pricePaisa: args.price_paisa, deliveryFeePaisa: args.delivery_fee_paisa, stock: args.stock, brand: args.brand?.trim() || null, originalPricePaisa: args.original_price_paisa ?? null, imageUrl: args.image_url ?? null, lowStockThreshold: args.low_stock_threshold ?? 5, sku, isActive, approvalStatus, gender: args.gender ?? null, updatedAt: new Date() }).returning({ id: schema.products.id });
       const row = result[0];
       if (!row) throw new Error("The product could not be saved.");
       if (args.stock > 0) {
@@ -1888,7 +1893,7 @@ export const Actions = {
     },
   }),
   updateProduct: defineAction({
-    request: z.object({ ...sellerAuthFields, id: z.number().int().positive(), name: z.string().trim().min(2).max(80), category: z.string().trim().min(2).max(40), description: z.string().trim().min(8).max(500), price_paisa: z.number().int().positive(), delivery_fee_paisa: z.number().int().min(0), stock: z.number().int().min(0).max(100000), is_active: z.boolean(), image_url: imageUrlField.nullish(), sku: z.string().trim().max(40).nullish(), brand: z.string().trim().max(40).nullish(), original_price_paisa: z.number().int().positive().nullish(), low_stock_threshold: z.number().int().min(0).max(1000).nullish() }), response: z.object({ ok: z.literal(true) }),
+    request: z.object({ ...sellerAuthFields, id: z.number().int().positive(), name: z.string().trim().min(2).max(80), category: z.string().trim().min(2).max(40), description: z.string().trim().min(8).max(500), price_paisa: z.number().int().positive(), delivery_fee_paisa: z.number().int().min(0), stock: z.number().int().min(0).max(100000), is_active: z.boolean(), image_url: imageUrlField.nullish(), sku: z.string().trim().max(40).nullish(), brand: z.string().trim().max(40).nullish(), original_price_paisa: z.number().int().positive().nullish(), low_stock_threshold: z.number().int().min(0).max(1000).nullish(), gender: z.enum(["men", "women", "kids", "unisex"]).nullish() }), response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
       const store = await resolveSeller(ctx, args);
       assertSellerCanSell(store);
@@ -1902,7 +1907,7 @@ export const Actions = {
         if (clash && clash.id !== args.id) throw new Error(`The SKU "${sku}" is already used by another product in this shop.`);
       }
       const isActive = store.status === "active" && args.is_active;
-      await db.update(schema.products).set({ name: args.name, category: args.category, description: args.description, pricePaisa: args.price_paisa, deliveryFeePaisa: args.delivery_fee_paisa, stock: args.stock, isActive, imageUrl: args.image_url ?? before.imageUrl, sku, brand: args.brand === undefined ? before.brand : args.brand?.trim() || null, originalPricePaisa: args.original_price_paisa === undefined ? before.originalPricePaisa : args.original_price_paisa, lowStockThreshold: args.low_stock_threshold ?? before.lowStockThreshold, updatedAt: new Date() }).where(and(eq(schema.products.id, args.id), eq(schema.products.storeId, store.id)));
+      await db.update(schema.products).set({ name: args.name, category: args.category, description: args.description, pricePaisa: args.price_paisa, deliveryFeePaisa: args.delivery_fee_paisa, stock: args.stock, isActive, imageUrl: args.image_url ?? before.imageUrl, sku, brand: args.brand === undefined ? before.brand : args.brand?.trim() || null, originalPricePaisa: args.original_price_paisa === undefined ? before.originalPricePaisa : args.original_price_paisa, lowStockThreshold: args.low_stock_threshold ?? before.lowStockThreshold, gender: args.gender === undefined ? before.gender : args.gender, updatedAt: new Date() }).where(and(eq(schema.products.id, args.id), eq(schema.products.storeId, store.id)));
       // Manual stock adjustments are part of the inventory trail, same as
       // order decrements and restores.
       if (args.stock !== before.stock) {
@@ -2803,7 +2808,7 @@ export const Actions = {
   }),
   adminListProducts: defineAction({
     request: z.object({ authToken: authTokenField, seller_id: z.number().int().positive().optional(), q: z.string().trim().max(80).optional(), moderation: z.boolean().optional() }),
-    response: z.object({ products: z.array(z.object({ id: z.number(), name: z.string(), category: z.string(), price_paisa: z.number(), stock: z.number(), is_active: z.boolean(), approval_status: z.string(), store_name: z.string(), seller_code: z.string(), seller_status: sellerStatus })) }),
+    response: z.object({ products: z.array(z.object({ id: z.number(), name: z.string(), category: z.string(), price_paisa: z.number(), stock: z.number(), is_active: z.boolean(), approval_status: z.string(), store_name: z.string(), seller_code: z.string(), seller_status: sellerStatus, discount_pct: z.number(), flash_sale: z.boolean(), flash_sale_ends_at: z.string().nullable() })) }),
     async handler(ctx, args) {
       await requireAuth(ctx, args.authToken, "admin");
       const db = fullDb(ctx);
@@ -2823,7 +2828,8 @@ export const Actions = {
       return {
         products: products.map((p) => {
           const store = storeById.get(p.storeId);
-          return { id: p.id, name: p.name, category: p.category, price_paisa: p.pricePaisa, stock: p.stock, is_active: p.isActive, approval_status: p.approvalStatus ?? "approved", store_name: store?.storeName ?? "Seller", seller_code: store?.sellerCode ?? "", seller_status: store?.status ?? "active" };
+          const discount = p.originalPricePaisa && p.originalPricePaisa > p.pricePaisa ? Math.round((p.originalPricePaisa - p.pricePaisa) / p.originalPricePaisa * 100) : 0;
+          return { id: p.id, name: p.name, category: p.category, price_paisa: p.pricePaisa, stock: p.stock, is_active: p.isActive, approval_status: p.approvalStatus ?? "approved", store_name: store?.storeName ?? "Seller", seller_code: store?.sellerCode ?? "", seller_status: store?.status ?? "active", discount_pct: discount, flash_sale: !!p.flashSale, flash_sale_ends_at: p.flashSaleEndsAt ? p.flashSaleEndsAt.toISOString() : null };
         }),
       };
     },
@@ -5192,6 +5198,29 @@ export const Actions = {
       return { ok: true };
     },
   }),
+  // v15: admin flash-sale scheduling. Marks a product for the homepage
+  // flash-sale strip with an optional end time (ISO string, null = no end).
+  // Only discounted products can be flagged; the strip hides them again when
+  // the discount is removed or the end time passes.
+  adminSetFlashSale: defineAction({
+    request: z.object({ authToken: authTokenField, product_id: z.number().int().positive(), flash_sale: z.boolean(), ends_at: z.string().datetime({ offset: true }).nullable().optional() }),
+    response: z.object({ ok: z.literal(true) }),
+    async handler(ctx, args): Promise<{ ok: true }> {
+      const auth = await requireAuth(ctx, args.authToken, "admin");
+      const db = fullDb(ctx);
+      const product = (await db.select().from(schema.products).where(eq(schema.products.id, args.product_id)).limit(1))[0];
+      if (!product) throw new Error("Product not found.");
+      if (args.flash_sale && !(product.originalPricePaisa && product.originalPricePaisa > product.pricePaisa)) {
+        throw new Error("Only discounted products can join the flash sale — set an original price first.");
+      }
+      const endsAt = args.ends_at ? new Date(args.ends_at) : null;
+      if (endsAt && Number.isNaN(endsAt.getTime())) throw new Error("That end time is not a valid date.");
+      await db.update(schema.products).set({ flashSale: args.flash_sale, flashSaleEndsAt: args.flash_sale ? endsAt : null, updatedAt: new Date() }).where(eq(schema.products.id, product.id));
+      await audit(ctx, "admin", auth.id, args.flash_sale ? "flash_sale_added" : "flash_sale_removed", "product", String(product.id), product.name);
+      ctx.invalidateQueries();
+      return { ok: true };
+    },
+  }),
 
   // Public shipping methods: which delivery speeds the marketplace offers
   // and what the express surcharge currently is (admin-configurable).
@@ -5369,6 +5398,7 @@ export const Actions = {
       in_stock_only: z.boolean().optional(),
       on_sale_only: z.boolean().optional(),
       seller_code: z.string().trim().max(40).optional(),
+      gender: z.enum(["men", "women", "kids", "unisex"]).optional(),
       sort: z.enum(["relevance", "price_asc", "price_desc", "rating", "newest", "popularity", "discount"]).optional().default("relevance"),
       limit: z.number().int().min(1).max(60).optional().default(24),
       offset: z.number().int().min(0).optional().default(0),
@@ -5405,6 +5435,7 @@ export const Actions = {
       if (args.in_stock_only) pubs = pubs.filter((p) => p.stock > 0);
       if (args.on_sale_only) pubs = pubs.filter((p) => p.discount_pct > 0);
       if (args.seller_code) pubs = pubs.filter((p) => p.seller_code === args.seller_code!.toUpperCase());
+      if (args.gender) pubs = pubs.filter((p) => p.gender === args.gender);
       const counts = args.sort === "popularity" ? await popularityCounts(ctx) : new Map<number, number>();
       const relevance = (p: PublicProduct) => {
         let score = 0;
@@ -5471,15 +5502,22 @@ export const Actions = {
       banners: z.array(z.object({ title: z.string(), subtitle: z.string().nullable(), link: z.string().nullable(), image_url: z.string().nullable() })),
       sections: z.array(z.object({ key: z.string(), title: z.string(), products: z.array(productShape) })),
       site_logo_url: z.string().nullable(),
+      // v15: per-category product rails for the "shop by category" homepage
+      // blocks, and the active flash-sale strip (real data only — empty when
+      // the admin has not scheduled any flash sale).
+      category_sections: z.array(z.object({ name: z.string(), products: z.array(productShape) })),
+      flash_sales: z.array(productShape),
     }),
     async handler(ctx, args) {
       const db = fullDb(ctx);
       const actives = await activeStoreIds(ctx);
-      const pubs = publicOnly(await productRows(ctx), actives);
       const banners = (await db.select().from(schema.homepageBanners).where(eq(schema.homepageBanners.isActive, true)).orderBy(schema.homepageBanners.sortOrder))
         .map((b) => ({ title: b.title, subtitle: b.subtitle, link: b.link, image_url: b.imageUrl }));
       const sectionRows = await db.select().from(schema.homepageSections).where(eq(schema.homepageSections.isActive, true)).orderBy(schema.homepageSections.sortOrder);
+      // v15: compute sold counts once and share them with productRows below —
+      // one orders-table scan instead of three per homepage load.
       const counts = await popularityCounts(ctx);
+      const pubs = publicOnly(await productRows(ctx, undefined, counts), actives);
       const recentCounts = await popularityCounts(ctx, Date.now() - 30 * 86400 * 1000);
       const trending = [...pubs].sort((a, b) => (recentCounts.get(b.id) ?? 0) - (recentCounts.get(a.id) ?? 0));
       const userId = await buyerIdOf(ctx, args.authToken);
@@ -5491,7 +5529,26 @@ export const Actions = {
         flash_deals: pubs.filter((p) => p.discount_pct > 0).sort((a, b) => b.discount_pct - a.discount_pct).slice(0, 8),
         recommended,
       };
-      return { banners, sections: sectionRows.map((s) => ({ key: s.key, title: s.title, products: builders[s.key] ?? [] })), site_logo_url: await siteLogoUrl(ctx) };
+      // v15: category rails — top categories by live product count, 8 products
+      // each, so the homepage can show products grouped by category.
+      const byCat = new Map<string, PublicProduct[]>();
+      for (const p of pubs) {
+        const list = byCat.get(p.category) ?? [];
+        list.push(p);
+        byCat.set(p.category, list);
+      }
+      const category_sections = [...byCat.entries()]
+        .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+        .slice(0, 6)
+        .map(([name, list]) => ({ name, products: list.slice(0, 8) }));
+      // v15: active flash sales — flagged by the admin, discounted, and not
+      // expired. Empty array when nothing is scheduled: never faked.
+      const nowMs = Date.now();
+      const flash_sales = pubs
+        .filter((p) => p.flash_sale && p.discount_pct > 0 && (!p.flash_sale_ends_at || new Date(p.flash_sale_ends_at).getTime() > nowMs))
+        .sort((a, b) => b.discount_pct - a.discount_pct)
+        .slice(0, 8);
+      return { banners, sections: sectionRows.map((s) => ({ key: s.key, title: s.title, products: builders[s.key] ?? [] })), site_logo_url: await siteLogoUrl(ctx), category_sections, flash_sales };
     },
   }),
 

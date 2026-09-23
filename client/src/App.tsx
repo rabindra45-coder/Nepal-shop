@@ -7,10 +7,9 @@ import { api, clearAuth, clearLegacySeller, getAuth, getLegacySeller, setAuth, s
 import { api2, money, toP2Order, toP2OrderGroup, type P2Product } from "./phase2api";
 import { AuthContext, go, useAuth, useRoute } from "./session";
 import { CartProvider, clearGuestCart, readGuestCart, useCart } from "./cart";
-import { ToastProvider, useToast, ProductCard, ProductImage } from "./ui";
-import heroArt from "./assets/hero-parcel-exchange.webp";
+import { ToastProvider, useToast } from "./ui";
 import {
-  AssistantPage, CartPage, ChangePasswordForm, CheckoutPage, ComparePage, Homepage, PaymentResultPage,
+  AssistantPage, CartPage, CategoriesPage, ChangePasswordForm, CheckoutPage, ComparePage, Homepage, PaymentResultPage,
   ProductPage, SearchPage, StorePage, WishlistPage, STATUS_LABEL,
 } from "./screens";
 import { AccountShell, Drawer, FieldError, GroupTrail, HelpPage, NotificationsPage, OrderTrail, useBuyerAvatar, useUnreadCount } from "./account";
@@ -74,6 +73,7 @@ export function App() {
       "/": "Nepal Shop — Local Marketplace",
       "/shop": "Shop all products — Nepal Shop",
       "/search": "Search products — Nepal Shop",
+      "/categories": "Shop by category — Nepal Shop",
       "/cart": "Your basket — Nepal Shop",
       "/checkout": "Checkout — Nepal Shop",
       "/track": "Track your order — Nepal Shop",
@@ -106,6 +106,7 @@ export function App() {
       "/": "Shop from verified local sellers across Nepal — transparent prices in NPR, eSewa/Khalti and cash on delivery, and 30-day returns.",
       "/shop": "Browse every product from verified Nepali sellers in one place.",
       "/search": "Search local Nepali products by name, brand or category.",
+      "/categories": "Browse products by category from verified Nepali sellers.",
       "/track": "Track your Nepal Shop order with your order code and phone number.",
       "/help": "Delivery, payments, returns and buyer protection — Nepal Shop help centre.",
       "/about": "Nepal Shop is a local multi-vendor marketplace: shop local, know who packed it.",
@@ -332,7 +333,7 @@ function MobileNav({ path }: { path: string }) {
   const { auth } = useAuth();
   const items = [
     { id: "/", label: "Home", icon: "⌂" },
-    { id: "/search", label: "Search", icon: "⚲" },
+    { id: "/categories", label: "Categories", icon: "▦" },
     { id: "/cart", label: `Basket${count ? ` (${count})` : ""}`, icon: "🧺" },
     { id: auth?.type === "buyer" ? "/account" : "/login", label: "Account", icon: "☺" },
   ];
@@ -367,6 +368,7 @@ function RouteView({ path, query, invalidate }: { path: string; query: URLSearch
   if (path === "/checkout") return <CheckoutPage />;
   if (path === "/payment-result") return <PaymentResultPage query={query} />;
   if (path === "/search") return <SearchPage key={`q=${query.get("q") ?? ""}&c=${query.get("category") ?? ""}`} initialQuery={query.get("q") ?? ""} initialCategory={query.get("category") ?? ""} />;
+  if (path === "/categories") return <CategoriesPage key={`c=${query.get("category") ?? ""}`} initialCategory={query.get("category") ?? ""} />;
   if (path === "/compare") return <ComparePage />;
   if (path === "/assistant") return <AssistantPage />;
   if (path === "/help") return <HelpPage />;
@@ -399,54 +401,11 @@ function RouteView({ path, query, invalidate }: { path: string; query: URLSearch
   return path === "/" ? <Homepage /> : <NotFoundPage />;
 }
 
-// --- shop (v2 content, kept working at /shop) ----------------------------------
+// --- shop (v15: unified with the modern search catalogue) ---------------------
 function ShopPage() {
-  const { products, lines, cartNotice, add, setQty, storefrontPending, storefrontError, sellerCount } = useCart();
-  const { toast } = useToast();
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
-  const [selected, setSelected] = useState<P2Product | null>(null);
-  const qtyById = useMemo(() => { const m = new Map<number, number>(); lines.forEach((l) => m.set(l.product.id, l.quantity)); return m; }, [lines]);
-  const categories = ["All", ...new Set(products.map((p) => p.category))];
-  const visible = products.filter((p) => (category === "All" || p.category === category) && `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(query.toLowerCase()));
-
-  if (storefrontPending) return <main className="loading">Opening the market…</main>;
-  if (storefrontError) return <main className="loading">The storefront couldn’t load. Please reopen it.</main>;
-
-  return (<>
-    <main>
-      <section className="hero">
-        <div className="hero-copy">
-          <p className="eyebrow">Local marketplace</p>
-          <h1>Shop local.<br />Know who packed it.</h1>
-          <p>{sellerCount ? `${sellerCount} local ${sellerCount === 1 ? "seller" : "sellers"}, one transparent checkout.` : "Products appear here when the first local seller publishes a listing."}</p>
-        </div>
-        <img src={heroArt} alt="Two hands passing a wrapped parcel across a shop counter" fetchPriority="high" />
-      </section>
-
-      <section className="trust-strip" aria-label="Shopping protections">
-        <div><b>01</b><span>Total shown before ordering</span></div>
-        <div><b>02</b><span>COD waits for seller confirmation</span></div>
-        <div><b>03</b><span>Reviews require delivery</span></div>
-      </section>
-
-      {cartNotice && <p className="cart-notice" role="status">{cartNotice}</p>}
-      <section className="catalog">
-        <div className="catalog-head">
-          <div><p className="eyebrow">Open shelves</p><h2>What’s in stock</h2></div>
-          <label className="search"><span>Search</span><input aria-label="Search products" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, category, detail" /></label>
-        </div>
-        {categories.length > 1 && <div className="category-list" aria-label="Product categories">{categories.map((item) => <button key={item} className={category === item ? "selected" : ""} onClick={() => setCategory(item)}>{item}</button>)}</div>}
-        {visible.length === 0 ? <div className="empty-state"><span>THE SHELVES ARE QUIET</span><h3>{products.length ? "No products match that search." : "This seller hasn’t published a product yet."}</h3><p>{products.length ? "Try another word or show every category." : "Open Seller studio to create the store profile and first real listing."}</p>{products.length === 0 && <button className="primary" onClick={() => go("/seller")}>Set up the store</button>}</div> : <div className="product-grid">{visible.map((product) => <ProductCard key={product.id} product={product} onOpen={() => setSelected(product)} onAdd={(p) => { add(p, 1); toast(`${p.name} added to your basket.`); }} showSeller />)}</div>}
-      </section>
-    </main>
-    {selected && <ProductSheet product={selected} quantity={qtyById.get(selected.id) ?? 0} close={() => setSelected(null)} adjust={(by) => { const q = (qtyById.get(selected.id) ?? 0) + by; setQty(selected.id, q); }} />}
-  </>);
-}
-
-function ProductSheet({ product, quantity, close, adjust }: { product: P2Product; quantity: number; close: () => void; adjust: (by: number) => void }) {
-  const reviews = useQuery({ queryKey: ["reviews", product.id], queryFn: () => api.getProductReviews({ product_id: product.id }) });
-  return <div className="overlay" role="dialog" aria-modal="true" aria-label={`${product.name} details`}><div className="sheet"><button className="sheet-close" onClick={close} aria-label="Close product details">Close</button><ProductImage product={product} className="sheet-img" /><p className="eyebrow">{product.category}</p><h2>{product.name}</h2><p className="seller-line">Seller-provided profile · {product.store_name} · {product.store_location}</p><p>{product.description}</p><div className="detail-price"><strong>{money(product.price_paisa)}</strong><span>+ {money(product.delivery_fee_paisa)} delivery each</span></div><div className="quantity"><button onClick={() => adjust(-1)} disabled={quantity === 0} aria-label={`Remove one ${product.name}`}>−</button><span>{quantity}</span><button onClick={() => adjust(1)} disabled={quantity >= product.stock} aria-label={`Add one ${product.name}`}>+</button></div><p><button className="linklike" onClick={() => go(`/product/${product.id}`)}>Open the full product page →</button></p><section className="reviews"><h3>Verified buyers</h3>{reviews.data?.reviews.length ? reviews.data.reviews.map((review) => <article key={review.id}><b>{"★".repeat(review.rating)}</b><p>{review.body}</p><small>{review.reviewer_name} · {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(review.created_at))}</small></article>) : <p className="muted">No delivered-buyer reviews yet.</p>}</section></div></div>;
+  // v15: the shop catalogue is the modern SearchPage — one catalogue
+  // implementation, no duplicates.
+  return <SearchPage key="shop" initialQuery="" initialCategory="" kicker="The full catalogue" heading="Shop everything." />;
 }
 
 // --- legacy guest COD checkout sheet (kept working) ---------------------------
@@ -1103,6 +1062,13 @@ function AdminProducts() {
   const rows: AdminProduct[] = products.data?.products ?? [];
   const [rejecting, setRejecting] = useState<number | null>(null);
   const [reason, setReason] = useState("");
+  const [flashFor, setFlashFor] = useState<number | null>(null);
+  const [flashEnds, setFlashEnds] = useState("");
+  const flash = useMutation({
+    mutationFn: (v: { product_id: number; flash_sale: boolean; ends_at?: string | null }) => api.adminSetFlashSale(v),
+    onSuccess: (_d, v) => { setFlashFor(null); setFlashEnds(""); refresh(); toast(v.flash_sale ? "Added to the flash sale." : "Removed from the flash sale."); },
+    onError: (e) => toast(e instanceof Error ? e.message : "Could not update the flash sale.", "err"),
+  });
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ["admin-products"] });
   const approve = useMutation({
     mutationFn: (product_id: number) => api.adminApproveProduct({ product_id }),
@@ -1141,6 +1107,19 @@ function AdminProducts() {
         </>}
         <span className={`status ${p.is_active ? "confirmed" : "cancelled"}`}>{p.is_active ? "Visible" : "Hidden"}</span>
         <button disabled={toggle.isPending} onClick={() => toggle.mutate({ product_id: p.id, active: !p.is_active })}>{p.is_active ? "Hide" : "Show"}</button>
+        {p.flash_sale
+          ? <><span className="status processing">⚡ Flash sale</span><button disabled={flash.isPending} onClick={() => flash.mutate({ product_id: p.id, flash_sale: false })}>Remove</button></>
+          : p.discount_pct > 0
+            ? (flashFor === p.id
+              ? <form className="stack-form compact" onSubmit={(e) => { e.preventDefault(); flash.mutate({ product_id: p.id, flash_sale: true, ends_at: flashEnds ? new Date(flashEnds).toISOString() : null }); }}>
+                  <label>Ends at (optional)<input type="datetime-local" value={flashEnds} onChange={(e) => setFlashEnds(e.target.value)} /></label>
+                  <div className="form-row">
+                    <button type="submit" disabled={flash.isPending}>{flash.isPending ? "Adding…" : `Add to flash sale (−${p.discount_pct}%)`}</button>
+                    <button type="button" className="ghost" onClick={() => { setFlashFor(null); setFlashEnds(""); }}>Cancel</button>
+                  </div>
+                </form>
+              : <button onClick={() => { setFlashFor(p.id); setFlashEnds(""); }}>Add to flash sale…</button>)
+            : <span className="muted" title="Only discounted products can join the flash sale"><small>no discount</small></span>}
       </div>
     </article>)}</div>
     <FieldError error={toggle.error} />

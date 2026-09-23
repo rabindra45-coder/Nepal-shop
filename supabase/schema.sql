@@ -69,6 +69,13 @@ CREATE TABLE IF NOT EXISTS "products" (
   "updated_at" TIMESTAMPTZ NOT NULL
 );
 
+-- v15: product gender for the Gender filter (men/women/kids/unisex, NULL = not set)
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "gender" TEXT;
+-- v15: flash sale scheduling. flash_sale marks the product for the homepage
+-- flash-sale strip; flash_sale_ends_at (NULL = no end) bounds it.
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "flash_sale" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "flash_sale_ends_at" TIMESTAMPTZ;
+
 CREATE TABLE IF NOT EXISTS "product_images" (
   "id" SERIAL PRIMARY KEY NOT NULL,
   "product_id" INTEGER NOT NULL,

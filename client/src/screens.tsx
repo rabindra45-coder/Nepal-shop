@@ -5,7 +5,7 @@ import { api } from "./api";
 import { api2, fmtDate, money, placeOrder, MARKETPLACE_TAX_NOTE, type P2Address, type P2Product } from "./phase2api";
 import { useAuth, go } from "./session";
 import { useCart } from "./cart";
-import { EmptyBlock, Loading, PageError, ProductCard, ProductImage, Stars, getCompareIds, isCompared, toggleCompareId, useToast } from "./ui";
+import { CategoryCircle, EmptyBlock, Loading, PageError, ProductCard, ProductImage, SectionHead, Stars, formatSold, getCompareIds, isCompared, toggleCompareId, useToast } from "./ui";
 
 // --- shared bits ------------------------------------------------------------
 // Change-password form for buyers (api2.updateMyPassword) and sellers
@@ -179,19 +179,27 @@ function ProductGallery({ product }: { product: P2Product }) {
   );
 }
 
-function SectionRow({ title, badge, products, onOpen, onAdd }: { title: string; badge?: string; products: P2Product[]; onOpen: (p: P2Product) => void; onAdd: (p: P2Product) => void }) {
+// v15: modern section rail — heading with "view all", horizontal snap rail
+// of modern product cards.
+function SectionRow({ title, badge, products, onOpen, onAdd, viewAll, actionLabel }: {
+  title: string; badge?: string; products: P2Product[]; onOpen: (p: P2Product) => void; onAdd: (p: P2Product) => void; viewAll?: () => void; actionLabel?: string;
+}) {
   if (!products.length) return null;
   return (
-    <section className="home-section">
-      <div className="section-title"><h2>{title}{badge && <span className="ai-badge">{badge}</span>}</h2><button onClick={() => go("/shop")}>View all</button></div>
-      <div className="rail">{products.map((p) => (
-        <div className="rail-card" key={p.id}><ProductCard product={p} onOpen={() => onOpen(p)} onAdd={onAdd} /></div>
+    <section>
+      <SectionHead title={badge ? `${title} ${badge}` : title} actionLabel={actionLabel ?? (viewAll ? "View all" : undefined)} onAction={viewAll} />
+      <div className="m-rail">{products.map((p) => (
+        <ProductCard key={p.id} product={p} onOpen={() => onOpen(p)} onAdd={onAdd} />
       ))}</div>
     </section>
   );
 }
 
 // --- homepage ---------------------------------------------------------------
+// v15: modern marketplace homepage — search bar, category circles, admin
+// banners, flash-sale strip, category rails, Products For You, recently
+// viewed. The "FRESH MARKET / shelves are being arranged" placeholder is
+// gone: when there are no products the page says so honestly instead.
 export function Homepage() {
   const { auth } = useAuth();
   const { add, products } = useCart();
@@ -200,57 +208,152 @@ export function Homepage() {
   const open = (p: P2Product) => go(`/product/${p.id}`);
   const banners = home.data?.banners ?? [];
   const sections = home.data?.sections ?? [];
-  const categories = useMemo(() => [...new Set(products.map((p) => p.category))].sort(), [products]);
+  const catSections = home.data?.category_sections ?? [];
+  const flash = home.data?.flash_sales ?? [];
+
+  const counts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of products) m.set(p.category, (m.get(p.category) ?? 0) + 1);
+    return m;
+  }, [products]);
+
+  // "Products for you": real catalogue products ordered by real units sold,
+  // then discount — no invented rankings.
+  const forYou = useMemo(() => {
+    const seen = new Set<number>();
+    const all: P2Product[] = [];
+    for (const s of catSections) for (const p of s.products) {
+      if (!seen.has(p.id)) { seen.add(p.id); all.push(p); }
+    }
+    return all.sort((a, b) => (b.sold_count - a.sold_count) || (b.discount_pct - a.discount_pct)).slice(0, 8);
+  }, [home.data]);
+
+  const hasContent = banners.length > 0 || sections.length > 0 || catSections.length > 0 || flash.length > 0;
 
   return (
     <main>
-      {/* v12: the oversized hero and trust blocks are gone. The page opens
-          with the admin-managed banner board (v6 system), kept compact so the
-          first products are visible without scrolling. */}
-      {banners.length > 0 && (
-        <div className="home-banners" role="region" aria-label="Advertisements">
-          <div className="hero-track">
-            {banners.map((b, i) => (
-              <a key={i} className="hero-slide" href={b.link ?? "#/shop"}>
-                {b.image_url ? (
-                  <img src={b.image_url} alt={b.title} loading="lazy" />
-                ) : (
+      <div className="home-wrap">
+        {/* prominent search */}
+        <div className="home-search">
+          <button type="button" onClick={() => go("/search")} aria-label="Search products">
+            <span aria-hidden="true">🔍</span> Search for products, brands and more…
+          </button>
+        </div>
+
+        {/* category circles */}
+        {catSections.length > 0 && (
+          <nav className="cat-strip" aria-label="Shop by category">
+            {catSections.map((s) => (
+              <CategoryCircle key={s.name} name={s.name}
+                image={s.products[0]?.images?.[0] ?? s.products[0]?.image_url ?? null}
+                count={counts.get(s.name)}
+                onOpen={() => go(`/categories?category=${encodeURIComponent(s.name)}`)} />
+            ))}
+          </nav>
+        )}
+
+        {/* compact admin banners */}
+        {banners.length > 0 && (
+          <div className="home-banner-strip" role="region" aria-label="Advertisements">
+            {banners.slice(0, 3).map((b, i) => (
+              <a key={i} className="home-banner" href={b.link ?? "#/shop"}>
+                {b.image_url ? <img src={b.image_url} alt={b.title} loading="lazy" decoding="async" /> : (
                   <span className="hero-slide-fallback" aria-hidden="true" />
                 )}
-                <span className="hero-slide-copy">
-                  <span className="eyebrow">Advertisement</span>
-                  <strong>{b.title}</strong>
-                  {b.subtitle && <span className="hero-slide-sub">{b.subtitle}</span>}
-                </span>
               </a>
             ))}
           </div>
-        </div>
-      )}
+        )}
 
-      {categories.length > 1 && (
-        <nav className="category-list home-cats" aria-label="Shop by category">
-          {categories.map((c) => (
-            <button key={c} type="button" onClick={() => go(`/search?category=${encodeURIComponent(c)}`)}>{c}</button>
-          ))}
-        </nav>
-      )}
-
-      <div className="home-wrap">
         {home.isPending && <p className="muted">Opening the market…</p>}
         {home.error && <p className="form-error">The homepage could not load. The shop is still open — <button className="linklike" onClick={() => go("/shop")}>browse everything</button>.</p>}
-        {sections.map((s) => <SectionRow key={s.key} title={s.title} products={s.products} onOpen={open} onAdd={add} />)}
-        {!home.isPending && !home.error && sections.length === 0 && (
-          <EmptyBlock kicker="FRESH MARKET" title="The shelves are being arranged." body="Product sections appear here as sellers publish listings. Meanwhile you can browse the full catalogue." actionLabel="Browse the shop" onAction={() => go("/shop")} />
+
+        {/* flash sale */}
+        <FlashSaleStrip products={flash} onOpen={open} />
+
+        {/* admin-configured sections */}
+        {sections.map((s) => <SectionRow key={s.key} title={s.title} products={s.products} onOpen={open} onAdd={add} viewAll={() => go("/shop")} />)}
+
+        {/* category rails */}
+        {catSections.map((s) => (
+          <SectionRow key={`cat-${s.name}`} title={s.name} products={s.products} onOpen={open} onAdd={add}
+            viewAll={() => go(`/categories?category=${encodeURIComponent(s.name)}`)} actionLabel="View all" />
+        ))}
+
+        {/* products for you */}
+        {forYou.length > 0 && (
+          <section>
+            <SectionHead title="Products for you" actionLabel="View all" onAction={() => go("/shop")} />
+            <div className="m-grid">{forYou.map((p) => <ProductCard key={p.id} product={p} onOpen={() => open(p)} onAdd={add} />)}</div>
+          </section>
         )}
+
+        {/* recently viewed */}
         {auth?.type === "buyer" && (recent.data?.products?.length ?? 0) > 0 && (
           <SectionRow title="Recently viewed" products={recent.data!.products} onOpen={open} onAdd={add} />
         )}
-        <div className="home-cta">
-          <button className="primary" onClick={() => go("/shop")}>Browse the full catalogue</button>
-        </div>
+
+        {/* honest empty state — no fabricated "fresh market" placeholder */}
+        {!home.isPending && !home.error && !hasContent && (
+          <EmptyBlock kicker="NEW MARKETPLACE" title="No products yet." body="Sellers are still setting up their shops. Check back soon — or open your own shop and be the first on the shelves." actionLabel="Start selling" onAction={() => go("/sell")} />
+        )}
+
+        {hasContent && (
+          <div className="home-cta">
+            <button className="primary" onClick={() => go("/shop")}>Browse the full catalogue</button>
+          </div>
+        )}
       </div>
     </main>
+  );
+}
+
+// v15: flash-sale strip — real discounted products flagged by the admin, with
+// a countdown to the soonest end time and a real sold-progress bar.
+export function FlashSaleStrip({ products, onOpen }: { products: P2Product[]; onOpen: (p: P2Product) => void }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!products.length) return;
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [products.length]);
+  if (!products.length) return null;
+  const ends = products.map((p) => p.flash_sale_ends_at ? new Date(p.flash_sale_ends_at).getTime() : 0).filter(Boolean);
+  const nearest = ends.length ? Math.min(...ends) : 0;
+  const left = Math.max(0, nearest - now);
+  const hh = Math.floor(left / 3600000), mm = Math.floor((left % 3600000) / 60000), ss = Math.floor((left % 60000) / 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    <section className="flash-strip" aria-label="Flash sale">
+      <div className="flash-head">
+        <h2>⚡ Flash Sale</h2>
+        {nearest > now ? (
+          <span className="flash-timer" aria-label="Sale ends in">Ends in <b>{pad(hh)}</b>:<b>{pad(mm)}</b>:<b>{pad(ss)}</b></span>
+        ) : (
+          <span className="flash-timer">Limited time</span>
+        )}
+      </div>
+      <div className="flash-rail">
+        {products.map((p) => {
+          const soldPct = Math.min(100, Math.round((p.sold_count / Math.max(1, p.sold_count + p.stock)) * 100));
+          const img = p.images?.[0] ?? p.image_url ?? null;
+          return (
+            <button key={p.id} className="flash-card" onClick={() => onOpen(p)} aria-label={`Flash sale: ${p.name}`}>
+              <span className="m-card-img">
+                {img ? <img src={img} alt="" loading="lazy" decoding="async" /> : <span className="m-card-ph" aria-hidden="true">{p.name.slice(0, 2).toUpperCase()}</span>}
+                <span className="m-off">-{p.discount_pct}%</span>
+              </span>
+              <span className="m-card-body">
+                <span className="m-name">{p.name}</span>
+                <span className="m-price-row"><span className="m-price">{money(p.price_paisa)}</span></span>
+                <span className="sold-bar" aria-hidden="true"><i style={{ width: `${soldPct}%` }} /></span>
+                <span className="sold-lbl">{p.sold_count > 0 ? `${formatSold(p.sold_count)}` : "Be the first to grab it"}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -299,15 +402,22 @@ export function StorePage({ code }: { code: string }) {
 }
 
 // --- search ------------------------------------------------------------------
+// v15: modern search — big search field with suggestions, Meesho-style
+// sticky filter strip (Sort | Category | Gender | Filters) opening bottom
+// sheets, modern card grid, real result counts.
 type SortKey = "relevance" | "price_asc" | "price_desc" | "rating" | "newest" | "popularity" | "discount";
 const SORTS: { id: SortKey; label: string }[] = [
   { id: "relevance", label: "Most relevant" }, { id: "price_asc", label: "Price: low to high" },
   { id: "price_desc", label: "Price: high to low" }, { id: "rating", label: "Top rated" },
   { id: "newest", label: "Newest" }, { id: "popularity", label: "Most popular" }, { id: "discount", label: "Biggest discount" },
 ];
+const GENDERS: { id: string; label: string }[] = [
+  { id: "", label: "Everyone" }, { id: "women", label: "Women" }, { id: "men", label: "Men" },
+  { id: "kids", label: "Kids" }, { id: "unisex", label: "Unisex" },
+];
 const PAGE = 24;
 
-export function SearchPage({ initialQuery, initialCategory }: { initialQuery: string; initialCategory: string }) {
+export function SearchPage({ initialQuery, initialCategory, kicker, heading }: { initialQuery: string; initialCategory: string; kicker?: string; heading?: string }) {
   const { products } = useCart();
   const [q, setQ] = useState(initialQuery);
   const [committed, setCommitted] = useState(initialQuery);
@@ -319,9 +429,11 @@ export function SearchPage({ initialQuery, initialCategory }: { initialQuery: st
   const [inStock, setInStock] = useState(false);
   const [onSale, setOnSale] = useState(false);
   const [seller, setSeller] = useState("");
+  const [gender, setGender] = useState("");
   const [sort, setSort] = useState<SortKey>("relevance");
   const [page, setPage] = useState(0);
   const [showSug, setShowSug] = useState(false);
+  const [sheet, setSheet] = useState<null | "sort" | "category" | "gender" | "filters">(null);
   const boxRef = useRef<HTMLDivElement>(null);
 
   const categories = useMemo(() => [...new Set(products.map((p) => p.category))].sort(), [products]);
@@ -344,7 +456,7 @@ export function SearchPage({ initialQuery, initialCategory }: { initialQuery: st
     max_price_paisa: maxPrice ? Math.round(Number(maxPrice) * 100) : undefined,
     min_rating: Number(minRating) > 0 ? Number(minRating) : undefined,
     in_stock_only: inStock || undefined, on_sale_only: onSale || undefined,
-    seller_code: seller || undefined, sort,
+    seller_code: seller || undefined, gender: gender as "men" | "women" | "kids" | "unisex" | undefined || undefined, sort,
   };
   const search = useQuery({
     queryKey: ["search", committed, filters, page],
@@ -357,10 +469,17 @@ export function SearchPage({ initialQuery, initialCategory }: { initialQuery: st
     e?.preventDefault();
     setShowSug(false); setPage(0); setCommitted(q.trim());
   };
-  const activeFilters = [category, brand.trim(), minPrice, maxPrice, Number(minRating) > 0 ? `${minRating}★+` : "", inStock ? "In stock" : "", onSale ? "On sale" : "", seller].filter(Boolean).length;
+  const activeFilters = [category, brand.trim(), minPrice, maxPrice, Number(minRating) > 0 ? `${minRating}★+` : "", inStock ? "In stock" : "", onSale ? "On sale" : "", seller, gender].filter(Boolean).length;
+  const clearAll = () => {
+    setCategory(""); setBrand(""); setMinPrice(""); setMaxPrice(""); setMinRating("0");
+    setInStock(false); setOnSale(false); setSeller(""); setGender(""); setSort("relevance"); setPage(0);
+  };
+  const sortLabel = SORTS.find((s) => s.id === sort)?.label ?? "Sort";
+  const closeSheet = () => setSheet(null);
 
   return (
-    <main className="track-page wide-main"><section className="track-intro"><p className="eyebrow">Search the market</p><h1>Find it here.</h1></section>
+    <main className="track-page wide-main">
+      <section className="track-intro"><p className="eyebrow">{kicker ?? "Search the market"}</p><h1>{heading ?? "Find it here."}</h1></section>
       <form className="search-bar" onSubmit={submit}>
         <div className="suggest-box" ref={boxRef}>
           <input aria-label="Search products" value={q} onChange={(e) => { setQ(e.target.value); setShowSug(true); }} onFocus={() => setShowSug(true)} placeholder="Phone, pashmina, earbuds…" />
@@ -374,18 +493,65 @@ export function SearchPage({ initialQuery, initialCategory }: { initialQuery: st
         <button className="primary" type="submit">Search</button>
       </form>
 
-      <div className="filter-bar">
-        <label>Category <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(0); }}><option value="">All</option>{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
-        <label>Brand <input list="brand-list" value={brand} onChange={(e) => { setBrand(e.target.value); setPage(0); }} placeholder="Any brand" /><datalist id="brand-list">{brands.map((b) => <option key={b} value={b} />)}</datalist></label>
-        <label>Min Rs <input type="number" min={0} value={minPrice} onChange={(e) => { setMinPrice(e.target.value); setPage(0); }} /></label>
-        <label>Max Rs <input type="number" min={0} value={maxPrice} onChange={(e) => { setMaxPrice(e.target.value); setPage(0); }} /></label>
-        <label>Rating <select value={minRating} onChange={(e) => { setMinRating(e.target.value); setPage(0); }}><option value="0">Any</option><option value="3">3★+</option><option value="4">4★+</option><option value="4.5">4.5★+</option></select></label>
-        <label>Seller <select value={seller} onChange={(e) => { setSeller(e.target.value); setPage(0); }}><option value="">All sellers</option>{sellers.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label>
-        <label>Sort <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>{SORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
-        <label className="check"><input type="checkbox" checked={inStock} onChange={(e) => { setInStock(e.target.checked); setPage(0); }} /> In stock only</label>
-        <label className="check"><input type="checkbox" checked={onSale} onChange={(e) => { setOnSale(e.target.checked); setPage(0); }} /> On sale only</label>
-        {activeFilters > 0 && <button type="button" onClick={() => { setCategory(""); setBrand(""); setMinPrice(""); setMaxPrice(""); setMinRating("0"); setInStock(false); setOnSale(false); setSeller(""); setSort("relevance"); setPage(0); }}>Clear {activeFilters} filter{activeFilters === 1 ? "" : "s"}</button>}
+      {/* v15: Meesho-style sticky strip */}
+      <div className="filter-strip" role="toolbar" aria-label="Search filters">
+        <button type="button" className={`fbtn${sheet === "sort" ? " active" : ""}`} onClick={() => setSheet(sheet === "sort" ? null : "sort")}>⇅ {sortLabel}</button>
+        <button type="button" className={`fbtn${sheet === "category" ? " active" : ""}${category ? " active" : ""}`} onClick={() => setSheet(sheet === "category" ? null : "category")}>{category || "Category"}</button>
+        <button type="button" className={`fbtn${sheet === "gender" ? " active" : ""}${gender ? " active" : ""}`} onClick={() => setSheet(sheet === "gender" ? null : "gender")}>{GENDERS.find((g) => g.id === gender)?.label ?? "Gender"}</button>
+        <button type="button" className={`fbtn${sheet === "filters" ? " active" : ""}${activeFilters > 0 ? " active" : ""}`} onClick={() => setSheet(sheet === "filters" ? null : "filters")}>⧩ Filters{activeFilters > 0 ? ` (${activeFilters})` : ""}</button>
+        {activeFilters > 0 && <button type="button" className="fbtn" onClick={clearAll}>✕ Clear</button>}
       </div>
+
+      {sheet && <div className="fbackdrop" onClick={closeSheet} aria-hidden="true" />}
+      {sheet === "sort" && (
+        <div className="fsheet" role="dialog" aria-label="Sort results">
+          <h3>Sort by</h3>
+          {SORTS.map((s) => (
+            <div className="row" key={s.id}>
+              <span>{s.label}</span>
+              <input type="radio" name="sort" checked={sort === s.id} onChange={() => { setSort(s.id); closeSheet(); }} aria-label={s.label} />
+            </div>
+          ))}
+        </div>
+      )}
+      {sheet === "category" && (
+        <div className="fsheet" role="dialog" aria-label="Choose category">
+          <h3>Category</h3>
+          {[["", "All categories"] as [string, string], ...categories.map((c) => [c, c] as [string, string])].map(([id, label]) => (
+            <div className="row" key={id || "all"}>
+              <span>{label}</span>
+              <input type="radio" name="cat" checked={category === id} onChange={() => { setCategory(id); setPage(0); closeSheet(); }} aria-label={label} />
+            </div>
+          ))}
+        </div>
+      )}
+      {sheet === "gender" && (
+        <div className="fsheet" role="dialog" aria-label="Choose gender">
+          <h3>Gender</h3>
+          {GENDERS.map((g) => (
+            <div className="row" key={g.id || "all"}>
+              <span>{g.label}</span>
+              <input type="radio" name="gender" checked={gender === g.id} onChange={() => { setGender(g.id); setPage(0); closeSheet(); }} aria-label={g.label} />
+            </div>
+          ))}
+        </div>
+      )}
+      {sheet === "filters" && (
+        <div className="fsheet" role="dialog" aria-label="More filters">
+          <h3>Filters</h3>
+          <div className="row"><span>Brand</span><input list="brand-list" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Any brand" /><datalist id="brand-list">{brands.map((b) => <option key={b} value={b} />)}</datalist></div>
+          <div className="row"><span>Min Rs</span><input type="number" min={0} value={minPrice} onChange={(e) => setMinPrice(e.target.value)} /></div>
+          <div className="row"><span>Max Rs</span><input type="number" min={0} value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} /></div>
+          <div className="row"><span>Rating</span><select value={minRating} onChange={(e) => setMinRating(e.target.value)}><option value="0">Any</option><option value="3">3★+</option><option value="4">4★+</option><option value="4.5">4.5★+</option></select></div>
+          <div className="row"><span>Seller</span><select value={seller} onChange={(e) => setSeller(e.target.value)}><option value="">All sellers</option>{sellers.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></div>
+          <div className="row"><span>In stock only</span><input type="checkbox" checked={inStock} onChange={(e) => setInStock(e.target.checked)} aria-label="In stock only" /></div>
+          <div className="row"><span>On sale only</span><input type="checkbox" checked={onSale} onChange={(e) => setOnSale(e.target.checked)} aria-label="On sale only" /></div>
+          <div className="fsheet-actions">
+            <button type="button" className="ghost" onClick={() => { clearAll(); closeSheet(); }}>Clear all</button>
+            <button type="button" className="primary" onClick={() => { setPage(0); closeSheet(); }}>Apply</button>
+          </div>
+        </div>
+      )}
 
       {search.isPending ? <p className="muted">Searching…</p> :
         search.error ? <p className="form-error">Search failed. Please try again.</p> :
@@ -394,7 +560,7 @@ export function SearchPage({ initialQuery, initialCategory }: { initialQuery: st
             {results.length === 0 ? (
               <EmptyBlock kicker="NO MATCHES" title="Nothing found." body="Try a different spelling, a shorter word, or clear the filters — every token is matched against names, brands and categories." />
             ) : (
-              <div className="product-grid">{results.map((p) => <SearchCard key={p.id} product={p} />)}</div>
+              <div className="m-grid">{results.map((p) => <SearchCard key={p.id} product={p} />)}</div>
             )}
             {total > (page + 1) * PAGE && <button className="primary more" onClick={() => setPage((n) => n + 1)}>Show more ({total - (page + 1) * PAGE} left)</button>}
           </>}
@@ -405,6 +571,44 @@ export function SearchPage({ initialQuery, initialCategory }: { initialQuery: st
 function SearchCard({ product }: { product: P2Product }) {
   const { add } = useCart();
   return <ProductCard product={product} onOpen={() => go(`/product/${product.id}`)} onAdd={add} showSeller />;
+}
+
+// --- v15: dedicated category browsing ---------------------------------------
+// Sidebar of real categories (with live product counts) plus a product grid
+// for the selected category. `/categories?category=X` deep-links a category.
+export function CategoriesPage({ initialCategory }: { initialCategory: string }) {
+  const { products } = useCart();
+  const { add } = useCart();
+  const cats = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of products) m.set(p.category, (m.get(p.category) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [products]);
+  const [cat, setCat] = useState(initialCategory);
+  useEffect(() => { setCat(initialCategory); }, [initialCategory]);
+  const active = cat || cats[0]?.[0] || "";
+  const list = useMemo(() => products.filter((p) => p.category === active), [products, active]);
+
+  return (
+    <main className="cats-page">
+      <nav className="cats-side" aria-label="Categories">
+        {cats.map(([name, count]) => (
+          <button key={name} type="button" className={name === active ? "active" : ""} onClick={() => setCat(name)}>
+            {name} <span className="muted">({count})</span>
+          </button>
+        ))}
+        {cats.length === 0 && <p className="muted">No categories yet.</p>}
+      </nav>
+      <div className="cats-main">
+        <SectionHead title={active || "Categories"} />
+        {list.length === 0 ? (
+          <EmptyBlock kicker="EMPTY CATEGORY" title="Nothing here yet." body="No approved products in this category right now — try another one." actionLabel="Browse everything" onAction={() => go("/shop")} />
+        ) : (
+          <div className="m-grid">{list.map((p) => <ProductCard key={p.id} product={p} onOpen={() => go(`/product/${p.id}`)} onAdd={add} />)}</div>
+        )}
+      </div>
+    </main>
+  );
 }
 
 // --- product detail ----------------------------------------------------------
@@ -502,8 +706,12 @@ export function ProductPage({ id }: { id: number }) {
           <h1>{p.name}</h1>
           <Stars rating={p.rating} count={p.review_count} />
           <div className="pd-price">
-            <strong>{money(unitPrice)}</strong>
-            {p.original_price_paisa && p.original_price_paisa > p.price_paisa && !variant && <s className="was">{money(p.original_price_paisa)}</s>}
+            {/* v15: discount badge + real units sold next to the price */}
+            <strong className="pp-price">{money(unitPrice)}</strong>
+            {p.original_price_paisa && p.original_price_paisa > p.price_paisa && !variant && (
+              <><s className="was">{money(p.original_price_paisa)}</s> <span className="pp-off">-{p.discount_pct}%</span></>
+            )}
+            {p.sold_count > 0 && <span className="pp-sold">{formatSold(p.sold_count)}</span>}
           </div>
           <p className="muted tax-note">{MARKETPLACE_TAX_NOTE}</p>
           {variants.length > 0 && (
@@ -585,10 +793,23 @@ export function ProductPage({ id }: { id: number }) {
 
 // --- cart --------------------------------------------------------------------
 export function CartPage() {
-  const { lines, count, subtotal, setQty, remove, cartError, dismissCartError } = useCart();
+  const { lines, count, subtotal, setQty, remove, cartError, dismissCartError, add, products } = useCart();
   const { auth } = useAuth();
   if (lines.length === 0) {
-    return <main className="track-page"><EmptyBlock kicker="BASKET EMPTY" title="Your basket is empty." body="Fill it with something local — verified sellers, honest prices, cash on delivery." actionLabel="Browse the shop" onAction={() => go("/shop")} /></main>;
+    // v15: an empty basket shows "Just for you" — real trending products
+    // (by real units sold), never invented.
+    const picks = [...products].sort((a, b) => b.sold_count - a.sold_count).slice(0, 8);
+    return (
+      <main className="track-page">
+        <EmptyBlock kicker="BASKET EMPTY" title="Your basket is empty." body="Fill it with something local — verified sellers, honest prices, cash on delivery." actionLabel="Browse the shop" onAction={() => go("/shop")} />
+        {picks.length > 0 && (
+          <section>
+            <SectionHead title="Just for you" actionLabel="View all" onAction={() => go("/shop")} />
+            <div className="m-grid">{picks.map((p) => <ProductCard key={p.id} product={p} onOpen={() => go(`/product/${p.id}`)} onAdd={add} />)}</div>
+          </section>
+        )}
+      </main>
+    );
   }
   const delivery = lines.reduce((s, l) => s + l.product.delivery_fee_paisa * l.quantity, 0);
   return (

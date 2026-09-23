@@ -85,7 +85,7 @@ export function ProductImageUploader({ productId, callArgs }: { productId: numbe
           ))}
           {slotsLeft > 0 && (
             <label className="up-add">
-              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple className="sr-only" disabled={busy}
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden disabled={busy}
                 onChange={(e) => { void onFiles(e.target.files); e.target.value = ""; }} />
               <span aria-hidden="true">+</span>
               <small>{busy ? "Uploading…" : "Add photos"}</small>
@@ -394,7 +394,7 @@ export function StockHistory({ callArgs }: { callArgs: SellerArgs }) {
 // shows a hint until the product is published. Product photos are real file
 // uploads only — there is no image-URL field.
 export function ProductExtraFields({ editing, productId, callArgs }: {
-  editing: { brand?: string | null; original_price_paisa?: number | null; low_stock_threshold?: number; sku?: string | null } | null;
+  editing: { brand?: string | null; original_price_paisa?: number | null; low_stock_threshold?: number; sku?: string | null; gender?: string | null } | null;
   productId?: number;
   callArgs?: SellerArgs;
 }) {
@@ -405,7 +405,19 @@ export function ProductExtraFields({ editing, productId, callArgs }: {
         <label>Original price, rupees (for discounts)<input name="original_price" type="number" min="0.01" step="0.01" defaultValue={editing?.original_price_paisa ? editing.original_price_paisa / 100 : ""} placeholder="Leave empty for no discount" /></label>
       </div>
       <div className="form-pair">
+        <label>Audience
+          <select name="gender" defaultValue={editing?.gender ?? ""}>
+            <option value="">No specific audience</option>
+            <option value="men">Men</option>
+            <option value="women">Women</option>
+            <option value="kids">Kids</option>
+            <option value="unisex">Unisex</option>
+          </select>
+          <small>Buyers can filter by Men, Women, Kids or Unisex.</small>
+        </label>
         <label>SKU (optional)<input name="sku" defaultValue={editing?.sku ?? ""} maxLength={40} placeholder="e.g. KURTHA-RED-M" /><small>Unique within your shop.</small></label>
+      </div>
+      <div className="form-pair">
         <label>Low-stock alert at<input name="low_stock_threshold" type="number" min="0" defaultValue={editing?.low_stock_threshold ?? 5} /><small>Buyers see “Only X left” at or below this number.</small></label>
       </div>
       {productId != null && callArgs ? (
@@ -430,7 +442,9 @@ export function productExtraPayload(d: FormData) {
   const original_price_paisa = num(d.get("original_price"));
   const low_stock_threshold = int(d.get("low_stock_threshold"));
   const sku = String(d.get("sku") ?? "").trim() || undefined;
-  return { brand, original_price_paisa, low_stock_threshold, sku };
+  const genderRaw = String(d.get("gender") ?? "").trim();
+  const gender = (["men", "women", "kids", "unisex"] as const).includes(genderRaw as never) ? (genderRaw as "men" | "women" | "kids" | "unisex") : undefined;
+  return { brand, original_price_paisa, low_stock_threshold, sku, gender };
 }
 
 // --- store logo / banner uploader (studio settings) --------------------------
@@ -488,7 +502,7 @@ export function StoreAssetUploader({ kind, currentUrl, callArgs, onSaved }: {
           </div>
         )}
         <label className="up-add">
-          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" disabled={busy}
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden disabled={busy}
             onChange={(e) => { void onFiles(e.target.files); e.target.value = ""; }} />
           <span aria-hidden="true">+</span>
           <small>{busy ? "Uploading…" : currentUrl ? `Replace ${kind}` : `Add ${kind}`}</small>

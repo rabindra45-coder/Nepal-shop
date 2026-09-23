@@ -42,6 +42,9 @@ export const productPublicSchema = z.object({
   images: z.array(z.string()),
   // seller checkpoint: optional stock-keeping unit, unique within the store
   sku: z.string().nullable(),
+  // v15: real units sold (non-cancelled orders), gender filter, flash sale
+  sold_count: z.number(), gender: z.string().nullable(),
+  flash_sale: z.boolean(), flash_sale_ends_at: z.string().nullable(),
 });
 export type P2Product = z.infer<typeof productPublicSchema>;
 
@@ -352,6 +355,7 @@ const p2Actions = {
       min_price_paisa: z.number().optional(), max_price_paisa: z.number().optional(),
       min_rating: z.number().optional(), in_stock_only: z.boolean().optional(),
       on_sale_only: z.boolean().optional(), seller_code: z.string().optional(),
+      gender: z.enum(["men", "women", "kids", "unisex"]).optional(),
       sort: z.enum(["relevance", "price_asc", "price_desc", "rating", "newest", "popularity", "discount"]).optional(),
       limit: z.number().optional(), offset: z.number().optional(),
     }),
@@ -371,6 +375,9 @@ const p2Actions = {
       banners: z.array(z.object({ title: z.string(), subtitle: z.string().nullable(), link: z.string().nullable(), image_url: z.string().nullable() })),
       sections: z.array(z.object({ key: z.string(), title: z.string(), products: z.array(productPublicSchema) })),
       site_logo_url: z.string().nullable(),
+      // v15: category rails + active flash sales (real data only)
+      category_sections: z.array(z.object({ name: z.string(), products: z.array(productPublicSchema) })),
+      flash_sales: z.array(productPublicSchema),
     }),
   },
 

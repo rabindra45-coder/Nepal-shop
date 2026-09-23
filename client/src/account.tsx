@@ -252,23 +252,30 @@ function AccountHead({ avatarUrl, name }: { avatarUrl: string | null; name: stri
   };
   const initial = name.trim().charAt(0).toUpperCase() || "•";
   return (
-    <section className="account-head" aria-label="Your profile">
+    <section className="acct-hero" aria-label="Your profile">
       {avatarUrl
         ? <img className="avatar avatar-lg" src={avatarUrl} alt="Your profile photo" />
         : <span className="avatar avatar-lg avatar-fallback" aria-hidden="true">{initial}</span>}
       <div className="account-head-copy">
-        <p className="eyebrow">Signed in as {name}</p>
-        <h1>My account.</h1>
+        <p className="eyebrow">My account</p>
+        <h1>Hi, {name}.</h1>
         <button type="button" className="ghost photo-btn" disabled={upload.isPending} onClick={() => fileRef.current?.click()}>
           {upload.isPending ? "Uploading…" : "Upload profile photo"}
         </button>
-        <input ref={fileRef} type="file" accept="image/*" onChange={onFile} disabled={upload.isPending} className="sr-only" aria-label="Upload profile photo" />
+        <input ref={fileRef} type="file" accept="image/*" onChange={onFile} disabled={upload.isPending} hidden aria-hidden="true" tabIndex={-1} />
         {upload.isPending && <p className="muted"><small>Uploading your photo…</small></p>}
         {error && <p className="form-error" role="alert">{error}</p>}
       </div>
     </section>
   );
 }
+
+// v15: Daraz-style account shortcuts — quick tiles plus a full menu list of
+// sections, keeping the existing section system underneath.
+const SECTION_ICONS: Record<AccountSection, string> = {
+  orders: "📦", addresses: "📍", wishlist: "❤️", notifications: "🔔",
+  tickets: "🎧", basket: "🧺", prefs: "✉️", password: "🔒", data: "🗂",
+};
 
 export function AccountShell({ initial }: { initial: AccountSection }) {
   const { auth, signOut } = useAuth();
@@ -321,6 +328,28 @@ export function AccountShell({ initial }: { initial: AccountSection }) {
         </aside>
         <div className="account-panel">
           <AccountHead avatarUrl={avatarUrl} name={auth.name} />
+          {/* v15: quick tiles */}
+          <div className="acct-row" aria-label="Quick shortcuts">
+            <button type="button" className="acct-tile" onClick={() => pick("orders")}><span className="ico" aria-hidden="true">📦</span>My orders</button>
+            <button type="button" className="acct-tile" onClick={() => pick("wishlist")}><span className="ico" aria-hidden="true">❤️</span>Wishlist{wish.data ? ` (${wish.data.items.length})` : ""}</button>
+            <button type="button" className="acct-tile" onClick={() => go("/track")}><span className="ico" aria-hidden="true">🚚</span>Track order</button>
+            <button type="button" className="acct-tile" onClick={() => pick("addresses")}><span className="ico" aria-hidden="true">📍</span>Addresses</button>
+          </div>
+          {/* v15: menu list of all sections */}
+          <nav className="acct-menu" aria-label="Account menu">
+            {ACCOUNT_SECTIONS.map((s) => (
+              <button key={s.id} type="button" onClick={() => pick(s.id)} aria-current={section === s.id ? "page" : undefined}>
+                <span className="ico" aria-hidden="true">{SECTION_ICONS[s.id]}</span>
+                <span>{labelFor(s.id)}<br /><small className="muted">{s.desc}</small></span>
+                <span className="chev" aria-hidden="true">›</span>
+              </button>
+            ))}
+            <button type="button" onClick={() => { setMenuOpen(false); go("/"); }}>
+              <span className="ico" aria-hidden="true">🏠</span>
+              <span>Return to home<br /><small className="muted">Back to the storefront</small></span>
+              <span className="chev" aria-hidden="true">›</span>
+            </button>
+          </nav>
           {section === "orders" && <MyOrdersContent />}
           {section === "addresses" && <AddressesContent />}
           {section === "wishlist" && <WishlistPage />}
